@@ -1,0 +1,17 @@
+baseURL = 'https://thunderseethe.dev/'
+languageCode = 'en-us'
+title = "thunderseethe's blog"
+theme = "hugo-coder"
+ 
+[markup.highlight]
+style = "github-dark"
+
+[params]
+colorScheme = "dark"
+hideColorSchemeToggle = false
+
+[[menu.main]]
+  name = "Blog"
+  weight = 1
+  url  = "posts/"
+
