@@ -39,14 +39,15 @@ We'll build our language in Rust. We might consider a GC'd language such as OCam
 The whole point of parsing is to convert a text file into an AST. Since we're skipping over parsing, we'll start with an AST already constructed. Our language is new, so we'll start small and add more fancy AST nodes incrementally. Our initial AST will have just 4 nodes: variables, integer literals, function literals, and function application.
 ```rs
 enum Expr<V> {
-    /// A local variable
-    Var(V),
-    /// An integer literal
-    Int(isize),
-    /// A function literal (lambda, closure, etc.)
-    Fun(V, Box<Self>),
-    /// Function application
-    App(Box<Self>, Box<Self>), 
+  /// A local variable
+  Var(V),
+  /// An integer literal
+  Int(isize),
+  /// A function literal 
+  /// (lambda, closure, etc.)
+  Fun(V, Box<Self>),
+  /// Function application
+  App(Box<Self>, Box<Self>), 
 }
 ```
 It doesn't get much simpler than this. This isn't really enough for a usable language, although it is Turing complete. For our purposes, it's plenty to get a minimal type inference system setup. We parameterize our AST by a type parameter `V`. `V` will be the variable type for our AST used in `Var` and `Fun`. Initially our AST variable type parameter will be:
@@ -60,13 +61,23 @@ struct TypedVar(Var, Type);
 Rust requires a layer of indirection for recursive types. Boxing values will make our code samples pretty noisy, let's define some helper methods to hide that noise:
 ```rs
 impl<V> Expr<V> {
-    fn fun(arg: V, body: Self) -> Self {
-        Self::Fun(arg, Box::new(body))
-    }
+  fn fun(
+    arg: V, 
+    body: Self
+  ) -> Self {
+    Self::Fun(
+      arg, 
+      Box::new(body))
+  }
 
-    fn app(fun: Self, arg: Self) -> Self {
-        Self::App(Box::new(fun), Box::new(arg))
-    }
+  fn app(
+    fun: Self, 
+    arg: Self
+  ) -> Self {
+    Self::App(
+      Box::new(fun), 
+      Box::new(arg))
+  }
 }
 ```
 
@@ -82,20 +93,25 @@ So we have two values we can produce from our `AST`, `Int`, and `Fun`. We'll nee
 ```rs
 struct TypeVar(u32);
 enum Type {
-    // A type variable
-    Var(TypeVar),
-    // Type of integers
-    Int,
-    // Type of functions
-    Fun(Box<Self>, Box<Self>),
+  // A type variable
+  Var(TypeVar),
+  // Type of integers
+  Int,
+  // Type of functions
+  Fun(Box<Self>, Box<Self>),
 }
 ```
 Similar to `Var`, our `TypeVar` is just a number under the hood. Our `Type` is a recursive tree, same as `Expr`, so we have to box our nodes. We'll introduce similar helper methods to alleviate the boxing:
 ```rs
 impl Type {
-    fn fun(arg: Self, ret: Self) -> Self {
-        Self::Fun(Box::new(arg), Box::new(ret))
-    }
+  fn fun(
+    arg: Self, 
+    ret: Self
+  ) -> Self {
+    Self::Fun(
+      Box::new(arg), 
+      Box::new(ret))
+  }
 }
 ```
 
@@ -111,7 +127,7 @@ This split into constraint generation followed by constraint solving offers some
 Our two passes will need to share some state between each other. We'll introduce a `TypeInference` struct to hold the shared state and implement our passes as methods on that struct:
 ```rs
 struct TypeInference  {
-    unification_table: InPlaceUnificationTable<TypeVar>,
+  unification_table: InPlaceUnificationTable<TypeVar>,
 }
 ```
 We'll talk more about `unification_table` when we talk about constraint solving. For now, it's enough to think of it as a mapping from type variables to type, and we'll use it in constraint generation to generate new type variables and keep track of them for later.
@@ -124,7 +140,7 @@ In recent years, a new approach to type checking called Bidirectional Type Check
 Now that we know how we'll be traversing our AST to collect constraints, let's talk about what our constraints will actually look like. For our first Minimum Viable Product (MVP) of type inference, `Constraint` will just be type equality:
 ```rs
 enum Constraint {
-    TypeEqual(Type, Type)
+  TypeEqual(Type, Type)
 }
 ```
 We'll talk more about what it means for two types to be equal during constraint solving. For now, it suffices to produce a set of type equalities as a result of our constraint generation.
@@ -132,19 +148,20 @@ We'll talk more about what it means for two types to be equal during constraint 
 Constraint generation will be implemented on our `TypeInference` struct with 3 methods:
 ```rs
 impl TypeInference {
-    fn fresh_ty_var(&mut self) -> TypeVar { ... }
+  fn fresh_ty_var(&mut self) 
+    -> TypeVar { ... }
 
-    fn infer(
-        &mut self, 
-        env: &mut HashMap<Var, Type>, 
-        ast: Expr<Var>
-    ) -> (GenOut, Type) { ... }
+  fn infer(
+    &mut self, 
+    env: &mut HashMap<Var, Type>, 
+    ast: Expr<Var>
+  ) -> (GenOut, Type) { ... }
 
-    fn check(
-        &mut self, 
-        env: &mut HashMap<Var, Type>, 
-        ast: Expr<Var>, ty: Type
-    ) -> GenOut { .. }
+  fn check(
+    &mut self, 
+    env: &mut HashMap<Var, Type>, 
+    ast: Expr<Var>, ty: Type
+  ) -> GenOut { .. }
 }
 ```
 `fresh_ty_var` is a helper method we're going to brush past for now as well. (We'll have a lot to cover in constraint solving!) It uses our `unification_table` to produce a unique type variable every time we call it. Past that, we can see some parallels between our `infer` and `check` method that exemplify each mode. `infer` takes an AST node and returns a type, whereas `check` takes both an AST node and a type as parameters. This is because `infer` is working bottom-up and `check` is working top-down.
@@ -152,8 +169,8 @@ impl TypeInference {
 Let's take a second to look at `env` and `GenOut`. Both `infer` and `check` take an `env` parameter. This is used to track the type of AST variables in their current scope. `infer` and `check` both also return a `GenOut`. This is a pair of our set of constraints and our typed AST:
 ```rs
 struct GenOut {
-    constraints: Vec<Constraint>,
-    typed_ast: Expr<TypedVar>,
+  constraints: Vec<Constraint>,
+  typed_ast: Expr<TypedVar>,
 }
 ```
 One final thing to note, we have no way to return an error from `infer` or `check`. We could of course panic, but for the sake of our future selves, we'll return errors with `Result` where relevant. It just so happens it's not relevant for constraint generation. Our output is a set of constraints. It's perfectly valid for us to return a set of constraints that contradict each other. We'll discover the contradiction and produce a type error when we try to solve our constraints. That means there aren't error cases during constraint generation. Neat! 
@@ -161,74 +178,82 @@ One final thing to note, we have no way to return an error from `infer` or `chec
 With that out of the way, we can dive into our implementation of `infer` and `check`. We'll cover `infer` first. Because our AST begins untyped, we'll always call `infer` first in our type inference, so it is a natural starting point. `infer` is just a match on our input `ast`:
 ```rs
 fn infer(
-    &mut self, 
-    env: &mut HashMap<Var, Type>, 
-    ast: Expr<Var>
+  &mut self, 
+  env: &mut HashMap<Var, Type>, 
+  ast: Expr<Var>
 ) -> (GenOut, Type) {
-    match ast {
-        Expr::Int(i) => todo!(),
-        Expr::Var(v) => todo!(),
-        Expr::Fun(arg, body) => todo!(),
-        Expr::App(fun, arg) => todo!(),
-    }
+  match ast {
+    Expr::Int(i) => todo!(),
+    Expr::Var(v) => todo!(),
+    Expr::Fun(arg, body) => todo!(),
+    Expr::App(fun, arg) => todo!(),
+  }
 }
 ```
 We'll talk about each case individually, let's start with an easy one to get our feet wet:
 ```rs
-Expr::Int(i) => (GenOut::new(vec![], Expr::Int(i)), Type::Int),
+Expr::Int(i) => (
+  GenOut::new(
+    vec![],
+    Expr::Int(i)
+  ), 
+  Type::Int
+),
 ```
 When we see an integer literal, we know immediately that its type is `Int`. We don't need any constraints to be true for this to hold, so we return an empty `Vec`.
 ```rs
 Expr::Var(v) => {
-    let ty = &env[&v];
-    (
-        GenOut::new(
-            vec![], 
-            Expr::Var(TypedVar(v, ty.clone()))
-        ),
-        ty.clone(),
-    )
+  let ty = &env[&v];
+  let typed_var = 
+    TypedVar(v, ty.clone());
+  (
+    GenOut::new(
+      vec![], 
+      Expr::Var(typed_var)
+    ),
+    ty.clone(),
+  )
 },
 ```
 When we encounter a variable, we have to do a lookup of it's type in our `env` and return it. Our env lookup might fail though. What happens if we ask for a variable we don't have an entry for? That means we have an undefined variable, and we'll `panic!`. That's fine for our purposes; we expect to have done some form of name resolution prior to type inference. If we encounter an undefined variable, we should've already exited with an error during name resolution. Past that, our `Var` case looks very similar to our `Int` case. We have no constraints to generate and immediately return the type we look up. Note that in the typed AST we return `TypedVar` with our new `ty` instead of `Var`.
 ```rs
 Expr::Fun(arg, body) => {
-    let arg_ty_var = self.fresh_ty_var();
-    let env = env.update(arg, Type::Var(arg_ty_var));
-    let (body_out, body_ty) = self.infer(env, *body);
-    (
-        GenOut {
-            typed_ast: Expr::fun(
-                TypedVar(arg, Type::Var(arg_ty_var)),
-                body_out.typed_ast,
-            ),
-            ..body_out
-        },
-        Type::fun(Type::Var(arg_ty_var), body_ty),
-    )
+  let arg_ty_var = self.fresh_ty_var();
+  let env = env.update(arg, Type::Var(arg_ty_var));
+  let (body_out, body_ty) = self.infer(env, *body);
+  (
+    GenOut {
+      typed_ast: Expr::fun(
+        TypedVar(arg, Type::Var(arg_ty_var)),
+        body_out.typed_ast,
+      ),
+      ..body_out
+    },
+    Type::fun(Type::Var(arg_ty_var), body_ty),
+  )
 }
 ```
 `Fun` is where we actually start doing some nontrivial inference. We'll create a fresh type variable and record it as the type of `arg` in our `env`. With our fresh type variable in scope, we'll infer a type for `body`. We then use our inferred body type to construct the function type for our `Fun` node. While `Fun` itself doesn't produce any constraints, it does pass on any constraints that `body` generated.
 ```rs
 Expr::App(fun, arg) => {
-    let (arg_out, arg_ty) = self.infer(env.clone(), *arg);
+  let (arg_out, arg_ty) = self.infer(env.clone(), *arg);
 
-    let ret_ty = Type::Var(self.fresh_ty_var());
-    let fun_ty = Type::fun(arg_ty, ret_ty.clone());
+  let ret_ty = Type::Var(self.fresh_ty_var());
+  let fun_ty = Type::fun(arg_ty, ret_ty.clone());
 
-    let fun_out = self.check(env, *fun, fun_ty);
+  let fun_out = self.check(env, *fun, fun_ty);
 
-    (
-        GenOut::new(
-            arg_out
-                .constraints
-                .into_iter()
-                .chain(fun_out.constraints.into_iter())
-                .collect(),
-            Expr::app(fun_out.typed_ast, arg_out.typed_ast),
-        ),
-        ret_ty,
-    )
+  (
+    GenOut::new(
+      arg_out
+        .constraints
+        .into_iter()
+        .chain(fun_out.constraints.into_iter())
+        .collect(),
+      Expr::app(fun_out.typed_ast, arg_out.typed_ast),
+    ),
+    ret_ty,
+  )
 }
 ```
 `App` is more nuanced than our previous cases. We infer the type of our `arg` and use that to construct a function type with a fresh type variable as our return type. We use this function type to check our `fun` node is a function type as well. Our final type for our `App` node is our fresh return type, and we combine the constraints from `fun` and `arg` to produce our final constraint set.
@@ -249,30 +274,38 @@ We have to create an extra type variable and an extra constraint compared to inf
 
 That covers all of our inference cases, completing our bottom-up traversal. Next let's talk about its sibling `check`. Unlike `infer`, `check` does not cover every AST case explicitly. Because we are checking our AST against a known type, we only match on cases we know will check and rely on a catch-all bucket case to handle everything else. We're still working case by case though, so at a high level our check looks very similar to `infer`:
 ```rs
-fn check(&mut self, ast: Expr<Var>, ty: Type) -> GenOut {
-    match (ast, ty) {
-        ...
-    }
+fn check(
+  &mut self, 
+  ast: Expr<Var>, 
+  ty: Type
+) -> GenOut {
+  match (ast, ty) {
+    // ...
+  }
 }
 ```
 Notice we match on both our AST and type at once, so we can select just the cases we care about. Let's look at our cases:
 ```rs
-(Expr::Int(i), Type::Int) => GenOut::new(vec![], Expr::Int(i)),
+(Expr::Int(i), Type::Int) => 
+  GenOut::new(
+    vec![], 
+    Expr::Int(i)
+  ),
 ```
 An integer literal trivially checks against the integer type. This case might appear superfluous; couldn't we just let it be caught by the bucket case? Of course, we could, but this explicit case allows us to avoid type variables and avoid constraints.
 ```rs
 (Expr::Fun(arg, body), Type::Fun(arg_ty, ret_ty)) => {
-    let env = env.update(arg, *arg_ty);
-    self.check(env, *body, *ret_ty)
+  let env = env.update(arg, *arg_ty);
+  self.check(env, *body, *ret_ty)
 }
 ```
 Our `Fun` case is also straightforward. We decompose our `Type::Fun` into it's argument and return type. Record our `arg` has `arg_ty` in our `env`, and then check that `body` has `ret_ty` in our updated `env`. It almost mirrors our `infer`'s `Fun` case, but instead of bubbling a type up, we're pushing a type down.
 ```rs
 (ast, expected_ty) => {
-    let (mut out, actual_ty) = self.infer(ast);
-    out.constraints
-        .push(Constraint::TypeEqual(expected_ty, actual_ty));
-    out
+  let (mut out, actual_ty) = self.infer(ast);
+  out.constraints
+    .push(Constraint::TypeEqual(expected_ty, actual_ty));
+  out
 }
 ```
 Finally, we have our catch-all case. At first this might seem a little too easy. If we encounter an unknown pair, we just infer a type for our AST and add a constraint saying that type has to be equal to the type we're checking against. If we think about this, it makes some sense though. In the unlikely case that neither of our types are variables (`(Int, Fun)` or `(Fun, Int)`), we will produce a type error when we try to solve our constraint. In the case that one of our types is a variable, we've now recorded the contextual info necessary about that variable by adding a constraint. We can rely on constraint solving to propagate that info to wherever it's needed. 
@@ -297,11 +330,11 @@ The secret to speeding up our unification lies in how we store our type substitu
 It is not immediately apparent how these two operations will let us implement a type substitution. To see how we'll implement our type substitution with union-find, let's revisit some code we brushed over in constraint generation: `unification_table` and `fresh_ty_var`:
 ```rs
 struct TypeInference {
-    unification_table: InPlaceUnificationTable<TypeVar>,
+  unification_table: InPlaceUnificationTable<TypeVar>,
 }
 
 fn fresh_ty_var(&mut self) -> TypeVar {
-    self.unification_table.new_key(None)
+  self.unification_table.new_key(None)
 }
 ```
 `unification_table` makes more sense now that we have some context, it's our union-find data structure we'll use to do unification. Whenever we call `fresh_ty_var` it's creating a new key in our union-find under the hood. This initializes a new set in the union-find and set its representative to itself.
@@ -330,22 +363,22 @@ Not a lot to see yet, for each constraint we call `unify_ty_ty` to check the typ
 Cool, so what does `unify_ty_ty` look like?
 ```rs
 fn unify_ty_ty(
-    &mut self, 
-    unnorm_left: Type, 
-    unnorm_right: Type
+  &mut self, 
+  unnorm_left: Type, 
+  unnorm_right: Type
 ) -> Result<(), TypeError> {
-    let left = self.normalize_ty(unnorm_left);
-    let right = self.normalize_ty(unnorm_right);
-    match (left, right) {
-        ...
-    }
+  let left = self.normalize_ty(unnorm_left);
+  let right = self.normalize_ty(unnorm_right);
+  match (left, right) {
+    // ...
+  }
 }
 ```
 Oh it's gonna be a big match statement, neat we've seen those before. But what's that bit at the top there about `normalize_ty`. We're building up a type substitution as we unify, assigning types to type variables. When we assign a type to a type variable, when we later encounter that type variable we don't want to reunify it. What we want is to first substitute it, and then unify the type we assigned it. This ensures that our type variable is only assigned one type and that type is equal to all the other types our type variable could be assigned. So before we unify a type we first apply all possible substitutions to the type.
 ```rs
 fn normalize_ty(
-    &mut self, 
-    ty: Type
+  &mut self, 
+  ty: Type
 ) -> Type {
   match ty {
     Type::Int => Type::Int,
@@ -370,16 +403,16 @@ Great now that we've removed all the type variables we can with normalization we
 As is tradition by now, we'll start with our `Int` case. Two `Int` types are trivially equal, we immediately return.
 ```rs
 (Type::Fun(a_arg, a_ret), Type::Fun(b_arg, b_ret)) => {
-    self.unify_ty_ty(*a_arg, *b_arg)?;
-    self.unify_ty_ty(*a_ret, *b_ret)
+  self.unify_ty_ty(*a_arg, *b_arg)?;
+  self.unify_ty_ty(*a_ret, *b_ret)
 }
 ```
 Two function types are equal if their argument and return types are equal. All we have to do to check that is unify the argument types and unify the return types.
 ```rs
 (Type::Var(a), Type::Var(b)) => {
-    self.unification_table
-        .unify_var_var(a, b)
-        .map_err(|(l, r)| TypeError::TypeNotEqual(l, r))
+  self.unification_table
+    .unify_var_var(a, b)
+    .map_err(|(l, r)| TypeError::TypeNotEqual(l, r))
 }
 ```
 Here's our first case where we add to our type substitution. Two type variables are equal if we can union their sets in our union-find. If our type variables each already map to a type, and those types aren't equal, we fail to union the sets. This is type error and we return early. Otherwise, we arbitrarily pick one of the representative types to be the representative for the new set, it doesn't matter which since they're equal.
@@ -424,8 +457,8 @@ What type should we infer for our AST here. We don't have enough contextual info
 This is actually intentional. The way we handle this case is to generalize all our unbound type variables at the end of type inference. Since we can't figure them out, we track which type variables are unbound and ask that our surrounding context provides them for us.  This type paired with it's unbound type variables is called a [type scheme](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system#Polytypes). So the type scheme we'd infer for our example AST is:
 ```rs
 TypeScheme {
-    unbound: vec![TypeVar(0)],
-    ty: Type::Fun(Type::Var(TypeVar(0)), Type::Var(TypeVar(0)))
+  unbound: vec![TypeVar(0)],
+  ty: Type::Fun(Type::Var(TypeVar(0)), Type::Var(TypeVar(0)))
 }
 ```
 We have one unbound type variable, and our function takes that type variable and returns it. Anyone that wants to call our function will have to provide us a type for our type variable, and then we'll know the type of our function. 
@@ -434,23 +467,23 @@ We have one unbound type variable, and our function takes that type variable and
 Now that we've put all our pieces in place we can pretty succinctly glue them together to perform type inference in our culminating `type_check` function:
 ```rs
 fn type_infer(ast: Expr<Var>) -> Result<(Expr<TypedVar>, TypeScheme), TypeError> {
-    let mut ctx = TypeInference {
-        unification_table: InPlaceUnificationTable::default(),
-    };
+  let mut ctx = TypeInference {
+    unification_table: InPlaceUnificationTable::default(),
+  };
 
-    // Constraint generation
-    let (out, ty) = ctx.infer(im::HashMap::default(), ast);
+  // Constraint generation
+  let (out, ty) = ctx.infer(im::HashMap::default(), ast);
 
-    // Constraint solving
-    ctx.unification(out.constraints)?;
+  // Constraint solving
+  ctx.unification(out.constraints)?;
 
-    // Apply our substition to our inferred types
-    let (mut unbound, ty) = ctx.substitute(ty);
-    let (unbound_ast, typed_ast) = ctx.substitute_ast(out.typed_ast);
-    unbound.extend(unbound_ast);
+  // Apply our substition to our inferred types
+  let (mut unbound, ty) = ctx.substitute(ty);
+  let (unbound_ast, typed_ast) = ctx.substitute_ast(out.typed_ast);
+  unbound.extend(unbound_ast);
 
-    // Return our typed ast and it's type scheme
-    Ok((typed_ast, TypeScheme { unbound, ty }))
+  // Return our typed ast and it's type scheme
+  Ok((typed_ast, TypeScheme { unbound, ty }))
 }
 ```
 Our function even divides pretty cleanly into our phases. We generate a set of constraints, solve them into a substitution, and then apply our substitution.

@@ -2,12 +2,13 @@ baseURL = 'https://thunderseethe.dev/'
 languageCode = 'en-us'
 title = "thunderseethe's blog"
 theme = "hugo-coder"
+enableEmoji = true
  
 [markup.highlight]
 style = "github-dark"
 
 [params]
-colorScheme = "dark"
+colorScheme = "auto"
 hideColorSchemeToggle = false
 
 [[menu.main]]
