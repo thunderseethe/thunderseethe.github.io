@@ -1,8 +1,9 @@
 +++
 title = "Part 1: Type Driven Design"
-date = "2023-05-01T16:56:18Z"
+date = "2023-06-17T16:56:18Z"
 author = "thunderseethe"
-tags = ["Programming Languages", "Type Inference", "Making a Language"]
+tags = ["Programming Languages", "Type Inference"]
+series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Type Inference", "Bidirectional Typechecking", "Unification", "Union-Find", "Constraint Solving"]
 description = "Designing a language types first"
 +++
@@ -442,7 +443,7 @@ After generating and solving constraints we have 3 things:
    * A typed AST where all our variables are annotated with their types
    * A type substitution to map all our type variables to their types
 
-The final step in our inference is to use our type substitution to solve all our inferred types from constraint generation. We do this by walking our AST and normalizing each type we encounter using our type substitution. The code for this is pretty rote, so we won't cover it in detail, but if you want to see it check out the [full source]().
+The final step in our inference is to use our type substitution to solve all of our inferred types from constraint generation. We do this by walking our AST and normalizing each type we encounter using our type substitution. The code for this is pretty rote, so we won't cover it in detail, but if you want to see it check out the [full source]().
 
 ### Generalization
 While we're walking our AST normalizing types, we'll come across a case I haven't touched on yet. What do we do if our type substitution solves a type variable to itself (or another type variable)? Can such a thing even occur? It absolutely can. It turns out it's not even hard to construct such an example:
@@ -450,9 +451,9 @@ While we're walking our AST normalizing types, we'll come across a case I haven'
 let x = Var(0);
 Expr::Fun(x, Expr::Var(x))
 ```
-What type should we infer for our AST here? We don't have enough contextual information to infer a type for `x`. After constraint solving we'll discover `x`'s type is solved to a type variable.
+What type should we infer for our AST here? We don't have enough contextual information to infer a type for `x`. After constraint solving, we'll discover `x`'s type is solved to a type variable.
 
-This is actually fine, intentional even. When we see this it means the type for our whole AST is polymorphic and should contain a type variable. The way we handle this case is to generalize all our unbound type variables at the end of type inference. A type paired with it's unbound type variables is called a [type scheme](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system#Polytypes). So the type scheme we'd infer for our example AST is:
+This is actually fine -- intentional even. When we see this, it means the type for our whole AST is polymorphic and should contain a type variable. The way we handle this case is to generalize all our unbound type variables at the end of type inference. A type paired with it's unbound type variables is called a [type scheme](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system#Polytypes). So the type scheme we'd infer for our example AST is:
 ```rs
 TypeScheme {
   unbound: vec![TypeVar(0)],
@@ -484,6 +485,6 @@ fn type_infer(ast: Expr<Var>) -> Result<(Expr<TypedVar>, TypeScheme), TypeError>
   Ok((typed_ast, TypeScheme { unbound, ty }))
 }
 ```
-Our function even divides cleanly into our phases. We generate a set of constraints, solve them into a substitution, and then apply our substitution.
+Our function even divides cleanly into our phases. We generate a set of constraints, solve them into a substitution, and apply our substitution.
 
 We've done it! We can infer types for a simple language now. There's a ton we can do to make this more performant or infer more powerful types, but all of that can wait for another day. This is a great MVP that we can start playing around with, and in the future we can start extending it with the fancy features we'd like our language to support. Best of all we didn't get stuck endlessly fiddling with our parser. Type driven design has allowed us to escape the orbital decay of parser generator bike-shedding.

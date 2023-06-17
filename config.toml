@@ -11,6 +11,10 @@ style = "github-dark"
 colorScheme = "auto"
 hideColorSchemeToggle = false
 
+[taxonomies]
+tag = "tags"
+seriers = "series"
+
 [[menu.main]]
   name = "Blog"
   weight = 1
