@@ -15,7 +15,9 @@ info = """
 Welcome to my blog.
 
 
-I keep my musings about programming language theory here.
+A place to stockpile my musings on whatever catches my fancy.
+
+I'm currently working on [designing a programming language](series/making-a-language)
 """
 
 [taxonomies]
@@ -34,7 +36,7 @@ url = "https://github.com/thunderseethe/"
   url  = "posts/"
 
 [[menu.main]]
-  name = "Making a language"
+  name = "Series"
   weight = 2
-  url = "series/making-a-language/"
+  url = "series"
 
