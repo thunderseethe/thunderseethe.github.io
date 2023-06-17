@@ -1,5 +1,6 @@
 @mixin navigation_dark {
   .navigation {
+    background-color: $acc-color-dark;
 
     a,
     span {

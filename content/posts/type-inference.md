@@ -81,7 +81,7 @@ impl<V> Expr<V> {
 }
 ```
 
-### Type
+## Type
 Before we can begin inferring types, we have to know what types can be inferred. Our `Type` type (ha) is determined by our `AST`. We'll need a type to cover each possible value our `AST` could produce. Since our `AST` only has 4 cases, we can check each one and determine what values they can produce:
 
  * `Var` - it produces any value `AST` produces (but is not a value itself)
