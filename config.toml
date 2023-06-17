@@ -1,6 +1,6 @@
 baseURL = 'https://thunderseethe.dev/'
 languageCode = 'en-us'
-title = "thunderseethe's blog"
+title = "thunderseethe's devlog"
 theme = "hugo-coder"
 enableEmoji = true
  

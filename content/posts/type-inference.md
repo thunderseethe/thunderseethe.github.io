@@ -1,6 +1,6 @@
 +++
 title = "Part 1: Type Driven Design"
-date = "2023-06-17T16:56:18Z"
+date = "2023-06-17T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
 series = ["Making a Language"]
