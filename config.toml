@@ -8,15 +8,33 @@ enableEmoji = true
 style = "github-dark"
 
 [params]
+author = "thunderseethe"
 colorScheme = "auto"
 hideColorSchemeToggle = false
+info = """
+Welcome to my blog.
+
+
+I keep my musings about programming language theory here.
+"""
 
 [taxonomies]
 tag = "tags"
 seriers = "series"
 
+[[params.social]]
+name = "Github"
+icon = "fa fa-2x fa-github"
+weight = 1
+url = "https://github.com/thunderseethe/"
+
 [[menu.main]]
-  name = "Blog"
+  name = "Posts"
   weight = 1
   url  = "posts/"
+
+[[menu.main]]
+  name = "Making a language"
+  weight = 2
+  url = "series/making-a-language/"
 
