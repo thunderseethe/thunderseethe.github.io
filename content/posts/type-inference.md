@@ -5,7 +5,7 @@ author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
 series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Type Inference", "Bidirectional Typechecking", "Unification", "Union-Find", "Constraint Solving"]
-description = "Designing a language, type first"
+description = "Designing a language, types first"
 +++
 
 I'd like to design a language, more specifically implement a compiler for a programming language I've made up. This is not the first time I've wanted to do this. In fact, I've had the [itch](https://github.com/thunderseethe/waht) [quite a](https://github.com/thunderseethe/panera) [few](https://github.com/thunderseethe/brainfuck_interpreter) [times](https://github.com/thunderseethe/false_interpreter) [before](https://github.com/thunderseethe/tiger). I can't tell you why I keep returning to this venture when I've failed at it so many times. What I can tell you is why I always fail. Every time I begin a sparkly new project with fresh eyes and quickly whip together a lexer.
