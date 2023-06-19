@@ -443,7 +443,7 @@ After generating and solving constraints we have 3 things:
    * A typed AST where all our variables are annotated with their types
    * A type substitution to map all our type variables to their types
 
-The final step in our inference is to use our type substitution to solve all of our inferred types from constraint generation. We do this by walking our AST and normalizing each type we encounter using our type substitution. The code for this is pretty rote, so we won't cover it in detail, but if you want to see it check out the [full source]().
+The final step in our inference is to use our type substitution to solve all of our inferred types from constraint generation. We do this by walking our AST and normalizing each type we encounter using our type substitution. The code for this is pretty rote, so we won't cover it in detail, but if you want to see it check out the [full source](https://github.com/thunderseethe/type-inference-example/).
 
 ### Generalization
 While we're walking our AST normalizing types, we'll come across a case I haven't touched on yet. What do we do if our type substitution solves a type variable to itself (or another type variable)? Can such a thing even occur? It absolutely can. It turns out it's not even hard to construct such an example:
@@ -485,6 +485,6 @@ fn type_infer(ast: Expr<Var>) -> Result<(Expr<TypedVar>, TypeScheme), TypeError>
   Ok((typed_ast, TypeScheme { unbound, ty }))
 }
 ```
-Our function even divides cleanly into our phases. We generate a set of constraints, solve them into a substitution, and apply our substitution.
+Our function even divides cleanly into our phases. We generate a set of constraints, solve them into a substitution, and apply our substitution. The full source code is available as a GitHub repo you can check out and play around with [here](https://github.com/thunderseethe/type-inference-example/).
 
 We've done it! We can infer types for a simple language now. There's a ton we can do to make this more performant or infer more powerful types, but all of that can wait for another day. This is a great MVP that we can start playing around with, and in the future we can start extending it with the fancy features we'd like our language to support. Best of all we didn't get stuck endlessly fiddling with our parser. Type driven design has allowed us to escape the orbital decay of parser generator bike-shedding.
