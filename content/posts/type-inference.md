@@ -1,5 +1,5 @@
 +++
-title = "Part 1: Type Driven Design"
+title = "Part 1: Type-Driven Design"
 date = "2023-06-17T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
@@ -8,6 +8,7 @@ keywords = ["Programming Languages", "Compiler", "Type Inference", "Bidirectiona
 description = "Designing a language, types first"
 +++
 
+## Intro
 I'd like to design a language, more specifically implement a compiler for a programming language I've made up. This is not the first time I've wanted to do this. In fact, I've had the [itch](https://github.com/thunderseethe/waht) [quite a](https://github.com/thunderseethe/panera) [few](https://github.com/thunderseethe/brainfuck_interpreter) [times](https://github.com/thunderseethe/false_interpreter) [before](https://github.com/thunderseethe/tiger). I can't tell you why I keep returning to this venture when I've failed at it so many times. What I can tell you is why I always fail. Every time I begin a sparkly new project with fresh eyes and quickly whip together a lexer.
 
 However, once I start constructing a parser, progress slows to a crawl. I endlessly struggle with bike-shedding my syntax or fret to figure out my operator precedence. Without fail by the time I've managed to produce an Abstract Syntax Tree (AST) I've lost all steam. The language is added to my ever-growing pile of incomplete side projects doomed to forever be an empty repository of listless aspirations. The more attempts I've made the clearer this pattern has become to me.
@@ -38,7 +39,7 @@ We'll build our language in Rust. One might wonder why we'd pick a low level lan
 ## Abstract Syntax Tree (AST)
 The whole point of parsing is to convert a text file into an AST. Since we're skipping over parsing, we'll start with an AST already constructed. Our language is new, so we'll start small and add more fancy AST nodes incrementally. Initially, our AST will have just 4 nodes: variables, integer literals, function literals, and function application.
 ```rs
-enum Expr<V> {
+enum Ast<V> {
   /// A local variable
   Var(V),
   /// An integer literal
@@ -60,7 +61,7 @@ struct TypedVar(Var, Type);
 ```
 Rust requires a layer of indirection for recursive types. Boxing values will make our code samples pretty noisy, let's define some helper methods to hide that noise:
 ```rs
-impl<V> Expr<V> {
+impl<V> Ast<V> {
   fn fun(
     arg: V, 
     body: Self
@@ -82,14 +83,14 @@ impl<V> Expr<V> {
 ```
 
 ## Type
-Before we can begin inferring types, we have to know what types can be inferred. Our `Type` type (ha) is determined by our `AST`. We'll need a type to cover each possible value our `AST` could produce. Since our `AST` only has 4 cases, we can check each one and determine what values they can produce:
+Before we can begin inferring types, we have to know what types can be inferred. Our `Type` type (ha) is determined by our `Ast`. We'll need a type to cover each possible value our `Ast` could produce. Since our `Ast` only has 4 cases, we can check each one and determine what values they can produce:
 
  * `Var` - it produces any value `AST` produces (but is not a value itself)
  * `Int` - Integer literals are values and will need a type, the type of integers
  * `Fun` - Function literals are also values and will need a type, the type of functions
- * `App` - Function application is not a value, it produces a value when applied to an argument.
+ * `App` - Function application will return a value when evaluated, but the application case itself is not a value.
 
-So we have two values we can produce from our `AST`, `Int`, and `Fun`. We'll need two types for these values. We'll also need a type for type variables; these won't be for any values but allow us to support polymorphism. Knowing all this we can lay out `Type`:
+So we have two values we can produce from our `Ast`, `Int`, and `Fun`. We'll need two types for these values. We'll also need a type for type variables; these won't be for any values but allow us to support polymorphism. Knowing all this we can lay out `Type`:
 ```rs
 struct TypeVar(u32);
 enum Type {
@@ -101,7 +102,7 @@ enum Type {
   Fun(Box<Self>, Box<Self>),
 }
 ```
-Similar to `Var`, our `TypeVar` is just a number under the hood. Our `Type` is a recursive tree, same as `Expr`, so we have to box our nodes. We'll introduce similar helper methods to alleviate the boxing:
+Similar to `Var`, our `TypeVar` is just a number under the hood. Our `Type` is a recursive tree, same as `AST`, so we have to box our nodes. We'll introduce similar helper methods to alleviate the boxing:
 ```rs
 impl Type {
   fn fun(
@@ -120,7 +121,7 @@ At a high level the goal of type inference is to use contextual information from
 
 That sounds a little hand wavy; how can we be sure we'll always generate enough constraints to figure out our types? The answer is **math**! I won't go into details here, but we'll lean on some very nifty proofs a lot of folks worked on to guide us to a type system that is always inferrable. For more information, look into the [Hindley-Milner (HM) type system](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system).
 
-So we're going to track information about types. We'll do this on our type variables since they represent unknown types. When we encounter a node, we'll give it a fresh type variable and emit a constraint on that variable. Any other nodes that rely on that node will reuse its type variable, producing their own constraints on that variable. This is the basis for implementations of the HM type system such as [Algorithm J](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system#Algorithm_J) (or its cousin Algorithm W). There's a key difference between those implementations and ours though. Algorithm J/W attempts to solve constraints as soon as it encounters them and uses a clever data structure to avoid the circular reasoning we saw earlier. Our implementation will instead generate all constraints in one pass and then solve them all in a separate pass.
+So we're going to track information about types. We'll do this on our type variables since they represent unknown types. When we encounter a node, we'll give it a fresh type variable and emit a constraint on that variable. Any other nodes that rely on that node will reuse its type variable, producing their own constraints on that variable. This is the basis for implementations of the HM type system such as [Algorithm J](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system#Algorithm_J) (or its cousin Algorithm W). There's a key difference between those implementations and ours though. Algorithm J attempts to solve constraints as soon as it encounters them and uses a clever data structure to avoid the circular reasoning we saw earlier. Our implementation will instead generate all constraints in one pass and then solve them all in a separate pass.
 
 This split into constraint generation followed by constraint solving offers some nice properties over the "solve as you go" solution. Because we generate a set of constraints from the AST and then solve them, constraint solving only has to know about constraints and nothing about the AST. This means constraint solving requires no modifications when we change our AST. Right now while we have 4 AST nodes the benefit is small, but most languages have 100+ AST nodes. Being able to handle all these cases in constraint generation and not have them bleed over into constraint solving is a huge win for managing complexity. An explicit list of constraints can also make error reporting easier. We can associate a span with each constraint. Then use these spans help to print smarter error messages on a type error. LambdaAle has a great talk [Type Inference as Constraint Solving](https://www.youtube.com/watch?v=-TJGhGa04F8&t=2731s) that goes over the benefits in more detail. The last benefit is more minor but still tractable, having a concrete set of constraints can be invaluable for debugging your type inference pass. Being able to filter and print all the type constraints for a term has saved me some headaches debugging more gnarly typing bugs.
 
@@ -154,13 +155,14 @@ impl TypeInference {
   fn infer(
     &mut self, 
     env: &mut HashMap<Var, Type>, 
-    ast: Expr<Var>
+    ast: Ast<Var>
   ) -> (GenOut, Type) { ... }
 
   fn check(
     &mut self, 
     env: &mut HashMap<Var, Type>, 
-    ast: Expr<Var>, ty: Type
+    ast: Ast<Var>, 
+    ty: Type
   ) -> GenOut { .. }
 }
 ```
@@ -170,46 +172,47 @@ Let's take a second to look at `env` and `GenOut`. Both `infer` and `check` take
 ```rs
 struct GenOut {
   constraints: Vec<Constraint>,
-  typed_ast: Expr<TypedVar>,
+  typed_ast: Ast<TypedVar>,
 }
 ```
 One final thing to note, we have no way to return an error from `infer` or `check`. We could of course panic, but for the sake of our future selves, we'll return errors with `Result` where relevant. It just so happens it's not relevant for constraint generation. Our output is a set of constraints. It's perfectly valid for us to return a set of constraints that contradict each other. We'll discover the contradiction and produce a type error when we try to solve our constraints. That means there aren't error cases during constraint generation. Neat! 
 
+### infer
 With that out of the way, we can dive into our implementation of `infer` and `check`. We'll cover `infer` first. Because our AST begins untyped, we'll always call `infer` first in our type inference, so it is a natural starting point. `infer` is just a match on our input `ast`:
 ```rs
 fn infer(
   &mut self, 
   env: &mut HashMap<Var, Type>, 
-  ast: Expr<Var>
+  ast: Ast<Var>
 ) -> (GenOut, Type) {
   match ast {
-    Expr::Int(i) => todo!(),
-    Expr::Var(v) => todo!(),
-    Expr::Fun(arg, body) => todo!(),
-    Expr::App(fun, arg) => todo!(),
+    Ast::Int(i) => todo!(),
+    Ast::Var(v) => todo!(),
+    Ast::Fun(arg, body) => todo!(),
+    Ast::App(fun, arg) => todo!(),
   }
 }
 ```
 We'll talk about each case individually, let's start with an easy one to get our feet wet:
 ```rs
-Expr::Int(i) => (
+Ast::Int(i) => (
   GenOut::new(
     vec![],
-    Expr::Int(i)
+    Ast::Int(i)
   ), 
   Type::Int
 ),
 ```
 When we see an integer literal, we know immediately that its type is `Int`. We don't need any constraints to be true for this to hold, so we return an empty `Vec`.
 ```rs
-Expr::Var(v) => {
+Ast::Var(v) => {
   let ty = &env[&v];
   let typed_var = 
     TypedVar(v, ty.clone());
   (
     GenOut::new(
       vec![], 
-      Expr::Var(typed_var)
+      Ast::Var(typed_var)
     ),
     ty.clone(),
   )
@@ -217,13 +220,13 @@ Expr::Var(v) => {
 ```
 When we encounter a variable, we have to do a lookup of it's type in our `env` and return it. Our env lookup might fail though. What happens if we ask for a variable we don't have an entry for? That means we have an undefined variable, and we'll `panic!`. That's fine for our purposes; we expect to have done some form of name resolution prior to type inference. If we encounter an undefined variable, we should've already exited with an error during name resolution. Past that, our `Var` case looks very similar to our `Int` case. We have no constraints to generate and immediately return the type we look up. Note that in the typed AST we return `TypedVar` with our new `ty` instead of `Var`.
 ```rs
-Expr::Fun(arg, body) => {
+Ast::Fun(arg, body) => {
   let arg_ty_var = self.fresh_ty_var();
   let env = env.update(arg, Type::Var(arg_ty_var));
   let (body_out, body_ty) = self.infer(env, *body);
   (
     GenOut {
-      typed_ast: Expr::fun(
+      typed_ast: Ast::fun(
         TypedVar(arg, Type::Var(arg_ty_var)),
         body_out.typed_ast,
       ),
@@ -235,7 +238,7 @@ Expr::Fun(arg, body) => {
 ```
 `Fun` is where we actually start doing some nontrivial inference. We'll create a fresh type variable and record it as the type of `arg` in our `env`. With our fresh type variable in scope, we'll infer a type for `body`. We then use our inferred body type to construct the function type for our `Fun` node. While `Fun` itself doesn't produce any constraints, it does pass on any constraints that `body` generated.
 ```rs
-Expr::App(fun, arg) => {
+Ast::App(fun, arg) => {
   let (arg_out, arg_ty) = self.infer(env.clone(), *arg);
 
   let ret_ty = Type::Var(self.fresh_ty_var());
@@ -250,7 +253,7 @@ Expr::App(fun, arg) => {
         .into_iter()
         .chain(fun_out.constraints.into_iter())
         .collect(),
-      Expr::app(fun_out.typed_ast, arg_out.typed_ast),
+      Ast::app(fun_out.typed_ast, arg_out.typed_ast),
     ),
     ret_ty,
   )
@@ -272,11 +275,12 @@ let arg_out = self.check(env, *arg, arg_ty);
 ```
 We have to create an extra type variable and an extra constraint compared to inferring a type for `arg` first. Not a huge deal, and in fact in more expressive type systems this tradeoff is worth inferring the function type first as it provides valuable metadata for checking the argument types. Our type system isn't in that category though, so we'll take fewer constraints and fewer type variables every time. Choices like this crop up a lot where it's not clear when we should infer and when we should check our nodes. [Bidirectional Typing](https://arxiv.org/pdf/1908.05839.pdf) has an in-depth discussion of the tradeoffs and how to decide which approach to take.
 
+### check
 That covers all of our inference cases, completing our bottom-up traversal. Next let's talk about its sibling `check`. Unlike `infer`, `check` does not cover every AST case explicitly. Because we are checking our AST against a known type, we only match on cases we know will check and rely on a catch-all bucket case to handle everything else. We're still working case by case though, so at a high level our check looks very similar to `infer`:
 ```rs
 fn check(
   &mut self, 
-  ast: Expr<Var>, 
+  ast: Ast<Var>, 
   ty: Type
 ) -> GenOut {
   match (ast, ty) {
@@ -286,15 +290,15 @@ fn check(
 ```
 Notice we match on both our AST and type at once, so we can select just the cases we care about. Let's look at our cases:
 ```rs
-(Expr::Int(i), Type::Int) => 
+(Ast::Int(i), Type::Int) => 
   GenOut::new(
     vec![], 
-    Expr::Int(i)
+    Ast::Int(i)
   ),
 ```
 An integer literal trivially checks against the integer type. This case might appear superfluous; couldn't we just let it be caught by the bucket case? Of course, we could, but this explicit case allows us to avoid type variables and avoid constraints.
 ```rs
-(Expr::Fun(arg, body), Type::Fun(arg_ty, ret_ty)) => {
+(Ast::Fun(arg, body), Type::Fun(arg_ty, ret_ty)) => {
   let env = env.update(arg, *arg_ty);
   self.check(env, *body, *ret_ty)
 }
@@ -449,7 +453,7 @@ The final step in our inference is to use our type substitution to solve all of 
 While we're walking our AST normalizing types, we'll come across a case I haven't touched on yet. What do we do if our type substitution solves a type variable to itself (or another type variable)? Can such a thing even occur? It absolutely can. It turns out it's not even hard to construct such an example:
 ```rs
 let x = Var(0);
-Expr::Fun(x, Expr::Var(x))
+Ast::Fun(x, Ast::Var(x))
 ```
 What type should we infer for our AST here? We don't have enough contextual information to infer a type for `x`. After constraint solving, we'll discover `x`'s type is solved to a type variable.
 
@@ -465,7 +469,7 @@ We have one unbound type variable, and our function takes that type variable and
 ## Conclusion
 Now that we've put all our pieces in place we can pretty succinctly glue them together to perform type inference in our culminating `type_infer` function:
 ```rs
-fn type_infer(ast: Expr<Var>) -> Result<(Expr<TypedVar>, TypeScheme), TypeError> {
+fn type_infer(ast: Ast<Var>) -> Result<(Ast<TypedVar>, TypeScheme), TypeError> {
   let mut ctx = TypeInference {
     unification_table: InPlaceUnificationTable::default(),
   };
