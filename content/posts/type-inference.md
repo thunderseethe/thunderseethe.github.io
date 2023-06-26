@@ -11,7 +11,7 @@ description = "Designing a language, types first"
 ## Intro
 I'd like to design a language, more specifically implement a compiler for a programming language I've made up. This is not the first time I've wanted to do this. In fact, I've had the [itch](https://github.com/thunderseethe/waht) [quite a](https://github.com/thunderseethe/panera) [few](https://github.com/thunderseethe/brainfuck_interpreter) [times](https://github.com/thunderseethe/false_interpreter) [before](https://github.com/thunderseethe/tiger). I can't tell you why I keep returning to this venture when I've failed at it so many times. What I can tell you is why I always fail. Every time I begin a sparkly new project with fresh eyes and quickly whip together a lexer.
 
-However, once I start constructing a parser, progress slows to a crawl. I endlessly struggle with bike-shedding my syntax or fret to figure out my operator precedence. Without fail by the time I've managed to produce an Abstract Syntax Tree (AST) I've lost all steam. The language is added to my ever-growing pile of incomplete side projects doomed to forever be an empty repository of listless aspirations. The more attempts I've made the clearer this pattern has become to me.
+However, once I start constructing a parser, progress slows to a crawl. I endlessly struggle with bikeshedding my syntax or fret to figure out my operator precedence. Without fail by the time I've managed to produce an Abstract Syntax Tree (AST) I've lost all steam. The language is added to my ever-growing pile of incomplete side projects doomed to forever be an empty repository of listless aspirations. The more attempts I've made the clearer this pattern has become to me.
 
 So let's take a step back, why do I start with the lexer and parser at all? Compiler construction can be thought of as a couple of big steps where the output of each step is fed as input into the next step:
 
@@ -19,9 +19,9 @@ So let's take a step back, why do I start with the lexer and parser at all? Comp
 
 Because the compiler executes these steps in order when it runs, it's natural to think about creating them in order. The problem is compounded by the educational material on creating languages. Teaching material focuses a **lot** on the many methods by which you can parse text. It's to the point that the wonderful [Crafting Interpreters](https://craftinginterpreters.com/) felt the need to include [a note](https://craftinginterpreters.com/compiling-expressions.html#design-note) explaining why they are brushing over parsing. This over emphasis on parsing could lead one (certainly led me) to believe that parsing is the best place to start on a new language. However, there's no rule that states things have to be created in this order. In fact, doing things this way is impractical if you're designing a language from scratch. Trying to create syntax for your language without first knowing its semantics is a trap. It's like trying to design a vehicle's interior without knowing how many wheels it will have or how its engine will power them. You might design the interior to comfortably seat 4, but if you discover down the line you're designing a motorcycle you're in trouble!
 
-So how do I overcome my parsing problem? I'll simply not write a lexer or parser. I can't get stuck writing a parser if I don't start writing one. I can come back later and add a parser once I've designed more of the internals of my language. My hope is having the other steps (Type Checking, Code Generation, etc.) will provide a guiding hand for what my parser should look like when I do eventually write one. The goal of writing a parser is to produce an AST. But we don't have to parse our AST out of text during prototyping, we can design an AST and then construct it ad hoc where we need it. Then the question is, if we're not starting with lexing/parsing then what step do we start with? The answer is type inference (surprise), but it's relevant to answer why we're starting with type inference. 
+So how do I overcome my parsing problem? I'll simply not write a lexer or parser. I can't get stuck writing a parser if I don't start writing one. I can come back later and add a parser once I've designed more of the internals of my language. My hope is having the other steps (Type Checking, Code Generation, etc.) will provide a guiding hand for what my parser should look like when I do eventually write one. The goal of writing a parser is to produce an AST. But we don't have to parse our AST out of text during prototyping, we can design an AST and then construct it ad hoc where we need it. Then the question is, if we're not starting with lexing/parsing, then what step do we start with? The answer is type inference (surprise), but it's relevant to answer why we're starting with type inference. 
 
-To explain why we're starting with our types, look no further than the explanation in [Practical Foundations for Programming Languages](http://www.cs.cmu.edu/~rwh/pfpl.html):
+To understand why we're starting with our types, look no further than the explanation in [Practical Foundations for Programming Languages](http://www.cs.cmu.edu/~rwh/pfpl.html):
 > Types are the central organizing principle of the theory of programming languages. Language features are the manifestations of type structure. The syntax of a language is governed by the constructs that define its types, and its semantics is determined by the interactions among those constructs.
 
 Types inform every other part of our language design, so it's important we nail them down first. Conversely, once we've designed our types the syntax and semantics of our language should easily fall out of our type system.
@@ -34,10 +34,10 @@ This article will not be a great introduction to programming language design in 
 
 We're focused on implementing type inference (For brevity, we won't even cover definitions of types, polymorphism, or ASTs). None of the ideas I'm covering here are new. My aspirations with this post are to coalesce good ideas I've found in disparate sources.  I've cobbled together an idea of how to do type inference from reading these sources, and looking at the source code of rustc and GHC. I couldn't find a good resource that tied all the concepts together, so I decided to write one. 
 
-We'll build our language in Rust. One might wonder why we'd pick a low level language like Rust, and why not a higher level language that is less verbose such as Haskell or OCaml. These languages are often featured in literature on compilers, and for good reason. They make expressing the tree traversals involved in compilation very natural. However, I don't know OCaml. I'm more familiar with Haskell, but our type inference will make heavy use of mutation making the immutable purity of Haskell a poor fit. Rust has enough features to be functional for our tree traversals while still allowing for mutation. So we'll be using Rust, if you're unfamiliar [cheats.rs](https://cheats.rs) has a dense rundown to get you up to speed.
+We'll build our language in Rust. One might wonder why we'd pick a low level language like Rust, and why not a higher level language that is less verbose such as Haskell or OCaml. These languages are often featured in literature on compilers, and for good reason. They make expressing the tree traversals involved in compilation very natural. However, I don't know OCaml. I'm more familiar with Haskell, but our type inference will make heavy use of mutation which makes the immutable purity of Haskell a poor fit. Rust has enough features to be functional for our tree traversals while still allowing for mutation. So we'll be using Rust, if you're unfamiliar [cheats.rs](https://cheats.rs) has a dense rundown to get you up to speed.
 
 ## Abstract Syntax Tree (AST)
-The whole point of parsing is to convert a text file into an AST. Since we're skipping over parsing, we'll start with an AST already constructed. If you'd like a refreshed on ASTs check out [this blog post](https://ruslanspivak.com/lsbasi-part7/). Our language is new, so we'll start small and add more fancy AST nodes incrementally. Initially, our AST will have just 4 nodes: variables, integer literals, function literals, and function application:
+The whole point of parsing is to convert a text file into an AST. Since we're skipping over parsing, we'll start with an AST already constructed. If you'd like a refresher on ASTs check out [this blog post](https://ruslanspivak.com/lsbasi-part7/). Our language is new, so we'll start small and add more fancy AST nodes incrementally. Initially, our AST will have just 4 nodes: variables, integer literals, function literals, and function application:
 ```rs
 enum Ast<V> {
   /// A local variable
@@ -51,7 +51,7 @@ enum Ast<V> {
   App(Box<Self>, Box<Self>), 
 }
 ```
-It doesn't get much simpler than this. This isn't really enough for a usable language, although it is Turing complete. For our purposes, it's plenty to get a minimal type inference system setup. We parameterize our AST by a type parameter `V`. `V` will be the variable of our AST used in `Var` and `Fun`. Initially our AST variable type parameter will be:
+It doesn't get much simpler than this. This isn't really enough for a usable language, although it is Turing complete. For our purposes, it's plenty to get a minimal type inference system set up. We parameterize our AST by a type parameter `V`. `V` will be the variable of our AST used in `Var` and `Fun`. Initially our AST variable type parameter will be:
 ```rs
 struct Var(usize);
 ```
@@ -83,14 +83,14 @@ impl<V> Ast<V> {
 ```
 
 ## Type
-Before we can begin inferring types, we have to know what types can be inferred. Our `Type` type (ha) is determined by our `Ast`. We'll need a type to cover each possible value our `Ast` could produce. Since our `Ast` only has 4 cases, we can check each one and determine what values they can produce:
+Before we can begin inferring types, we have to know what types can be inferred. Our `Type` type (ha) is determined by our `Ast`. We need a type to cover each possible value our `Ast` could produce. Since our `Ast` only has 4 cases, we can check each one and determine what values they can produce:
 
  * `Var` - it produces any value `AST` produces (but is not a value itself)
  * `Int` - Integer literals are values and will need a type, the type of integers
  * `Fun` - Function literals are also values and will need a type, the type of functions
  * `App` - Function application will return a value when evaluated, but the application case itself is not a value.
 
-So we have two values we can produce from our `Ast`, `Int`, and `Fun`. We'll need two types for these values. We'll also need a type for type variables; these won't be for any values but allow us to support polymorphism. Knowing all this we can lay out `Type`:
+So we have two values we can produce from our `Ast`: `Int`, and `Fun`. We need two types for these values. We also need a type for type variables; these won't be for any values but allow us to support polymorphism. Knowing all this we can lay out `Type`:
 ```rs
 struct TypeVar(u32);
 enum Type {
@@ -102,7 +102,7 @@ enum Type {
   Fun(Box<Self>, Box<Self>),
 }
 ```
-Similar to `Var`, our `TypeVar` is just a number under the hood. Our `Type` is a recursive tree, same as `AST`, so we have to box our nodes. We'll introduce similar helper methods to alleviate the boxing:
+Similar to `Var`, our `TypeVar` is just a number under the hood. Our `Type` is a recursive tree, same as `AST`, so we have to box our nodes. We introduce similar helper methods to alleviate the boxing:
 ```rs
 impl Type {
   fn fun(
@@ -117,15 +117,15 @@ impl Type {
 ```
 
 ## Type Inference Algorithm
-At a high level the goal of type inference is to use contextual information from our AST to infer the type of each AST node. In trivial cases this is very easy when we see an `Int` AST node we know it always has type `Int`. It's not always so straightforward though. If we want to know the type of an `App` node, we have to look at the return type of the function of that `App` node. However, we may not know the type of that function yet. The function might be a variable that refers to an input parameter to our overall AST term. In that case we can't know the type of our function until we know the type of our whole term, which seems circular. The way to break up this circular reasoning is by waiting to infer our type until we have enough information to do so. Instead of inferring a type immediately, when we encounter a type we don't know, we'll track some constraints about that type. Then once we've walked our entire AST we should have enough constraints to infer all our types. 
+At a high level, the goal of type inference is to use contextual information from our AST to infer the type of each AST node. In trivial cases this is very easy when we see an `Int` AST node we know it always has type `Int`. It's not always so straightforward, though. If we want to know the type of an `App` node, we have to look at the return type of the function of that `App` node. However, we may not know the type of that function yet. The function might be a variable that refers to an input parameter to our overall AST term. In that case we can't know the type of our function until we know the type of our whole term, which seems circular. The way to break up this circular reasoning is by waiting to infer our type until we have enough information to do so. Instead of inferring a type immediately, when we encounter a type we don't know, we'll track some constraints about that type. Then once we've walked our entire AST we should have enough constraints to infer all our types. 
 
 That sounds a little hand wavy; how can we be sure we'll always generate enough constraints to figure out our types? The answer is **math**! I won't go into details here, but we'll lean on some very nifty proofs a lot of folks worked on to guide us to a type system that is always inferrable. For more information, look into the [Hindley-Milner (HM) type system](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system).
 
-So we're going to track information about types. We'll do this on our type variables since they represent unknown types. When we encounter a node, we'll give it a fresh type variable and emit a constraint on that variable. Any other nodes that rely on that node will reuse its type variable, producing their own constraints on that variable. This is the basis for implementations of the HM type system such as [Algorithm J](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system#Algorithm_J), or its cousin Algorithm W. There's a key difference between those implementations and ours though. Algorithm J attempts to solve constraints as soon as it encounters them and uses a clever data structure to avoid the circular reasoning we saw earlier. Our implementation will instead generate all constraints in one pass and then solve them all in a separate pass.
+So we're going to track information about types. We do this on our type variables since they represent unknown types. When we encounter a node, we'll give it a fresh type variable and emit a constraint on that variable. Any other nodes that rely on that node will reuse its type variable, producing their own constraints on that variable. This is the basis for implementations of the HM type system such as [Algorithm J](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system#Algorithm_J), or its cousin Algorithm W. There's a key difference between those implementations and ours though. Algorithm J attempts to solve constraints as soon as it encounters them and uses a clever data structure to avoid the circular reasoning we saw earlier. Our implementation will instead generate all constraints in one pass and then solve them all in a separate pass.
 
 This split into constraint generation followed by constraint solving offers some nice properties over the "solve as you go" solution. Because we generate a set of constraints from the AST and then solve them, constraint solving only has to know about constraints and nothing about the AST. This means constraint solving requires no modifications when we change our AST. Right now while we have 4 AST nodes the benefit is small, but most languages have 100+ AST nodes. Being able to handle all these cases in constraint generation and not have them bleed over into constraint solving is a huge win for managing complexity. An explicit list of constraints can also make error reporting easier. We can associate a span with each constraint. Then use these spans help to print smarter error messages on a type error. LambdaAle has a great talk by Simon Peyton Jones [Type Inference as Constraint Solving](https://www.youtube.com/watch?v=-TJGhGa04F8&t=2731s) that goes over the benefits in more detail.
 
-Our two passes will need to share some state between each other. We'll introduce a `TypeInference` struct to hold the shared state and implement our passes as methods on that struct:
+Our two passes will need to share some state between each other. We introduce a `TypeInference` struct to hold the shared state and implement our passes as methods on that struct:
 ```rs
 struct TypeInference  {
   unification_table: InPlaceUnificationTable<TypeVar>,
@@ -140,7 +140,7 @@ In recent years, a new approach to type checking called Bidirectional Type Check
  * `infer` - works the same as the HM type systems we just described, so types are inferred bottom-up. 
  * `check` - works in the opposite direction, top-down. A type is passed into `check`, and we _check_ that our AST has the same type.
 
-Our two modes will call each other mutually recursively to traverse the AST. Now when we want to type check an application node, we have a new option. We can construct a function type at the application node and check the function node against our constructed function type. Making better use of top-down contextual info like this allows us to generate fewer type variables and produce better error messages. Fewer type variables may not immediately appear as a benefit, but it makes the type checker faster. Our constraint solving is in part bound by the number of type variables we have to solve. It also makes debugging far easier. Each type variable acts as a point of indirection so fewer is better for debugging. So while Bidirectional Type Checking doesn't allow us to infer "better" types, it does provide tractable benefits for a modest extension of purely bottom-up type inference.
+Our two modes will call each other mutually recursively to traverse the AST. Now when we want to type check an application node, we have a new option. We can construct a function type at the application node and check the function node against our constructed function type. Making better use of top-down contextual info like this allows us to generate fewer type variables and produce better error messages. Fewer type variables may not immediately appear as a benefit, but it makes the type checker faster. Our constraint solving is in part bound by the number of type variables we have to solve. It also makes debugging far easier. Each type variable acts as a point of indirection so fewer is better for debugging. So while Bidirectional Type Checking doesn't allow us to infer "better" types, it does provide tangible benefits for a modest extension of purely bottom-up type inference.
 
 Now that we know how we'll be traversing our AST to collect constraints, let's talk about what our constraints will actually look like. For our first Minimum Viable Product (MVP) of type inference, `Constraint` will just be type equality:
 ```rs
@@ -148,7 +148,7 @@ enum Constraint {
   TypeEqual(Type, Type)
 }
 ```
-We'll talk more about what it means for two types to be equal during constraint solving. For now, it suffices to produce a set of type equalities as a result of our constraint generation.
+We'll talk more about what it means for two types to be equal during constraint solving. For now, it's sufficient to produce a set of type equalities as a result of our constraint generation.
 
 Constraint generation will be implemented on our `TypeInference` struct with 3 methods:
 ```rs
@@ -170,7 +170,7 @@ impl TypeInference {
   ) -> GenOut { .. }
 }
 ```
-`fresh_ty_var` is a helper method we're going to brush past for now. (We'll have a lot to cover in constraint solving!) It uses our `unification_table` to produce a unique type variable every time we call it. Past that, we can see some parallels between our `infer` and `check` method that exemplify each mode. `infer` takes an AST node and returns a type, whereas `check` takes both an AST node and a type as parameters. This is because `infer` is working bottom-up and `check` is working top-down.
+`fresh_ty_var` is a helper method we're going to brush past for now. (We'll have a lot to cover in constraint solving!) It uses our `unification_table` to produce a unique type variable every time we call it. Past that, we can see some parallels between our `infer` and `check` method that illustrate each mode. `infer` takes an AST node and returns a type, whereas `check` takes both an AST node and a type as parameters. This is because `infer` is working bottom-up and `check` is working top-down.
 
 Let's take a second to look at `env` and `GenOut`. Both `infer` and `check` take an `env` parameter. This is used to track the type of AST variables in their current scope. `infer` and `check` both also return a `GenOut`. This is a pair of our set of constraints and our typed AST:
 ```rs
@@ -181,10 +181,10 @@ struct GenOut {
   typed_ast: Ast<TypedVar>,
 }
 ```
-One final thing to note, we have no way to return an error from `infer` or `check`. We could of course panic, but for the sake of our future selves, we'll return errors with `Result` where relevant. It just so happens it's not relevant for constraint generation. Our output is a set of constraints. It's perfectly valid for us to return a set of constraints that contradict each other. We'll discover the contradiction and produce a type error when we try to solve our constraints. That means there aren't error cases during constraint generation. Neat! 
+One final thing to note, we have no way to return an error from `infer` or `check`. We could of course panic, but for the sake of our future selves, we'll return errors with `Result` where relevant. It just so happens it's not relevant for constraint generation. Our output is a set of constraints. It's perfectly valid for us to return a set of constraints that contradict each other. We discover the contradiction and produce a type error when we try to solve our constraints. That means there aren't error cases during constraint generation. Neat! 
 
 ### infer
-With that out of the way, we can dive into our implementation of `infer` and `check`. We'll cover `infer` first. Because our AST begins untyped, we'll always call `infer` first in our type inference, so it is a natural starting point. `infer` is just a match on our input `ast`:
+With our setup out of the way, we can dive into our implementation of `infer` and `check`. We'll cover `infer` first. Because our AST begins untyped, we always call `infer` first in our type inference, so it is a natural starting point. `infer` is just a match on our input `ast`:
 ```rs
 fn infer(
   &mut self, 
@@ -223,7 +223,7 @@ Ast::Var(v) => {
   )
 },
 ```
-When we encounter a variable, we look up its type in our `env` and return its type. Our env lookup might fail though. What happens if we ask for a variable we don't have an entry for? That means we have an undefined variable, and we'll `panic!`. That's fine for our purposes; we expect to have done some form of name resolution prior to type inference. If we encounter an undefined variable, we should've already exited with an error during name resolution. Past that, our `Var` case looks very similar to our `Int` case. We have no constraints to generate and immediately return the type we look up. Next we'll take a look at our `Fun` case:
+When we encounter a variable, we look up its type in our `env` and return its type. Our env lookup might fail though. What happens if we ask for a variable we don't have an entry for? That means we have an undefined variable, and we'll `panic!`. That's fine for our purposes; we expect to have done some form of name resolution prior to type inference. If we encounter an undefined variable, we should've already exited with an error during name resolution. Past that, our `Var` case looks very similar to our `Int` case. We have no constraints to generate and immediately return the type we look up. Next we take a look at our `Fun` case:
 ```rs
 Ast::Fun(arg, body) => {
   // Create a type variable for our unknown type variable
@@ -246,7 +246,7 @@ Ast::Fun(arg, body) => {
   )
 }
 ```
-`Fun` is where we actually start doing some nontrivial inference. We'll create a fresh type variable and record it as the type of `arg` in our `env`. With our fresh type variable in scope, we'll infer a type for `body`. We then use our inferred body type and generated argument type to construct a function type for our `Fun` node.  While `Fun` itself doesn't produce any constraints, it does pass on any constraints that `body` generated. Now that we know how to type a function, let's learn how to type a function application:
+`Fun` is where we actually start doing some nontrivial inference. We create a fresh type variable and record it as the type of `arg` in our `env`. With our fresh type variable in scope, we infer a type for `body`. We then use our inferred body type and generated argument type to construct a function type for our `Fun` node.  While `Fun` itself doesn't produce any constraints, it does pass on any constraints that `body` generated. Now that we know how to type a function, let's learn how to type a function application:
 ```rs
 Ast::App(fun, arg) => {
   let (arg_out, arg_ty) = self.infer(env.clone(), *arg);
@@ -286,7 +286,7 @@ let fun_constr = Constraint::TypeEqual(infer_fun_ty, fun_ty);
 let arg_out = self.check(env, *arg, arg_ty);
 // ...
 ```
-We have to create an extra type variable and an extra constraint compared to inferring a type for `arg` first. Not a huge deal, and in fact in more expressive type systems this tradeoff is worth inferring the function type first as it provides valuable metadata for checking the argument types. Our type system isn't in that category though, so we'll take fewer constraints and fewer type variables every time. Choices like this crop up a lot where it's not clear when we should infer and when we should check our nodes. [Bidirectional Typing](https://arxiv.org/pdf/1908.05839.pdf) has an in-depth discussion of the tradeoffs and how to decide which approach to take.
+We have to create an extra type variable and an extra constraint compared to inferring a type for `arg` first. Not a huge deal, and in fact in more expressive type systems this tradeoff is worth inferring the function type first as it provides valuable metadata for checking the argument types. Our type system isn't in that category, though, so we take fewer constraints and fewer type variables every time. Choices like this crop up a lot where it's not clear when we should infer and when we should check our nodes. [Bidirectional Typing](https://arxiv.org/pdf/1908.05839.pdf) has an in-depth discussion of the tradeoffs and how to decide which approach to take.
 
 ### check
 That covers all of our inference cases, completing our bottom-up traversal. Next let's talk about its sibling `check`. Unlike `infer`, `check` does not cover every AST case explicitly. Because we are checking our AST against a known type, we only match on cases we know will check and rely on a catch-all bucket case to handle everything else. We're still working case by case though, so at a high level our check looks very similar to `infer`:
@@ -334,9 +334,9 @@ With that we've finished generating our constraints. As output of constraint gen
 ## Constraint Solving
 Now that we've got our set of constraints, we can attempt to solve them. So what does it mean to solve a constraint? A constraint is something that has to be true about our types. If we can prove whatever our constraint wants true, we have solved the constraint. Since our `Constraint` datatype is just type equality, we can solve all our constraints by proving their types equal. If we fail to prove two types equal, we have a type error, and we can bail out early.
 
-Okay, that all sounds reasonable. But begs the question, what does it mean for two types to be equal? For us, we'll determine two types are equal structurally. We'll examine the tree of each type and if they are the same node and all their children are equal, we'll consider them equal. This works great except for type variables. It's not enough to just check that two variables are equal. A type variable could stand for any type (even another type variable). When we compare it to another type, we can freely assume the type variable stands for that type and make our two types equal, easy! This works great for any individual equality, but we can get into trouble if we do that haphazardly for our whole set. We may assume for one equality that type variable `a` is `Type::Int` and for another equality assume it is `Type::Fun(Type::Var(b), Type::Var(c))`. While a type variable can stand for any type, it can only stand for one type. If our set of equalities needs a type variable to stand for two types, we have a type error. To remedy this we need to remember what types we've assigned type variables as we solve.
+Okay, that all sounds reasonable. But begs the question, what does it mean for two types to be equal? For us, we determine two types are equal structurally. We examine the tree of each type and if they are the same node and all their children are equal, we consider them equal. This works great except for type variables. It's not enough to just check that two variables are equal. A type variable could stand for any type (even another type variable). When we compare it to another type, we can freely assume the type variable stands for that type and make our two types equal, easy! This works great for any individual equality, but we can get into trouble if we do that haphazardly for our whole set. We may assume for one equality that type variable `a` is `Type::Int` and for another equality assume it is `Type::Fun(Type::Var(b), Type::Var(c))`. While a type variable can stand for any type, it can only stand for one type. If our set of equalities needs a type variable to stand for two types, we have a type error. To remedy this we need to remember what types we've assigned type variables as we solve.
 
-An assignment of type variables to types is called a type substitution. We'll build up a type substitution over the course of constraint solving, and at the end our substitution should have an entry for every type variable. This process of solving a set of constraints by building up a substitution that makes them equal has a name: it's called [Unification](https://en.wikipedia.org/wiki/Unification_(computer_science)).
+An assignment of type variables to types is called a type substitution. We build up a type substitution over the course of constraint solving, and at the end our substitution should have an entry for every type variable. This process of solving a set of constraints by building up a substitution that makes them equal has a name: it's called [Unification](https://en.wikipedia.org/wiki/Unification_(computer_science)).
 
 ### Unification
 Unification is the process of determining if a type substitution exists that can make our set of constraints true. If no such substitution exists, as always, we have a type error. Unification is fundamentally a search problem since we're trying out various types for our type variables until we find an assignment that works or discover an assignment cannot exist. We won't, but we could imagine if we tried to bruteforce our solution it would take quite awhile. Fortunately, once again, math has our back! Unification is a well studied subject and a couple of algorithms have been found that are able to unify types in near linear time. We'll grab one of these algorithms off the shelf and be on our merry way to quick type inference.
@@ -344,7 +344,7 @@ Unification is the process of determining if a type substitution exists that can
 #### Union-find
 The secret to speeding up our unification lies in how we store our type substitution. We'll use a [Union-Find](https://en.wikipedia.org/wiki/Disjoint-set_data_structure) data structure to build our type substitution. There's a lot that can be said about the union-find, but we're going to skip most of it. The union-find is only an important implementation detail of our unification algorithm. Union-Find is an efficient way to store disjoint sets of things, for us, that will be sets of types. It does this via two operations: union and find. Each of our disjoint sets is represented by one of its elements. Union merges two sets combining their representatives to form a new representative for the set. Find will look up the set a type is a member of and return that set's representative.
 
-It is not immediately apparent how these two operations will let us implement a type substitution. To see how we'll implement our type substitution with union-find, let's revisit some code we brushed over in constraint generation: `unification_table` and `fresh_ty_var`:
+It is not immediately apparent how these two operations will let us implement a type substitution. To see how we implement our type substitution with union-find, let's revisit some code we brushed over in constraint generation: `unification_table` and `fresh_ty_var`:
 ```rs
 struct TypeInference {
   unification_table: InPlaceUnificationTable<TypeVar>,
@@ -411,7 +411,7 @@ fn normalize_ty(
   }
 }
 ```
-When we normalize, we'll look up the representative for our type variable in our union-find and return a new type with all our instances of the type variable replaced by its representative. Note that when we replace our variable by its type from the union-find, we call `normalize_ty` on that type as well. We might have solved type variables that are present in this type, so we normalize it as well to produce the most known type we can.
+When we normalize, we look up the representative for our type variable in our union-find and return a new type with all our instances of the type variable replaced by its representative. Note that when we replace our variable by its type from the union-find, we call `normalize_ty` on that type as well. We might have solved type variables that are present in this type, so we normalize it as well to produce the most known type we can.
 
 Great! Now that we've removed all the type variables we can with normalization, we can break down our unification cases:
 ```rs
@@ -443,9 +443,9 @@ Here's our first case where we add to our type substitution. Two type variables 
     .map_err(|(l, r)| TypeError::TypeNotEqual(l, r))
 }
 ```
-This case is where we actually assign a type to a type variable. When a type variable encounters a (non-variable) type, we unify the two making our concrete type the representative of that type variable's set. Moving forward whenever we normalize that type variable, or a type variable in it's set, we'll return this type.
+This case is where we actually assign a type to a type variable. When a type variable encounters a (non-variable) type, we unify the two making our concrete type the representative of that type variable's set. Moving forward whenever we normalize that type variable, or a type variable in it's set, we return this type.
 
-Before any of that, we call `occurs_check` on our type possibly returning an `InfiniteType` error. `occurs_check` walks our type and makes sure it doesn't have any instance of the type variable we're about to unify it with. The reason we need to avoid this is it forms a cycle in our type substitution. This is a problem during normalization. When normalization substitutes a type, it first normalizes that type.  But that type contains our variable. So we'll look up our type again and normalize it again, looping infinitely. Infinite loops do not make for fast type inference, so before we can unify our variable and type we want to make sure we're not creating a cycle. Finally, our last case, a type error:
+Before any of that, we call `occurs_check` on our type possibly returning an `InfiniteType` error. `occurs_check` walks our type and makes sure it doesn't have any instance of the type variable we're about to unify it with. The reason we need to avoid this is it forms a cycle in our type substitution. This is a problem during normalization. When normalization substitutes a type, it first normalizes that type.  But that type contains our variable. So we look up our type again and normalize it again, looping infinitely. Infinite loops do not make for fast type inference, so before we can unify our variable and type we want to make sure we're not creating a cycle. Finally, our last case, a type error:
 ```rs
 (left, right) => Err(TypeError::TypeNotEqual(left, right)),
 ```
@@ -480,7 +480,7 @@ TypeScheme {
 We have one unbound type variable, and our function takes that type variable and returns it. Anyone that wants to call our function will have to provide us a type for our type variable, and only then will we know the type of our function.
 
 ## Conclusion
-Now that we've put all our pieces in place we can pretty succinctly glue them together to perform type inference in our culminating `type_infer` function:
+Now that we've put all our pieces in place we can pretty succinctly glue them together to perform type inference in our coalescing `type_infer` function:
 ```rs
 fn type_infer(ast: Ast<Var>) -> Result<(Ast<TypedVar>, TypeScheme), TypeError> {
   let mut ctx = TypeInference {
@@ -504,4 +504,4 @@ fn type_infer(ast: Ast<Var>) -> Result<(Ast<TypedVar>, TypeScheme), TypeError> {
 ```
 Our function even divides cleanly into our phases. We generate a set of constraints, solve them into a substitution, and apply our substitution. The full source code is available as a GitHub repo you can check out and play around with [here](https://github.com/thunderseethe/type-inference-example/).
 
-We've done it! We can infer types for our simple language now. There's a ton we can do to make this more performant or infer more powerful types, but all of that can wait for another day. This article is already woefully long for how much we've had to skim over the details. We've created a great MVP that we can start playing around with, and in a future article we can start extending it with the fancy features we'd like our language to support. Best of all we didn't get stuck endlessly fiddling with our parser. Type driven design has allowed us to escape the orbital decay of parser bike-shedding.
+We've done it! We can infer types for our simple language now. There's a ton we can do to make this more performant or infer more powerful types, but all of that can wait for another day. This article is already woefully long for how much we've had to skim over the details. We've created a great MVP that we can start playing around with, and in a future article we can start extending it with the fancy features we'd like our language to support. Best of all we didn't get stuck endlessly fiddling with our parser. Type driven design has allowed us to escape the orbital decay of parser bikeshedding.
