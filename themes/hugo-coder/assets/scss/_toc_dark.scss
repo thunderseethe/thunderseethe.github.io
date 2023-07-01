@@ -1,0 +1,41 @@
+.colorscheme-dark #TableOfContents ul li a {
+  color: $fg-color-dark;
+}
+
+.colorscheme-dark #TableOfContents ul li.active a {
+  color: $alt-fg-color-dark;
+}
+
+.colorscheme-dark #TableOfContents ul li.active {
+  background-color: $acc-color-dark;
+}
+
+@mixin toc_dark {
+  #toc a.float-button {
+    color: $alt-fg-color-dark;
+    background-color: $alt-bg-color-dark;
+
+    &:hover,
+    &:focus {
+      color: $link-color-dark;
+
+      @media only screen and (max-width: 768px) {
+        color: $alt-fg-color-dark;
+      }
+    }
+  }
+
+  #toc[open] {
+    background-color: $alt-bg-color-dark;
+  }
+}
+
+body.colorscheme-dark {
+  @include toc_dark();
+}
+
+body.colorscheme-auto {
+  @media(prefers-color-scheme: dark) {
+    @include toc_dark();
+  }
+}

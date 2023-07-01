@@ -1,3 +1,73 @@
-#TableOfContents ul {
-  list-style-type: lower-roman;
+#toc {
+  top: 2rem;
+  left: 2rem;
+  font-size: 1em;
+  position: fixed;
+
+  a.float-button {
+    position: relative;
+    display: inline-block;
+    width: 3rem;
+    height: 3rem;
+    font-size: 2rem;
+    color: $alt-fg-color;
+    background-color: $alt-bg-color;
+    border-radius: 0.2rem;
+    opacity: 0.5;
+    transition: all 0.25s ease-in;
+
+    &:hover,
+    &:focus {
+      color: $link-color;
+      opacity: 1;
+
+      @media only screen and (max-width: 768px) {
+        color: $alt-fg-color;
+        opacity: 0.5;
+      }
+    }
+
+    i {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+  }
+
+  summary {
+    display: inline-block;
+    line-height: 1rem;
+  }
 }
+
+#toc[open] {
+  opacity: 1;
+  background-color: $alt-bg-color;
+}
+
+#TableOfContents {
+  padding-right: 1rem;
+
+  ul {
+    list-style-type: none;
+    li {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+    li a {
+      color: $fg-color;
+    }
+  }
+
+  li.active {
+    background-color: $acc-color;
+    a {
+      color: $alt-fg-color;
+      font-weight: 500;
+    }
+  }
+}
+
+
+

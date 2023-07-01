@@ -2,6 +2,12 @@
   {{ .Title }} · {{ .Site.Title }}
 {{ end }}
 {{ define "content" }}
+  <details id="toc">
+    <summary>
+      <a class="float-button"><i class="fa fa-list fa-fw" aria-hidden="true"></i></a>
+    </summary>
+    {{ .TableOfContents }}
+  </details>
   <section class="container post">
     <article>
       <header>
@@ -30,11 +36,6 @@
           {{ with .GetTerms "tags" }}{{ partial "taxonomy/tags.html" . }}{{ end }}
         </div>
       </header>
-
-      <details>
-        <summary>Table Of Contents</summary>
-        {{ .TableOfContents }}
-      </details>
 
       <div class="post-content">
         {{ if .Params.featuredImage }}

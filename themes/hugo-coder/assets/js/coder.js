@@ -26,6 +26,23 @@ darkModeMediaQuery.addListener((event) => {
 document.addEventListener("DOMContentLoaded", function () {
     let node = document.querySelector('.preload-transitions');
     node.classList.remove('preload-transitions');
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        const id = entry.target.getAttribute('id');
+        if (entry.intersectionRatio > 0) {
+          document.querySelector(`nav li a[href="#${id}"]`).parentElement.classList.add('active');
+        } else {
+          document.querySelector(`nav li a[href="#${id}"]`).parentElement.classList.remove('active');
+        }
+      });
+    });
+
+    // Track all sections that have an `id` applied
+    console.log('help');
+    document.querySelectorAll('h2[id]').forEach((h2) => {
+      observer.observe(h2);
+    });
 });
 
 function setTheme(theme) {
@@ -40,7 +57,7 @@ function setTheme(theme) {
             if (document.querySelector(selector)) {
                 return resolve(document.querySelector(selector));
             }
-    
+
             const observer = new MutationObserver(mutations => {
                 if (document.querySelector(selector)) {
                     resolve(document.querySelector(selector));
@@ -63,7 +80,7 @@ function setTheme(theme) {
         waitForElm('.utterances-frame').then((iframe) => {
             iframe.contentWindow.postMessage(message, 'https://utteranc.es');
         })
-        
+
     }
     else {
         const message = {
@@ -73,7 +90,7 @@ function setTheme(theme) {
         waitForElm('.utterances-frame').then((iframe) => {
             iframe.contentWindow.postMessage(message, 'https://utteranc.es');
         })
-        
+
     }
 
     function sendMessage(message) {
@@ -86,7 +103,7 @@ function setTheme(theme) {
           theme: theme,
         },
       });
-    
+
     // Create and send event
     const event = new Event('themeChanged');
     document.dispatchEvent(event);
