@@ -39,7 +39,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // Track all sections that have an `id` applied
-    console.log('help');
     document.querySelectorAll('h2[id]').forEach((h2) => {
       observer.observe(h2);
     });
