@@ -1,5 +1,5 @@
 +++
-title = "Part 2: Generating Constraints in Both Directions"
+title = "Part 1: Generating Constraints in Both Directions"
 date = "2023-06-24T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
