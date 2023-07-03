@@ -19,6 +19,7 @@ A place to stockpile my musings on whatever catches my fancy.
 
 I'm currently working on [designing a programming language](series/making-a-language)
 """
+goatCounter = { code = "thunderseethe" }
 
 [taxonomies]
 tag = "tags"

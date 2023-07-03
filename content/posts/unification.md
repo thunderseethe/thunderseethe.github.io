@@ -1,6 +1,6 @@
 +++
-title = "Part 1c: Tying up Type Inference"
-date = "2023-06-17T00:00:00Z"
+title = "Part 3: Tying up Type Inference"
+date = "2023-07-01T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
 series = ["Making a Language"]
@@ -8,7 +8,7 @@ keywords = ["Programming Languages", "Compiler", "Type Inference", "Bidirectiona
 description = "Solve Type Constraints via Unification"
 +++
 ## Constraint Solving
-Now that we've got our set of constraints, we can attempt to solve them. So what does it mean to solve a constraint? A constraint is something that has to be true about our types. If we can prove whatever our constraint wants true, we have solved the constraint. Since our `Constraint` datatype is just type equality, we can solve all our constraints by proving their types equal. If we fail to prove two types equal, we have a type error, and we can bail out early.
+[On last week's episode](/posts/bidirectional-constraint-generation) we generated a set of constraints with our bidirectional type system. Now that we've got our set of constraints, we can attempt to solve them. So what does it mean to solve a constraint? A constraint is something that has to be true about our types. If we can prove whatever our constraint wants true, we have solved the constraint. Since our `Constraint` datatype is just type equality, we can solve all our constraints by proving their types equal. If we fail to prove two types equal, we have a type error, and we can bail out early.
 
 Okay, that all sounds reasonable. But begs the question, what does it mean for two types to be equal? For us, we determine two types are equal structurally. We examine the tree of each type and if they are the same node and all their children are equal, we consider them equal. This works great except for type variables. It's not enough to just check that two variables are equal. A type variable could stand for any type (even another type variable). When we compare it to another type, we can freely assume the type variable stands for that type and make our two types equal, easy! This works great for any individual equality, but we can get into trouble if we do that haphazardly for our whole set. We may assume for one equality that type variable `a` is `Type::Int` and for another equality assume it is `Type::Fun(Type::Var(b), Type::Var(c))`. While a type variable can stand for any type, it can only stand for one type. If our set of equalities needs a type variable to stand for two types, we have a type error. To remedy this we need to remember what types we've assigned type variables as we solve.
 

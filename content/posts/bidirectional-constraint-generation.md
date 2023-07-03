@@ -1,12 +1,22 @@
 +++
-title = "Part 1b: Bidirectional Constraint Generation"
-date = "2023-06-17T00:00:00Z"
+title = "Part 2: Generating Constraints in Both Directions"
+date = "2023-06-24T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
 series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Type Inference", "Bidirectional Typechecking", "Constraint Generation", "Polymorphism"]
 description = "Generate Type Constraints with a Bidirectional Type System"
 +++
+[Last time](/posts/type-inference/), we laid out the AST and Type for the language we are building. We also got a bird's-eye view of our type inference algorithm: constraint generation, constraint solving, substitute our solved types. This time we're implementing the constraint generation portion of our type inference algorithm.
+
+Our passes will need to share some state between each other. We introduce a `TypeInference` struct to hold this shared state and implement our passes as methods on that struct:
+```rs
+struct TypeInference  {
+  unification_table: InPlaceUnificationTable<TypeVar>,
+}
+```
+We'll talk more about `unification_table` when we talk about constraint solving. For now, it's enough to think of it as a mapping from type variables to type, and we'll use it in constraint generation to generate new type variables and keep track of them for later.
+
 ## Constraint Generation
 We generate our set of constraints from contextual information in our AST. To get this context we need to visit every node of our AST and collect constraints for that node. Traditionally this is done with a bottom-up tree traversal (e.g. HM's Algorithm J). We visit all of a node's children and then use the children's context to better infer the type of our node. This approach is logically correct. We always infer the correct type and type error when we should. While correct, this approach doesn't make the most efficient use of information available. For example, in an application node we know that the function child must have a function type. Since types are only inferred bottom-up, we have to infer an arbitrary type for our function node and add a constraint that the inferred type must be a function.
 
@@ -203,4 +213,4 @@ Finally, we have our bucket case. At first this might seem a little too easy. If
 
 This is the only place where we emit a constraint explicitly. Everywhere else we just propagate constraints from our children's recursive calls. The point where we switch from checking back to inference is the only point where we require a constraint to ensure our type line up. Our intuition for `infer` and `check` help guide us to that conclusion. This is in part the insight and the power of a bidirectional type system. It will only become more valuable as we extend our type system to handle more complicated types.
 
-With that we've finished generating our constraints. As output of constraint generation we produce two things: a set of constraints and a typed AST. Our typed AST has a type associated to every variable (and from that we can recover the type of every node). However, a lot of these are still unknown type variables. We'll save that AST for now and revisit it once we've solved our set of constraints and have a solution for all our type variables.
+With that we've finished generating our constraints. As output of constraint generation we produce two things: a set of constraints and a typed AST. Our typed AST has a type associated to every variable (and from that we can recover the type of every node). However, a lot of these are still unknown type variables. We'll save that AST for now and revisit it once we've solved our set of constraints and have a solution for all our type variables. Naturally then, [next time](/posts/unification) we'll implement constraint solving.
