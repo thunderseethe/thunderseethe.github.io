@@ -19,17 +19,20 @@ A place to stockpile my musings on whatever catches my fancy.
 
 I'm currently working on [designing a programming language](series/making-a-language)
 """
-goatCounter = { code = "thunderseethe" }
 
-[taxonomies]
-tag = "tags"
-seriers = "series"
+[params.goatCounter]
+code = "thunderseethe"
 
 [[params.social]]
 name = "Github"
 icon = "fa fa-2x fa-github"
 weight = 1
 url = "https://github.com/thunderseethe/"
+
+[taxonomies]
+tag = "tags"
+seriers = "series"
+
 
 [[menu.main]]
   name = "Posts"
