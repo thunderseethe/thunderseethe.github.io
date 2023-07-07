@@ -1,5 +1,5 @@
 +++
-title = "Part 1: Generating Constraints in Both Directions"
+title = "Part 1: Bidirectional Constraint Generation"
 date = "2023-06-24T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
@@ -212,5 +212,17 @@ Our `Fun` case is also straightforward. We decompose our `Type::Fun` into it's a
 Finally, we have our bucket case. At first this might seem a little too easy. If we encounter an unknown pair, we just infer a type for our AST and add a constraint saying that type has to be equal to the type we're checking against. If we think about this, it makes some sense though. In the unlikely case that neither of our types are variables (`(Int, Fun)` or `(Fun, Int)`), we will produce a type error when we try to solve our constraint. In the case that one of our types is a variable, we've now recorded the contextual info necessary about that variable by adding a constraint. We can rely on constraint solving to propagate that info to wherever it's needed. 
 
 This is the only place where we emit a constraint explicitly. Everywhere else we just propagate constraints from our children's recursive calls. The point where we switch from checking back to inference is the only point where we require a constraint to ensure our type line up. Our intuition for `infer` and `check` help guide us to that conclusion. This is in part the insight and the power of a bidirectional type system. It will only become more valuable as we extend our type system to handle more complicated types.
+
+## Example
+It's hard to see how our two function fit together just from their implementation. Let's walk through an example to see `infer` and `check` in action. Consider a slightly contrived AST:
+```rs
+Ast::app(
+    Ast::fun(
+        Var(0),
+        Ast::Var(Var(0))),
+    Ast::Int(3)
+)
+```
+This is an integer applied to the identity function. A simple example, but it uses all of our AST nodes and will give us some insight into how `check` lets us propagate more type information than `infer` alone.
 
 With that we've finished generating our constraints. As output of constraint generation we produce two things: a set of constraints and a typed AST. Our typed AST has a type associated to every variable (and from that we can recover the type of every node). However, a lot of these are still unknown type variables. We'll save that AST for now and revisit it once we've solved our set of constraints and have a solution for all our type variables. Naturally then, [next time](/posts/unification) we'll implement constraint solving.
