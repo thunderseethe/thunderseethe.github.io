@@ -214,15 +214,81 @@ Finally, we have our bucket case. At first this might seem a little too easy. If
 This is the only place where we emit a constraint explicitly. Everywhere else we just propagate constraints from our children's recursive calls. The point where we switch from checking back to inference is the only point where we require a constraint to ensure our type line up. Our intuition for `infer` and `check` help guide us to that conclusion. This is in part the insight and the power of a bidirectional type system. It will only become more valuable as we extend our type system to handle more complicated types.
 
 ## Example
-It's hard to see how our two function fit together just from their implementation. Let's walk through an example to see `infer` and `check` in action. Consider a slightly contrived AST:
+It's hard to see how our two functions fit together from just from their implementations. Let's walk through an example to see `infer` and `check` in action. Consider a contrived AST:
 ```rs
 Ast::app(
-    Ast::fun(
-        Var(0),
-        Ast::Var(Var(0))),
-    Ast::Int(3)
+  Ast::fun(
+    Var(0),
+    Ast::Var(Var(0))),
+  Ast::Int(3)
 )
 ```
-This is an integer applied to the identity function. A simple example, but it uses all of our AST nodes and will give us some insight into how `check` lets us propagate more type information than `infer` alone.
+This is an integer applied to the identity function. A simple example, but it uses all of our AST nodes and will give us some insight into how `check` lets us propagate more type information than `infer` alone. Our example will use some notation to let us introspect our environment and use human friendly names:
+```
+x, y, z represent variables
 
-With that we've finished generating our constraints. As output of constraint generation we produce two things: a set of constraints and a typed AST. Our typed AST has a type associated to every variable (and from that we can recover the type of every node). However, a lot of these are still unknown type variables. We'll save that AST for now and revisit it once we've solved our set of constraints and have a solution for all our type variables. Naturally then, [next time](/posts/unification) we'll implement constraint solving.
+α, β, γ represent type variables
+
+env will use a literal 
+formatted as { <var0>: <type0>, <var1>: <type1>, ... } 
+with {} being an empty environment.
+```
+Using our new notation we can shorten our AST example:
+```rs
+Ast::app(
+  Ast:fun(x, Ast::Var(x)),
+  Ast::Int(3)
+)
+```
+Okay, we start by calling `infer` on our root `App` node:
+```rs
+infer({}, Ast::App(...))
+```
+Our `App` case starts by inferring a type for our `arg`. Because our argument is `Ast::Int(3)` its inferred type is `Int`:
+```rs
+infer({}, Ast::Int(3)) = Int
+```
+We use this inferred argument, and a fresh return type, to construct a function type that we check against our `App`'s `func`:
+```rs
+check(
+  {}, 
+  Ast::Fun(x, Ast::Var(x)), 
+  Fun(Int, Var(α))
+)
+```
+A function and a function type is one of our specific check cases (it doesn't fall into the bucket case). We destructure the function type to determine the type of our argument and body. This is where `check` shines. If we just had `infer` we would have to introduce a new type variable for `x` and add a constraint that `x`'s type variable must be `Int`. Instead, we can immediately determine `x`'s type must be `Int`. With our env updated to include `x` has type `Int`, we check body against our function type's return type:
+```rs
+check(
+  { x: Int }, 
+  Var(x), 
+  Var(α)
+)
+```
+This is not a check case we know how to handle, it falls into the bucket case. The bucket case infers a type for our body. This looks up `x`'s type in the environment and returns it:
+```rs
+infer({ x: Int }, Var(x)) = Int
+```
+We don't show it in the example, but this will also return a new AST where `x` is annotated with its type: `TypeVar(x, Int)`. We'll see how that gets used when we look at the final output of our example. A constraint is added that our checked type is equal to our inferred type:
+```rs
+Constraint::TypeEqual(
+  Var(α), 
+  Int
+)
+```
+Once we output that constraint we're done calling `infer` and `check`. We propagate our constraints up the call stack and construct our typed AST as we go. At the end of returning from all our recursive calls we have our constraint set, with just one constraint:
+```rs
+vec![Constraint::TypeEqual(Var(α), Int)]
+```
+and our typed AST:
+```rs
+Ast::app(
+  Ast::fun(
+    TypeVar(x, Int), 
+    Ast::Var(TypedVar(x, Int))
+  ),
+  Ast::Int(3)
+)
+```
+The final overall type of our AST, returned from our first `infer` call, is `Var(α)`, remember our function's type is `Fun(Int, Var(α))`. This illustrates why we need the final substitution step after constraint solving. Only once we've solved our constraints do we know `α = Int`, and we can correctly determine our overall AST's type is `Int`.
+
+With that we've finished generating our constraints. As output of constraint generation we produce three things: a set of constraints, a typed AST, and a Type for our whole AST. Our typed AST has a type associated to every variable (and from that we can recover the type of every node). However, a lot of these are still unknown type variables. We'll save that AST for now and revisit it once we've solved our set of constraints and have a solution for all our type variables. Naturally then, [next time](/posts/unification) we'll implement constraint solving.
