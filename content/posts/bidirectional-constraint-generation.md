@@ -223,7 +223,7 @@ Ast::app(
   Ast::Int(3)
 )
 ```
-This is an integer applied to the identity function. A simple example, but it uses all of our AST nodes and will give us some insight into how `check` lets us propagate more type information than `infer` alone. Our example will use some notation to let us introspect our environment and use human friendly names:
+This is the identity function applied to an integer. A simple example, but it uses all of our AST nodes and will give us some insight into how `check` lets us propagate more type information than `infer` alone. Our example will use some notation to let us introspect our environment and use human friendly names:
 ```
 x, y, z represent variables
 
