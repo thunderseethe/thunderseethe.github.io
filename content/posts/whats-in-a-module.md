@@ -7,13 +7,6 @@ keywords = ["Programming Languages", "Compiler", "Modules", "Namespaces", "Encap
 description = "A discussion of the overloaded use of modules in languages"
 +++
 
-## Figure out sections
-
-**Purpose**: Why am I writing this article.
-    * What am I saying?
-    * How am I going to say it?
-        * Flesh out sections
-
 Purpose: 
     1. Every language has a module system at this point, but they are all different.
     2. Modules handle namespacing and packaging, but most languages only use modules for namespacing.
