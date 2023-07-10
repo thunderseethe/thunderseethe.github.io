@@ -30,7 +30,7 @@ Purpose: Introduce modules and talk about their prevalence in programming langua
 Purpose: The main concern of modules are: namespacing and packaging. Link to resources that this article is going to distill.
 
 * Have to look elsewhere for a more precise definition of modules
-* List of resources on modules (Modules matter most, ATAPL, backpack, mixin modules)
+* List of resources on modules (Modules matter most, ATAPL, backpack, f-ing modules)
 * Modules are responsible for two main things
   * Namespacing
   * Packaging
@@ -41,10 +41,10 @@ Purpose: The main concern of modules are: namespacing and packaging. Link to res
 ## Strong vs Weak Modules
 Purpose: Most languages support weak modules, but not Strong modules. Strong modules sound strictly superior.
 
-* Weak modules most have all of their dependencies available before they can be compiled.
+* Weak modules must have all of their dependencies available before they can be compiled.
   * Easier to implement
     * Probably why it is more common
-  * Forces some amount of sequential work during compilation
+  * Forces sequential work during compilation
 * Strong modules can be compiled in isolation and linked against their dependencies later
   * Allows for building modules in parallel
   * Allows for prebuilding modules and downloading them
@@ -79,7 +79,7 @@ Purpose: Packaging is important for [separation of concerns](TODO). Code can be 
 * These are all Weak module systems 
   * Limits parallelism
   * Relies on implicit interfaces exported by dependency
-    * Whenever a dependency changes it's interface your module breaks
+    * Whenever a dependency changes its interface your module breaks
 
 * SML/OCaml modules are Strong modules
   * Module interfaces are explicit
@@ -101,72 +101,85 @@ Purpose: Strong modules from SML/OCaml are verbose and complex.
   * Functors allow parameterizing a module on other modules
 * Signatures are verbose and introduce boilerplate by duplicating code (reference C headers).
 * Generative Module Functors are complex and manually instantiating modules is unintuitive (and verbose).
+* Abstract types have complicated semantics and require propagating a bunch of shraing clauses
 
 ## Mixin Modules
 Purpose: Mixin Modules provide an improvement over SML/OCaml modules. 
 
+* A lot of research into modules has been done since the SML module system was designed
+* Mixin Modules are a promising approach that seeks to reduce the complexity of working with first-class modules
 * Signatures are combined with structures to reduce boilerplate. 
 * Linking automatically links up a modules dependencies, removing the need for functors and manually wiring up modules.
 * Mixin Modules can use applicative semantics allowing for automatic module equality compared to generative module functors.
 
 
-## Hold off on this as well
 ## What's in a Module?
 
 > A module by any other namespace would encapsulate just as sweet
 >                  - Shakespeare..._mostly_
 
-Modular programming has become a cornerstone of software development. Software projects are only getting larger, and as they do the need to divide up monolithic codebases into self contains chunks becomes indispensable. It is no surprise then, that some kind of module shows up in all modern programming languages we use today, although not always named as such:
+[Modular programming](TODO) has become a cornerstone of modern software development. Software projects are only getting larger, and as they do the need to divide up monolithic codebases becomes indispensable. It is no surprise then, that some form of modules show up in all modern programming languages in use today:
 
-  * Java has Packages
+  * Java calls their Modules Packages
   * Haskell has Modules
   * Rust has Modules (_and_ Crates)
   * Python has Modules
-  * JavaScript notably lacked Modules, and that turned out so painful they now have [multiple](https://requirejs.org/) [competing](https://github.com/amdjs/amdjs-api/blob/master/AMD.md) [Modules](https://en.wikipedia.org/wiki/CommonJS)
+  * JavaScript notably lacked Modules, and that was so painful they now have [multiple](https://requirejs.org/) [competing](https://github.com/amdjs/amdjs-api/blob/master/AMD.md) [Modules](https://en.wikipedia.org/wiki/CommonJS)
   * C lacks Modules, but C++ has them as of C++20.
-  * SML and OCaml have **First-Class** Modules (we'll find out why that's important later!)
+  * SML and OCaml have **First-Class** Modules
 
-Wow, a lot of languages have modules (and what was that about JavaScript having a bunch of module systems?). I'm [designing my own language](series/making-a-language/), so it should also come as no surprise that I'm very interested in module design and implementation. However 
+What is surprising however, is that all these modules implementations are different. As part of [designing my own language](series/making-a-language/), I've been thinking about how to design a module system. Imagine my distress to find out there's no consensus around what a module is, let alone what it should do! I really want to highlight the distinction between these implementations, so let's take a quick look at them:
 
-## Trashcan for now
-* Designing my own language (TODO: Link series), and so am interested in designing a module system
-* Looked to existing languages for guidance on what to put in a module system
-* Every language does modules slightly differently:
-    * Java packages are all in one flat namespace and don't allow for nesting (they pretend packages nest)
-    * Python and JavaScript modules are like runtime objects, where most modules are compile time structures
-    * Rust modules can be nested and can reference each other recursively
-    * SML's first-class modules support parameterizing a module on other modules
+  * Haskell/Rust have second-class modules. Allows nesting of modules inside other modules
+  * Java packages are strictly tied to files and are just namespaces. They cannot be nested.
+  * JavaScript/Python modules are just runtime objects that can be imported with special syntax support.
 
-* Module is clearly quite ambiguous and overloaded in programming language terminology.
-    * How can there be so little consensus on what a module is, and what it does?
-* Okay so if we're not going to be able to figure it out from looking at implementations, where can we look?
-* Turns out a lot of places:
-  * Bob Harper (one of the creators SML) has written a great blog post about them [Modules Matter Most](https://existentialtype.wordpress.com/2011/04/16/modules-matter-most/)
-  * Advanced Topics in Types and Programming Languages has a whole chapter (8) devoted to talking about modules
-  * Haskell found their module system lacking, and laid out a more power module system in a paper [Backpack: Retrofitting Haskell with Interfaces
-](https://plv.mpi-sws.org/backpack/)
-  * [Andreas Rossberg](https://people.mpi-sws.org/~rossberg/) has done a ton of cool work on modules, but I especially want to highlight [Mixin' Up the ML Module System](https://people.mpi-sws.org/~rossberg/mixml/)
+This stands in stark contrast to other language features. All of these languages also support structured control flow (while, for, if/else) and first-class functions (lambda, closures, etc.). If we know how those work in one language we have a pretty good idea how they work in every other language, barring some syntax differences. What's different about modules that splintered the implementations so heavily.
 
-* That's a lot to read, and while I'd recommend checking it out, I'm here to digest and summarize for you.
-* A module is responsible for two things
-    * Namespacing
-    * Packaging
-* Namespacing
-    * Break up a codebase into multiple disjoint scopes
-    * Control the public interface of a piece of code
-* Packaging
-    * A composble unit of compilation
-    * Support for separate compilation
-        * Separate compilation is where each module can be compiled in parallel independently and then combined later
-        * Juxtapose with traditional compilation where all the dependencies of a module have to be compiled before compilation of that module begin
-    * Programming against an interface
-        * Moduels can be swapped out 
-* Examples
-    * Rust - modules and crates
-        * Modules are just namespaces
-        * Crates handle packaging
-    * Haskell - modules, self ascribed weak modules
-        * Modules are just namespaces
-        * Implicit module signatures generated
-    * SML - First class modules
+We've been highlighting the differences between these module systems, but they do have some common ground. If we blur the details we can see some shared features:
 
+ * Allows separating code into independent shared pieces
+ * Encapsulation - These all allow modules to have implementation details no one else can see
+
+Clearly these systems started with the same goal in mind, but the devil is in the details.  At their core, modules are concerned with breaking up code into manageable pieces. We can wrap code up in a module and then import it wherever we need to use it.
+
+## Modules, a little more formally
+
+Looking at existing implementations helped us get a high level idea of modules. Nevertheless, to design a module system we're going to need a more precise understanding. There's a wealth of research into modules dating back decades. Academic research is known for being accessible and easily translated to a practical implementation, so let's see if they can give us a deeper understanding of modules.
+
+Jokes aside, there are some great resources to learn about modules that we're going to distill:
+
+  * [Modules Matter Most](TODO) - Blog post from Bob Harper one of the creators of SML
+  * [Backpack](TODO) - Retrofitting more powerful modules on Haskell's existing module system
+  * [F-ing Modules](TODO) - A paper that seeks to unify and simplify the various module implementations
+  * [Advanced Types and Programming Languages; chapter 8](TODO) - Great introduction into module implementation and the theory of modules
+
+You don't need to read all of these (and I desperately need you to finish this blog post). But if you're interested in learning more about modules they are a great reference.
+
+One insight we gain from these papers is that modules are ultimately just a list of definitions. A module contains a series of functions (or types, classes, etc.) that other modules can import and reference. We can see a lot of similarities between modules and classes with their list of methods. In fact a lot of research has been done on the relationship modules and classes have in the OO paradigm. To be effective bags of functions, modules are responsible for two things:
+
+    * Namespacing - control the visibility of it's definitions
+    * Packaging - creating self-contained components of code that can be combined arbitrarily
+
+We'll discuss what these mean in more detail, but first I need to introduce some terminology we'll need.
+
+### Strong vs Weak Modules
+
+When we're talking about module implementations it can be helpful to categorize them based on how they handle dependencies. Modules depending on other Modules is core functionality of any Module system. Because of this, it informs a lot decisions in the rest of the implementation. [Backpack](TODO) introduces a helpful distinction between module systems based on how they handle dependencies:
+
+  * Weak - a module must have all dependencies available before it can start compilation.
+  * Strong - a module can be compiled in isolation and its dependencies can be provided later
+
+Based on the definition alone, Strong modules sound better. Why would I want to wait on my dependencies if I don't have to? The answer is complexity. Weak modules are, historically, much simpler than Strong modules. The tradeoff for this simplicity is that they prevent a lot of parallelization. If I need all my dependencies available, I have to wait until all my dependencies finish compiling. Conversely, since Strong modules don't require their dependencies, we can compile a module and its dependencies as the same time. We could even compile a module without its dependencies, and get its dependencies from a cache later when we need them.
+
+Of the module systems we've seen so far, only SML/OCaml use Strong modules. Every other module system we've seen uses Weak modules. That's not just a landslide majority, it's so skewed there are folks that have gone their whole careers without seeing or learning about Strong modules. We'll talk some more about why Strong modules have seen such little adoption after we talk about our modules purposes.
+
+### Namespacing
+Namespacing is all about determining what code can be seen by other code. It shares a lot of similarity with OO visibility where an object's method can be declared public or private. To manage visibility of code, a module has an export list. Anything in the export list is visible outside the module. Definitions not on the list, cannot be accessed outside the module. We can see how this maps to public and private. Exported symbols are public everything else is private. However, modules can support more sophisticated forms of encapsulation. Rust even goes so far as to allow specifying a module is only visible in another specific module.
+
+This encapsulation through namespacing is critical to modules. Every module system we've talked about supports this. Arguably if your modules don't provide encapsulation, they aren't truly modules.
+
+### Packaging
+In contrast to namespacing, most of our module systems do not support packaging (at least using modules). Packaging is concerned with how modules are compiled. All compilers have some concept of a minimal unit of compilation. Borrowing from C/C++ we'll call this a compilation unit. It is the minimal amount of code the compiler can process independently.
+
+Modules that act as compilation units handle packaging well. We can compile a module independently within our compiler and 
