@@ -49,7 +49,7 @@ We know modules are bags of definitions. The insight we glean from our research 
 
 We'll discuss what these mean in more detail, but first I need to introduce some terminology we'll need.
 
-### Strong vs Weak Modules
+## Strong vs Weak Modules
 
 When we're talking about module implementations it can be helpful to categorize them based on how they handle dependencies. Modules depending on other modules is core functionality of any module system. It informs a lot of decisions in the rest of the system implementation. [Backpack](https://plv.mpi-sws.org/backpack/) introduces a helpful distinction between module systems based on how they handle dependencies:
 
@@ -64,7 +64,7 @@ Despite the advantages, of the module systems we've seen so far only SML/OCaml u
 
 Not to say that Strong modules are purely upside. We've already touched on their downsides a little bit. We'll talk more in depth about their downsides after we talk about namespacing and packaging.
 
-### Namespacing
+## Namespacing
 Namespacing is all about determining what code can be seen by other code. It shares a lot of similarity with OO visibility where a class method can be declared public or private. Modules manage the visibility of their definitions with an export list. Anything in the export list is visible outside the module. Definitions not on the list, cannot be accessed outside the module. We can see how this maps to public and private. Exported symbols are public, everything else is private. However, modules can support more sophisticated forms of encapsulation.
 
 Systems that allow nested modules can allow re-exporting. I can define a submodule with its own export list, and re-export a subset of that list from the parent module. This hides that the submodule exists at all. Other modules simply import the definition from the parent module.
@@ -73,7 +73,7 @@ On top of encapsulation, namespacing also allows for name duplication. It's fine
 
 Encapsulation and name management through namespacing are critical to modules. Every module system we've talked about supports them. If your modules don't provide namespacing, they aren't truly modules. I would argue all the systems we've seen so far are more namespace systems than module systems, except SML/OCaml. Because they all support namespacing but lack packaging features that are central to modules.
 
-### Packaging
+## Packaging
 In contrast to namespacing, most module systems we've talked about do not support packaging. Packaging is concerned with how code gets compiled. When we feed our code to a compiler it has some choice in how to process it. Worst case the compiler just processes all the code in order, but generally that's unacceptably slow by today's standarads. The compiler breaks the code up into chunks that can be processed in parallel. These chunks go by a different name in most compilers, but we'll call them packages for our purpose. 
 
 Parallelization is a large benefit of packages but not the only one. Because packages are a self-contained "chunk" of code, they can be serialized into a file and cached or shipped off somewhere else. Similar to the idea of object files that get linked together to create an executable (although packages need not literally be object files, frequently they are a serialized AST). This is particularly helpful for dependency management.
@@ -82,7 +82,7 @@ From this list of benefits, packaging looks a lot like Strong modules. While pac
 
 What's interesting is they all invent ad hoc methods to handle packaging. So the system has Weak modules for namespacing, and then makes something up for packages. Calls it a compilation unit, or a JAR. Packaging is clearly vital, but languages don't use the module system to do it. The notable exception to this being SML/OCaml with its Strong modules. So let's talk about why Strong modules aren't more popular.
 
-### Downsides of Strong Modules (as seen in SML/OCaml)
+## Downsides of Strong Modules (as seen in SML/OCaml)
 
 I've spoken very highly of Strong modules. They almost sound too good to be true. They allow for highly parallel builds and naturally breaking our code up into packages. So why then, have they not seen wider adoption outside SML and OCaml? Is the industry simply blind to the light of Strong modules? Of course not. Strong modules incur a high complexity cost in exchange for their benefits.
 
@@ -99,4 +99,4 @@ It gets worse from there. SML/OCaml also have abstract types, sharing constraint
 ## Where does that leave Modules
 So is that it then? Weak modules are prevalent in mainstream languages because they are easy to implement and easy to use. While Strong modules are relegated to the ivory tower of academy, where they'll never see the large codebases in which they thrive. I don't think so, quite the opposite in fact. I think there's a wealth of low-hanging fruit in research on modules. That can be applied to produce more powerful module systems than what we see today, without adding all the complexity of the module system of SML/OCaml. 
 
-I do think the eventual consensus will be on using Strong modules of some fashion. Codebases are only growing larger, and programming in the large is where Strong modules really shine.[Backpack](https://plv.mpi-sws.org/backpack/) and [F-ing Modules](https://people.mpi-sws.org/~rossberg/papers/Rossberg,%20Russo,%20Dreyer%20-%20F-ing%20Modules.pdf) are two prime examples of that. A promising third approach I like a lot is [Mixin' Up the Module System](TODO). It seeks to simplify modules by combining structures and signatures into one construct, and using a linking mechanism to avoid a lot of the boilerplate around functors. I suspect ideas from these systems will become more prevalent in languages to come as they seek out Strong module systems to solve their needs.
+I do think the eventual consensus will be on using Strong modules. Codebases are only growing larger, and programming in the large is where Strong modules really shine. [Backpack](https://plv.mpi-sws.org/backpack/) and [F-ing Modules](https://people.mpi-sws.org/~rossberg/papers/Rossberg,%20Russo,%20Dreyer%20-%20F-ing%20Modules.pdf) are two prime examples of that. A promising third approach is [Mixin' Up the Module System](https://people.mpi-sws.org/~rossberg/papers/Rossberg,%20Dreyer%20-%20Mixin'%20Up%20the%20ML%20Module%20System.pdf). It seeks to simplify modules by combining structures and signatures into one construct, and using a linking mechanism to avoid a lot of the boilerplate around functors. I suspect ideas from these systems will become more prevalent in languages to come as they seek out Strong module systems to solve their needs.
