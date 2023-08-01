@@ -1,6 +1,6 @@
 +++
 title = "What's in a Module?"
-date = "2023-06-21T00:00:00Z"
+date = "2023-07-31T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Modules"]
 keywords = ["Programming Languages", "Compiler", "Modules", "Namespaces", "Encapsulation"]
@@ -21,7 +21,7 @@ It is no surprise then, that some form of modules show up in all modern programm
   * Java, Haskell, Rust, Python all have modules. (Java wisely calls them packages, alas that's not enough to keep them out of this article)
   * JavaScript notably lacked modules, and that was so painful they now have [multiple](https://requirejs.org/) [competing](https://github.com/amdjs/amdjs-api/blob/master/AMD.md) [modules](https://en.wikipedia.org/wiki/CommonJS).
   * C lacks modules, but C++ has them as of C++20.
-  * SML and OCaml have **Higher-Order** modules.
+  * SML and OCaml have **Higher-Order** modules. These let you construct modules from other modules.
 
 What is surprising however, is that all these modules implementations are different. 
 Not just surface level distinctions either. 
