@@ -12,7 +12,7 @@ description = "A discussion of the overloaded use of modules in languages"
 >
 > A module by any other namespace would encapsulate just as sweet
 >
->                                        - Shakespeare...mostly
+> - Shakespeare...mostly
 
 [Modular programming](https://en.wikipedia.org/wiki/Modular_programming) has become a cornerstone of modern software development. 
 Software projects are only getting larger, and as they do the need to divide up monolithic codebases becomes indispensable. 
@@ -34,7 +34,8 @@ Each language refers to a different idea when they call something a module:
 | Java       | No             | No           | No          | Compile-time   |
 | Javascript | No             | No           | Yes         | Run-time       |
 | Python     | No             | No           | Yes         | Run-time       |
-| SML/OCaml  | Yes            | Yes          | No          | Compile-time   |
+| SML        | Yes            | Yes          | No          | Compile-time   |
+| OCaml      | Yes            | Yes          | Yes         | Compile-time   |
 
 This stands in stark contrast to other language features. All of these languages also support structured control flow (while, for, if/else) and first-class functions (lambda, closures, etc.). If we know how those work in one language we have a pretty good idea how they work in every other language, barring some syntax differences. What's different about modules that splintered their implementations so heavily?
 
