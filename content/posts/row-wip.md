@@ -289,7 +289,162 @@ Ast::Concat(left, right) => {
 }
 ```
 `Concat` is the first node where we make use of our new row equations.
+We know our `left` and `right` nodes have to be product types.
+We exploit this knowledge to check them against Product types made from our fresh row equation instead of inferring their types.
+The inferred type for our `Concat` node is then the goal row decided by our equation wrapped as a Product type.
+TODO: Transition
+```rs
+Ast::Project(dir, goal) => {
+    let row_eqn = self.fresh_row_equation();
+    // Based on the direction of our projection,
+    // our output row is either left or right
+    let sub_row = match dir {
+        Direction::Left => row_eqn.left.clone(),
+        Direction::Right => row_eqn.right.clone(),
+    };
+    // Project transforms a row into a subset of its fields, so we check our goal ast
+    // node against our goal row (not our sub_row)
+    let mut out = self.check(env, *goal, Type::Prod(row_eqn.goal.clone()));
+    // Add our row equation constraint to solve our projection
+    out.constraints.push(Constraint::RowConcat(row_eqn));
+    (
+        out.with_typed_ast(|ast| Ast::project(dir, ast)),
+        // Our sub row is the output type of the projection
+        Type::Prod(sub_row),
+    )
+}
+```
+* Project uses goal as check value not left or right
+* Left or right is the output of based on direction
+    * Talk about direction? Defer to explainer
+```rs
+Ast::Branch(left, right) => {
+    let row_eqn = self.fresh_row_equation();
+    let ret_ty = self.fresh_ty_var();
 
+    // Branch expects it's two inputs to be handling functions
+    // with type: <sum> -> a
+    // So we check that our left and right AST both have function types that
+    // agree on return type
+    let left_out = self.check(
+        env.clone(),
+        *left,
+        Type::fun(
+            Type::Sum(row_eqn.left.clone()), 
+            Type::Var(ret_ty)
+        ),
+    );
+    let right_out = self.check(
+        env,
+        *right,
+        Type::fun(
+            Type::Sum(row_eqn.right.clone()), 
+            Type::Var(ret_ty)
+        ),
+    );
+
+    // If they do the overall type of our Branch node is a function from our goal row
+    // sum type to our return type
+    let out_ty = Type::fun(
+        Type::Sum(row_eqn.goal.clone()), 
+        Type::Var(ret_ty)
+    );
+    // Collect all our constraints for our final output
+    let mut constraints = left_out.constraints;
+    constraints.extend(right_out.constraints);
+    constraints.push(Constraint::RowConcat(row_eqn));
+
+    (
+        InferOut {
+            constraints,
+            typed_ast: Ast::branch(left_out.typed_ast, right_out.typed_ast),
+        },
+        out_ty,
+    )
+}
+```
+* Almost exactly the same as our `Concat` case
+* Our types are of the form `<sum> -> a` instead of just `{prod}`
+```rs
+Ast::Inject(dir, value) => {
+    let row_eqn = self.fresh_row_equation();
+    // Like project, inject works in terms of sub rows and goal rows.
+    // But inject is _injecting_ a smaller row into a bigger row.
+    let sub_row = match dir {
+        Direction::Left => row_eqn.left.clone(),
+        Direction::Right => row_eqn.right.clone(),
+    };
+
+    let out_ty = Type::Sum(row_eqn.goal.clone());
+    // Because of this our sub row is the type of our value
+    let mut out = self.check(env, *value, Type::Sum(sub_row));
+    out.constraints.push(Constraint::RowConcat(row_eqn));
+    (
+        out.with_typed_ast(|ast| Ast::inject(dir, ast)),
+        // Our goal row is the type of our output
+        out_ty,
+    )
+}
+```
+* Similar to our `Project` case
+* Except we're injecting a smaller row into a bigger row, so goal is used in our output type instead of input type.
+
+* And that's all our infer cases
+* Each row case generates a row equation and checks its inputs against the row equation and creates its inferred output type from the row equation
+  * We make much more use of check for these nodes then previously.
+* Now we need to modify `check` to handler our new Row nodes, starting again with `Label`:
+```rs
+(Ast::Label(ast_lbl, value), Type::Label(ty_lbl, ty))
+    if ast_lbl == ty_lbl => {
+  self.check(env, *value, *ty)
+}
+```
+Much like our `Int` and `Fun` cases, a `Label` node checks against a `Label` type.
+Unlike those cases, a `Label` node only checks against `Label` case if their labels are equal.
+Somewhat surprisingly, `Concat` and `Project` also check against a `Label` type:
+```rs
+(ast @ Ast::Concat(_, _), Type::Label(lbl, ty))
+| (ast @ Ast::Project(_, _), Type::Label(lbl, ty)) => {
+    // Cast a singleton row into a product
+    self.check(env, ast, Type::Prod(Row::single(lbl, *ty)))
+}
+```
+`Branch` and `Inject` can check against `Label` in the same way:
+```rs
+(ast @ Ast::Branch(_, _), Type::Label(lbl, ty))
+| (ast @ Ast::Inject(_, _), Type::Label(lbl, ty)) => {
+    // Cast a singleton row into a sum
+    self.check(env, ast, Type::Sum(Row::single(lbl, *ty)))
+}
+```
+`Label` types are effectively singleton rows.
+They act as a kind of transition between the type world and the row world.
+Because they sit in this middle point they can act as either a Product or a Sum.
+It's always unambiguous which one a `Label` is acting as, but until we see it context we don't know which one it is.
+Whenever a `Label` encounters context that determines it's type we cast it to that type and continue.
+TODO: transition
+```rs
+(Ast::Concat(left, right), Type::Prod(goal_row)) => {
+    let left_row = Row::Open(self.fresh_row_var());
+    let right_row = Row::Open(self.fresh_row_var());
+
+    let left_out = self.check(env.clone(), *left, Type::Prod(left_row.clone()));
+    let right_out = self.check(env, *right, Type::Prod(right_row.clone()));
+
+    let mut constraints = left_out.constraints;
+    constraints.extend(right_out.constraints);
+    constraints.push(Constraint::RowConcat(RowEquation {
+        left: left_row,
+        right: right_row,
+        goal: goal_row,
+    }));
+
+    InferOut {
+        constraints,
+        typed_ast: Ast::concat(left_out.typed_ast, right_out.typed_ast),
+    }
+}
+```
 
 
 # Row Constraint Generation Example
