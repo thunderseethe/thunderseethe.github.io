@@ -1,0 +1,26 @@
+.accessory {
+  border: 0.2em solid $acc-color;
+
+  summary {
+    color: $fg-color;
+    background-color: $acc-color;
+    list-style-type: "+";
+    .title {
+      display: inline;
+      margin-left: 0.2em;
+    }
+    ::marker {
+      color: $fg-color;
+      font-weight: bold;
+      font-size: 1.2em;
+    }
+  }
+
+  .inner {
+    padding: 0em 1em;
+  }
+
+  [open] summary {
+    list-style-type: "-";
+  }
+}
