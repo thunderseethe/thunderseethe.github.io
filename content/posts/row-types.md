@@ -1,7 +1,6 @@
 +++
 title = "Part 3: Rowing Afloat Datatype Boats"
-date = "2023-08-12T00:00:00Z"
-draft = true
+date = "2023-10-21T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
 series = ["Making a Language"]
