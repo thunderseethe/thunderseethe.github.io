@@ -20,7 +20,7 @@
     padding: 0em 1em;
   }
 
-  [open] summary {
-    list-style-type: "-";
-  }
+}
+.accessory[open] summary {
+  list-style-type: "-";
 }
