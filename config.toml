@@ -5,7 +5,11 @@ theme = "hugo-coder"
 enableEmoji = true
  
 [markup.highlight]
+tabWidth = 2
 style = "github-dark"
+
+[markup.tableOfContents]
+startLevel = 1
 
 [params]
 author = "thunderseethe"

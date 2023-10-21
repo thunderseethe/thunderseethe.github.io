@@ -1,0 +1,22 @@
+@mixin acessory_dark {
+  .accessory {
+    border: 0.2em solid $acc-color-dark;
+    summary {
+      color: $fg-color-dark;
+      background-color: $acc-color-dark;
+      ::marker {
+        color: $fg-color-dark;
+      }
+    }
+  }
+}
+
+body.colorscheme-dark {
+  @include acessory_dark();
+}
+
+body.colorscheme-auto {
+  @media (prefers-color-scheme: dark) {
+    @include acessory_dark();
+  }
+}
