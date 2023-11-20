@@ -139,7 +139,7 @@ Ast::App(fun, arg) => {
   let fun_ty = Type::fun(arg_ty, ret_ty.clone());
 
   // Because we inferred an argument type, we can
-  // cconstruct a function type to check against.
+  // construct a function type to check against.
   let fun_out = self.check(env, *fun, fun_ty);
 
   (
