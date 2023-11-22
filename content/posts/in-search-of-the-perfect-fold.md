@@ -1,10 +1,10 @@
 +++
 title = "In Search of the Perfect Fold"
-date = "2023-10-21T00:00:00Z"
+date = "2023-11-22T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Rust"]
 series = []
-keywords = ["Programming Languages", "Compiler", "Recursion Schemes", "Fold", "Iterators", "AST", "Trees", "Tree Transformations"]
+keywords = ["Programming Languages", "Compiler", "Recursion Schemes", "Fold", "Iterators", "AST", "Trees", "Tree Transformations", "Tree Folds", "Rust", "Mutation", "Design"]
 description = "A quest to design the perfect tree fold for Rust"
 +++
 
