@@ -5,7 +5,7 @@ author = "thunderseethe"
 tags = ["Programming Languages", "Rust"]
 series = []
 keywords = ["Programming Languages", "Compiler", "Recursion Schemes", "Fold", "Iterators", "AST", "Trees", "Tree Transformations", "Tree Folds", "Rust", "Mutation", "Design"]
-description = "A quest to design the perfect tree fold for Rust"
+description = "My quixotic quest to design the perfect tree fold for Rust"
 +++
 
 I'm writing a compiler in Rust.
