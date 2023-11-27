@@ -1,6 +1,6 @@
 +++
 title = "In Search of the Perfect Fold"
-date = "2023-11-22T00:00:00Z"
+date = "2023-11-27T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Rust"]
 series = []
@@ -35,6 +35,14 @@ The fold is frequently required to produce a new tree.
 In exchange for this more narrow use case, a tree fold can be more brief and convenient to write.
 A compiler has a lot of folds.
 Rustc has [20+ folds](https://doc.rust-lang.org/beta/nightly-rustc/rustc_middle/ty/trait.TypeFolder.html) for just one of their type trees, so this is a worthwhile tradeoff.
+
+{{< accessory title="What about a Tree Visitor?" >}}
+A lot of languages separate a tree visitor from a tree fold. 
+A tree visitor doesn't produce a new tree and just _visits_ each node in the tree.
+These are super handy for collecting information about a tree without modifying it, or searching a tree.
+However, we won't be talking about them in this post to save time.  
+Smash subscribe and hit that bell to let me know you wanna hear more about Tree Visitors!!
+{{< /accessory >}}
 
 [Rust Design Patterns](https://rust-unofficial.github.io/patterns/intro.html) has a great introduction to [tree folds](https://rust-unofficial.github.io/patterns/patterns/creational/fold.html) in Rust.
 We're going to reference some of the code snippets, so I've included them below:
@@ -114,7 +122,7 @@ We can see the utility of this in the example `Renamer` fold.
 `Renamer` only has to implement `fold_name`.
 It relies on the default trait implementations to perform the rest of the fold.
 
-This separation of our fold into subcomponents allows us to write folds DRY as the desert, a valuable attribute in anything you're going to have more than 20 of.
+This separation of our fold into subcomponents allows us to write folds dry as the desert, a valuable attribute in anything you're going to have more than 20 of.
 A reader is able to immediately digest the purpose of `Renamer`.
 The use of default methods has alleviated them of sifting through traversal logic trying to ascertain its purpose.
 
@@ -141,7 +149,7 @@ enum Expr {
   App(Box<Self>, Box<Self>)
 }
 ```
-paired with a new more functional `Folder` trait that really makes our eyes pop:
+accentuated with a new more functional `Folder` trait:
 ```rs
 trait Folder {
   fn fold_var(&mut self, var: Var) -> Var {
@@ -198,7 +206,7 @@ impl Folder for Subst {
 }
 ```
 
-I don't know about you, but this is much too humid for my tastes.
+I don't know about you, but this is much too damp for my tastes.
 Performing the actual substitution requires a modest snippet of code:
 ```rs
 Expr::Var(v) if v == self.needle => 
@@ -460,7 +468,7 @@ impl InPlaceFolder for Subst {
 ```
 We only specify the branch we care about `Expr::Var` and do nothing otherwise.
 This solution has the advantage that it never allocates (actually it can't allocate).
-It is also our most idiomatic solution so far as you might gleam from its simplicity.
+It is also our most idiomatic solution so far as you might glean from its simplicity.
 We don't have to add any new methods to our trait, and we make a very minor change to its signature.
 
 Alas, it still isn't perfect. 
