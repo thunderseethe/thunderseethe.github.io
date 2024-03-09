@@ -90,7 +90,7 @@ data Comp
     | Return Value
 ```
 
-With that CPBV has cut the Gregorian Knot, cementing its place as ruler of all Applications.
+With that CPBV has cut the Gordian Knot, cementing its place as ruler of all Applications.
 And we love that for them, but wow, it took a lot more stuff to do it (we doubled our line count).
 It's now exceedingly clear what's a value and what's a computation.
 One surprising thing is that variables are a value.
