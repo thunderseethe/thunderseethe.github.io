@@ -9,7 +9,7 @@ description = "Why call-by-push-value is the best evaluation strategy, and why i
 
 You come upon a function argument at a fork in the road.
 If it takes the left road, it'll evaluate itself and then be passed to its function.
-If it takes the right road, it'll pass itself to the function to be evaluated somewhere down the road.
+If it takes the right road, it'll pass itself to the function to be evaluated somewhere down the road (🥁🐍).
 Let's bet on which road will be faster.
 
 We might suspect this is a rather boring bet.
