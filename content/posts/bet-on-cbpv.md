@@ -1,9 +1,9 @@
 +++
 title = "I'm betting on Call-by-Push-Value"
-date = "2024-01-09T00:00:00Z"
+date = "2024-03-09T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages"]
-keywords = ["Programming Languages", "Lazy", "Eager", "Call-by-value", "Call-by-name", "Call-by-need", "Call-by-push-value", "Evaluation Order", "Evaluation Strategy"]
+keywords = ["Programming Languages", "Lazy", "Eager", "Call-by-value", "Call-by-name", "Call-by-need", "Call-by-push-value", "Evaluation Order", "Evaluation Strategy", "Type Inference", "Code Generation", "IR", "Functional"]
 description = "Why call-by-push-value is the best evaluation strategy, and why it's going to take over"
 +++
 
