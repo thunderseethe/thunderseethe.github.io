@@ -119,7 +119,7 @@ It turns a `Value` into a `Computation`.
 Using `Return` we can create a function that returns a function like so:
 
 ```hs
-(Fun "x" (Return (Thunk (Fun "y" (Var "x")))))
+(Fun "x" (Return (Thunk (Fun "y" (Return (Var "x"))))))
 ```
 
 This might seem like pageantry, and for a surface language humans write I'd have to agree. 
@@ -138,11 +138,11 @@ Even worse this all has to be done at runtime.
 All these headaches go away with CBPV.
 If we see a:
 ```hs
-(Fun "x" (Fun "y" (Var "x")))
+(Fun "x" (Fun "y" (Return (Var "x"))))
 ```
 we know we have to apply two arguments. If instead we see:
 ```hs
-(Fun "x" (Return (Thunk (Fun "y (Var "x")))))
+(Fun "x" (Return (Thunk (Fun "y" (Return (Var "x"))))))
 ```
 we can only apply 1 argument, and then we have a value we have to handle before we can do anymore.
 It's not even a valid term to apply two arguments to this term
