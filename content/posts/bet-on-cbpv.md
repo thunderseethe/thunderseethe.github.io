@@ -46,7 +46,7 @@ Let's look at a traditional lambda calculus, to provide contrast for our CBPV la
 
 ```hs
 data Type 
-    | Int
+    = Int
     | Fun Type Type
 
 data Term
