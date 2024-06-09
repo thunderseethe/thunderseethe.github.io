@@ -291,4 +291,10 @@ Ast::app(
 ```
 The final overall type of our AST, returned from our first `infer` call, is `Var(α)`, remember our function's type is `Fun(Int, Var(α))`. This illustrates why we need the final substitution step after constraint solving. Only once we've solved our constraints do we know `α = Int`, and we can correctly determine our overall AST's type is `Int`.
 
-With that we've finished generating our constraints. As output of constraint generation we produce three things: a set of constraints, a typed AST, and a Type for our whole AST. Our typed AST has a type associated to every variable (and from that we can recover the type of every node). However, a lot of these are still unknown type variables. We'll save that AST for now and revisit it once we've solved our set of constraints and have a solution for all our type variables. Naturally then, [next time](/posts/unification) we'll implement constraint solving.
+With that we've finished generating our constraints. 
+As output of constraint generation we produce three things: a set of constraints, a typed AST, and a Type for our whole AST. 
+Our typed AST has a type associated to every variable (and from that we can recover the type of every node). 
+However, a lot of these are still unknown type variables. 
+We'll save that AST for now and revisit it once we've solved our set of constraints and have a solution for all our type variables. 
+Naturally then, [next time](/posts/unification) we'll implement constraint solving.
+Full source code can be found in the [companion repo](https://github.com/thunderseethe/type-inference-example/tree/main/base)
