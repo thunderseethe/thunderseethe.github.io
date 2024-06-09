@@ -1,19 +1,9 @@
 <footer class="footer">
-  <section class="container">
-    ©
-    {{ if (and .Site.Params.since (lt .Site.Params.since now.Year)) }}
-      {{ .Site.Params.since }} -
+  <section class="container" style="display: flex; justify-content: center; gap: 1.5rem">
+    {{ with .OutputFormats.Get "rss" -}}
+    {{ printf `<a rel=%q type=%q href=%q title=%q><i class="fa fa-rss"></i> Subscribe</a>` .Rel .MediaType.Type .Permalink site.Title | safeHTML }}
     {{ end }}
-    {{ now.Year }}
-    {{ with .Site.Params.author }} {{ . }} {{ end }}
-    ·
-    {{ if (and .Site.Params.license) }}
-      {{ i18n "licensed_under" }} {{ .Site.Params.license | safeHTML }}
-    ·
-    {{ end }}
-    {{ i18n "powered_by" }} <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> & <a href="https://github.com/luizdepra/hugo-coder/" target="_blank" rel="noopener">Coder</a>.
-    {{ if (and .Site.Params.commit .GitInfo) }}
-      [<a href="{{ .Site.Params.commit }}/{{ .GitInfo.Hash }}" target="_blank" rel="noopener">{{ .GitInfo.AbbreviatedHash }}</a>]
-    {{ end }}
+    <a href="mailto:blog@thunderseethe.dev"><i class="fa fa-envelope"></i> Get in Touch</a>
+    <a href="https://github.com/thunderseethe"><i class="fa fa-github"></i> thunderseethe</a>
   </section>
 </footer>
