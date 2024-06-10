@@ -1,4 +1,10 @@
 <li>
-  <span class="date">{{ .Date | time.Format (.Site.Params.dateFormat | default "January 2, 2006" ) }}</span>
   <a class="title" href="{{ .Params.externalLink | default .RelPermalink }}">{{ .Title }}</a>
+  <div>
+    <span class="date">{{ .Date | time.Format (.Site.Params.dateFormat | default "January 2, 2006" ) }}</span>
+    <span class="accent-fg">⊢</span>
+    <span class="description">{{ .Description }}</span>
+  </div>
 </li>
+
+

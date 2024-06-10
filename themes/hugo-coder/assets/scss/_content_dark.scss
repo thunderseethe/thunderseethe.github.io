@@ -25,6 +25,7 @@
               color: $link-color-dark;
             }
           }
+
         }
       }
     }
@@ -46,7 +47,12 @@
       }
     }
   }
+
+  .accent-fg {
+    color: $acc-color;
+  }
 }
+
 
 body.colorscheme-dark {
   @include content_dark();
