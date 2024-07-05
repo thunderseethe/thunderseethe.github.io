@@ -1016,5 +1016,5 @@ Quite handy that we can just foist our unsolved problems off onto someone else.
 With that final stroke we've reached the coveted shore.
 Our language supports data types, and quite flexible ones, thanks to row types.
 We skimmed over some code for time, but if you want all the gory details you can always find them in the [full implementation](https://github.com/thunderseethe/type-inference-example/tree/rows).
-Next on our list of challenges to tackle is [top level functions](/posts/checking-top-level-items).
+Next on our list of challenges to tackle is [top level functions](/posts/check-top-level-items).
 
