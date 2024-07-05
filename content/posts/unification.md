@@ -140,13 +140,19 @@ The final step in our inference is to use our type substitution to solve all of 
 
 ### Generalization
 While we're walking our AST normalizing types, we'll come across a case I haven't touched on yet. What do we do if our type substitution solves a type variable to itself, or another type variable? Can such a thing even occur? It absolutely can. It turns out it's not even hard to construct such an example:
+
 ```rs
 let x = Var(0);
 let id = Ast::Fun(x, Ast::Var(x));
 ```
 What type should we infer for our AST here? We don't have enough contextual information to infer a type for `x`. After constraint solving, we'll discover `x`'s type is solved to a type variable.
 
-This is actually fine -- intentional even. When we see this, it means the type for our whole AST is polymorphic and should contain a type variable. The way we handle this is to generalize all our unbound type variables at the end of type inference. A type paired with it's unbound type variables is called a [type scheme](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system#Polytypes). So the type scheme we'd infer for our example AST `id` is:
+This is actually fine -- intentional even.
+When we see this, it means the type for our whole AST is polymorphic and should contain a type variable.
+The way we handle this is to generalize all our unbound type variables at the end of type inference.
+A type paired with it's unbound type variables is called a [type scheme](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system#Polytypes).
+So the type scheme we'd infer for our example AST `id` is:
+
 ```rs
 TypeScheme {
   unbound: vec![TypeVar(0)],
