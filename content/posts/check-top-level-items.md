@@ -10,15 +10,15 @@ description = "Adding support for annotated top level items to our type checker"
 
 
 [Last season](/posts/row-types), boy how time flies, we added support for algebraic datatypes using row types.
-With **both** product and sum types, our type inference is nearing completion.
+With **both** product and sum types, our type inference must be near completion.
 It's a little lacking in scope though.
 We don't have a way to call top-level functions.
 
-Worse than that, we don't have top level functions at all.
+Worse still, we don't have top level functions at all.
 A top level function (we'll call them items for brevity from here on out) is a name associated with an instance of our `AST`.
 The `AST` acts as the item's body, and the name is how other `AST`s can refer to that item.
 Almost every programming language has some concept of defining a top level function (but not ours!).
-`fn` in Rust, `function` in Javascript, `def` in Python, the list goes on.
+`fn` in Rust, `function` in Javascript, `def` in Python, and the list goes on.
 
 Taking stock of our type inference, it's not clear where we would add items.
 `type_infer` takes an `AST`, and if we look at all our `AST` nodes, none of them define or refer to a top level function.
@@ -44,19 +44,19 @@ However, we won't be organizing our programs that way.
 Take a knee gang.
 Much like your little league soccer coach after you lose the finals, we're about to get ideological.
 Top level functions _could_ be variables, but should they?
-When thinking about compiler architecture, a lot of concerns orbit around how can work be split up.
+When thinking about compiler architecture, a lot of concerns revolve around how work can be split up.
 Anytime work can be split into chunks that's an opportunity to cache the work and to parallelize it.
 Items provide natural breaking points in our code to split up work.
 
 For example, our compiler might split items up into groups and compile each group in parallel.
-A compiler could store the type of an item between compilations, and if the item body hasn't changed next time we compile it, just reuse the stored type.
+A compiler could store the type of an item between compilations, and if the item body hasn't changed the next time we compile it, just reuse the stored type.
 If we combine local variables and items, we lose the ability to split up work efficiently.
 
 The distinction provided by items has another use in our language.
 Local variables always have a type, but items have a type scheme.
 We could allow local variables to have a type scheme.
-This feature is called let generalization.
-We won't be doing that, for reasons that are detailed well in [Let Should not be Generalised](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tldi10-vytiniotis.pdf).
+This feature is called let generalisation.
+We won't be doing that, for reasons that are well detailed  in [Let Should not be Generalised](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tldi10-vytiniotis.pdf).
 To summarize, let generalisation does not come up often in practice, and we can simplify things considerably if we only generalise items.
 
 Ideology isn't the only principle driving our decision.
@@ -69,15 +69,15 @@ Item definitions are checked instead of inferred.
 This means all our item definitions have to have a user-supplied type annotation.
 We could infer the types of item definitions, but our abstinence affords us some important properties.
 
-Type inference of top level definitions causes action at a distance.
-If I change the body of my item, causing it to have a new inferred type, that change can cause a seemingly unrelated type error in a totally separate part of my codebase.
+Type inference of top level definitions causes [action at a distance](https://en.wikipedia.org/wiki/Action_at_a_distance_(computer_programming)).
+If we change the body of an item, causing it to have a new inferred type, that change can cause a seemingly unrelated type error in a totally separate part of my codebase.
 The error isn't even guaranteed to be on a call to my changed item.
 Because of this downside, languages that support top level type inference, such as Haskell, recommend annotating items.
-We avoid this action at a distance entirely by requiring the annotation.
+We avoid this [action at a distance](https://en.wikipedia.org/wiki/Action_at_a_distance_(computer_programming)) entirely by requiring the annotation.
 
 This upside is large enough to warrant annotations on its own.
 But the benefits don't stop there.
-From a readability perspective, annotations on all your top level definitions is great documentation.
+From a readability perspective, annotations on all top level definitions is great documentation.
 It also helps on the implementation side in our type checker.
 If all items have annotations, whenever we encounter an item call we know what type it has immediately.
 This means all we have to do in our type checker is look it up and proceed.
@@ -559,7 +559,7 @@ Huh... I don't know what I was expecting.
 All the same nothing to write home about, what's going on with all this `tyvar_to_unifiers` and `rowvar_to_unifiers` business?
 
 These are part of instantiation.
-Instantiation is the compliment operation to generalization.
+Instantiation is the compliment operation to generalisation.
 When we substitute a type at the end of inference, we track all the free variables in that type and wrap them up in a type scheme.
 As of this article, we also convert unification variables into type variables en route.
 
@@ -576,7 +576,7 @@ This is by design.
 Each reference to an item is unique and should have a unique type (unlike variables which are implicitly referencing the same thing).
 So even if we didn't introduce this unification variable/type variable split, we'd still have to instantiate our item's type schemes so each referenced used fresh unification variables.
 
-We'll peek at instantiation, but we won't cover the details because they are rote (similar to generalization).
+We'll peek at instantiation, but we won't cover the details because they are rote (similar to generalisation).
 If you're interested, you can find the details [in the repo](https://github.com/thunderseethe/type-inference-example/tree/main/items).
 
 ```rs
