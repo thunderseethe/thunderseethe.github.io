@@ -1,6 +1,6 @@
 +++
 title = "Part 4: TypeChecking Top Level Functions"
-date = "2024-06-08T00:00:00Z"
+date = "2024-07-05T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
 series = ["Making a Language"]
