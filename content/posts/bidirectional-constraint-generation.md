@@ -42,13 +42,13 @@ impl TypeInference {
 
   fn infer(
     &mut self, 
-    env: &mut HashMap<Var, Type>, 
+    env: im::HashMap<Var, Type>, 
     ast: Ast<Var>
   ) -> (GenOut, Type) { ... }
 
   fn check(
     &mut self, 
-    env: &mut HashMap<Var, Type>, 
+    env: im::HashMap<Var, Type>, 
     ast: Ast<Var>, 
     ty: Type
   ) -> GenOut { .. }
@@ -56,7 +56,13 @@ impl TypeInference {
 ```
 `fresh_ty_var` is a helper method we're going to brush past for now. (We'll have a lot to cover in constraint solving!) It uses our `unification_table` to produce a unique type variable every time we call it. Past that, we can see some parallels between our `infer` and `check` method that illustrate each mode. `infer` takes an AST node and returns a type, whereas `check` takes both an AST node and a type as parameters. This is because `infer` is working bottom-up and `check` is working top-down.
 
-Let's take a second to look at `env` and `GenOut`. Both `infer` and `check` take an `env` parameter. This is used to track the type of AST variables in their current scope. `infer` and `check` both also return a `GenOut`. This is a pair of our set of constraints and our typed AST:
+Let's take a second to look at `env` and `GenOut`.
+Both `infer` and `check` take an `env` parameter.
+This is used to track the type of AST variables in their current scope. 
+`env` is implemented by an immutable `HashMap` from the [im](https://crates.io/crates/im) crate.
+An immutable hashmap makes it easy to add a new variable when it comes into scope, and drop it when the variable leaves scope.
+`infer` and `check` both also return a `GenOut`.
+This is a pair of our set of constraints and our typed AST:
 ```rs
 struct GenOut {
   // Set of constraints to be solved
@@ -72,7 +78,7 @@ With our setup out of the way, we can dive into our implementation of `infer` an
 ```rs
 fn infer(
   &mut self, 
-  env: &mut HashMap<Var, Type>, 
+  env: im::HashMap<Var, Type>, 
   ast: Ast<Var>
 ) -> (GenOut, Type) {
   match ast {

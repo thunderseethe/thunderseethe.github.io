@@ -33,7 +33,7 @@
   </script>
   {{ end }}
 
-  {{ if .Site.IsServer }}
+  {{ if hugo.IsServer }}
   {{ $script := resources.Get "js/coder.js" }}
   <script src="{{ $script.RelPermalink }}"></script>
   {{ else }}
@@ -42,7 +42,7 @@
   {{ end }}
 
   {{ range .Site.Params.customJS }}
-  {{ if $.Site.IsServer }}
+  {{ if hugo.IsServer }}
   {{ $script := resources.Get . }}
   <script src="{{ $script.RelPermalink }}"></script>
   {{ else }}
@@ -52,7 +52,7 @@
   {{ end }}
 
   {{ range .Site.Params.customRemoteJS }}
-  {{ if $.Site.IsServer }}
+  {{ if hugo.IsServer }}
   {{ $script := resources.GetRemote . }}
   <script src="{{ $script.RelPermalink }}"></script>
   {{ else }}

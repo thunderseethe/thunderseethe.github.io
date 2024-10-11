@@ -1,5 +1,5 @@
  {{ range .Site.Params.customCSS }}
-  {{ if $.Site.IsServer }}
+  {{ if hugo.IsServer }}
     {{ $styles := resources.Get . }}
     <link rel="stylesheet" href="{{ $styles.RelPermalink }}" media="screen">
   {{ else }}
