@@ -18,8 +18,7 @@ hideColorSchemeToggle = false
 info = """
 Welcome to my blog.
 
-
-A place to stockpile my musings on whatever catches my fancy.
+I write about all things programming languages. My goal is to regurgitate academic papers into a more digestible (but less detailed) format.
 
 I'm currently working on [designing a programming language](series/making-a-language)
 """
