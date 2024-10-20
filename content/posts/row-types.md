@@ -507,6 +507,7 @@ But before any of that, we need to check labels:
 , Type::Label(ty_lbl, ty)) 
     if ast_lbl == ty_lbl => {
   self.check(env, *val, *ty)
+    .with_typed_ast(|term| Ast::label(ast_lbl, term))
 }
 ```
 Like our `Int` or `Fun` case, a `Label` node checks against a `Label` type.
@@ -538,7 +539,8 @@ Moving along, next is our much more succinct `Unlabel` case:
 ```rs
 (Ast::Unlabel(term, lbl), ty) => {
   self.check(env, *term, 
-    Type::label(lbl, ty))
+    Type::label(lbl.clone(), ty))
+    .with_typed_ast(|term| Ast::unlabel(term, lbl))
 }
 ```
 An `Unlabel` checks against any type by constructing a `Label` type and checking it against `val`.

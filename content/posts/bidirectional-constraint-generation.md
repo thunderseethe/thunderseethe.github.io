@@ -202,8 +202,12 @@ Notice we match on both our AST and type at once, so we can select just the case
 An integer literal trivially checks against the integer type. This case might appear superfluous; couldn't we just let it be caught by the bucket case? Of course, we could, but this explicit case allows us to avoid type variables and avoid constraints. Our other explicit check case is for `Fun`:
 ```rs
 (Ast::Fun(arg, body), Type::Fun(arg_ty, ret_ty)) => {
-  let env = env.update(arg, *arg_ty);
-  self.check(env, *body, *ret_ty)
+  let env = env.update(arg, *arg_ty.clone());
+  let body_out = self.check(env, *body, *ret_ty);
+  GenOut {
+    typed_ast: Ast::fun(TypeVar(arg, *arg_ty), body_out.typed_ast),
+    ..body_out
+  }
 }
 ```
 Our `Fun` case is also straightforward. We decompose our `Type::Fun` into it's argument and return type. Record our `arg` has `arg_ty` in our `env`, and then check that `body` has `ret_ty` in our updated `env`. It almost mirrors our `infer`'s `Fun` case, but instead of bubbling a type up, we're pushing a type down. Those are our only two explicit check cases. Everything else is handled by our bucket case:
