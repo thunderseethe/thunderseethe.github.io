@@ -15,7 +15,7 @@ A local maxima is still a maxima, I love traits as much as anyone.
 Traits are one of the few programming language concepts beloved enough to earn multiple names.
 You might have heard about typeclasses in Haskell or protocols in Swift.
 Heck, if the teacher's not watching, even interfaces can be considered a kind of trait.
-Elm famously left out traits, and it was so requested it sired [FAQ](https://faq.elm-community.org/#does-elm-have-ad-hoc-polymorphism-or-typeclasses) explaining their absence.
+Elm famously left out traits, and it was so requested it sired an [FAQ](https://faq.elm-community.org/#does-elm-have-ad-hoc-polymorphism-or-typeclasses) explaining their absence.
 
 Traits have a rich history dating back to 80s.
 How could such a mature and cherished feature have problems?
