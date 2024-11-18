@@ -15,7 +15,7 @@ A local maxima is still a maxima, I love traits as much as anyone.
 Traits are one of the few programming language concepts beloved enough to earn multiple names.
 You might have heard about typeclasses in Haskell or protocols in Swift.
 Heck, if the teacher's not watching, even interfaces can be considered a kind of trait.
-Elm famously left out traits, and it was so requested it sired an [FAQ](https://faq.elm-community.org/#does-elm-have-ad-hoc-polymorphism-or-typeclasses) explaining their absence.
+Elm famously left out traits, and it was so requested it spawned an [FAQ](https://faq.elm-community.org/#does-elm-have-ad-hoc-polymorphism-or-typeclasses) explaining their absence.
 
 Traits have a rich history dating back to 80s.
 How could such a mature and cherished feature have problems?
@@ -158,7 +158,7 @@ Skimming over _a lot_ of details, a program is coherent if it can pick any trait
 Compilers revel in coherent programs.
 Having the freedom to pick any trait implementation allows type checkers and optimizers to frolic across your code with reckless abandon.
 Users of the language also benefit from coherence.
-If one day our typechecker decided to pick a different implementation, and suddenly our, otherwise unchanged, code executed differently we'd be bewildered.
+If one day our typechecker decided to pick a different implementation and suddenly our, otherwise unchanged, code executed differently we'd be bewildered.
 
 Enforcing one implementation per trait/type combo makes it very easy to ensure coherence.
 If our compiler only ever has one implementation to pick from, it's free to pick any implementation and behavior never changes.
@@ -210,8 +210,8 @@ I can't be the first one to have thought of this right?
 Oh, neat. See I knew I couldn't be-
 
 * [Scala Implicits](https://docs.scala-lang.org/tour/implicit-parameters.html)
-* [Agda Implicits](https://agda.readthedocs.io/en/latest/language/implicit-arguments.html)
-* [Lean Implicits](https://lean-lang.org/lean4/doc/implicit.html)
+* [Agda Implicits](https://agda.readthedocs.io/en/latest/language/instance-arguments.html)
+* [Lean Implicits](https://lean-lang.org/lean4/doc/typeclass.html)
 * [COCHIS: Stable and Coherent Implicits](https://i.cs.hku.hk/~bruno/papers/JFPImplicits.pdf)
 
 Okay. Okay. I get it, excuse my ignorance. 
