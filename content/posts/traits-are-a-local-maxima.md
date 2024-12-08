@@ -10,7 +10,7 @@ description = "An expose on Implicits and Local Coherence"
 Today we're talking about [Rust traits](https://doc.rust-lang.org/book/ch10-02-traits.html).
 As you might've guessed from the title, we will not be talking about them positively.
 Woah woah, hang on, put down your pitchfork.
-A local maxima is still a maxima, I love traits as much as anyone.
+A local maximum is still a maximum, I love traits as much as anyone.
 
 Traits are one of the few programming language concepts beloved enough to earn multiple names.
 You might have heard about typeclasses in Haskell or protocols in Swift.
@@ -25,7 +25,7 @@ I'm so glad you asked.
 
 ## The problem with Traits
 
-We can elucidate our woes by conjuring some contrived Rust code:
+We can illustrate our woes by conjuring some contrived Rust code:
 
 ```rs
 use a_crate::A;
@@ -181,9 +181,9 @@ I'm going to call enforcing coherence in this way: global coherence.
 [This blogpost](http://blog.ezyang.com/2014/07/type-classes-confluence-coherence-global-uniqueness/) explains this is actually a perversion of terminology.
 Please excuse my transgression and stick with me.
 Our issues with traits all orbit around requiring global coherence.
-Ironically, global coherence is what prevents traits from being a global maxima.
+Ironically, global coherence is what prevents traits from being a global maximum.
 
-It's obvious from here, if global coherence is a local maxima, local coherence is a global maxima.
+It's obvious from here, if global coherence is a local maximum, local coherence is a global maximum.
 Now all we have to do is figure out if, and what, local coherence is.
 
 ## Local Coherence
@@ -562,6 +562,6 @@ You're sick of hearing it by now; these are solvable problems.
 But a solvable problem isn't a solved problem.
 
 Here's where I reveal my ruse.
-I've come to you today disparaging traits as a local maxima and proselytizing implicits as the peak we should be climbing.
-When in fact, it's quite possible implicits are just another local maxima as well.
+I've come to you today disparaging traits as a local maximum and proselytizing implicits as the peak we should be climbing.
+When in fact, it's quite possible implicits are just another local maximum as well.
 As is often the case in engineering, it's all about tradeoffs.
