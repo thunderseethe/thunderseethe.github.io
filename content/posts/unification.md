@@ -82,12 +82,16 @@ fn normalize_ty(
     }
     Type::Var(v) => match self.unification_table.probe_value(v) {
       Some(ty) => self.normalize_ty(ty),
-      None => Type::Var(v),
+      None => Type::Var(self.unification_table.find(v)),
     },
   }
 }
 ```
-When we normalize, we look up the representative for our type variable in our union-find and return a new type with all our instances of the type variable replaced by its representative. Note that when we replace our variable by its type from the union-find, we call `normalize_ty` on that type as well. We might have solved type variables that are present in this type, so we normalize it as well to produce the most known type we can.
+When we normalize, we look up the representative for our type variable in our union-find and return a new type with all our instances of the type variable replaced by its representative. 
+Note that when we replace our variable by its type from the union-find, we call `normalize_ty` on that type as well.
+We might have solved type variables that are present in this type, so we normalize it to produce the most known type we can.
+If our variable hasn't been solved to a type, we call `find` on it to return the root variable in the union-find.
+This "solves" a type variable into another type variable when we've unified two variables together.
 
 Great! Now that we've removed all the type variables we can with normalization, we can break down our unification cases:
 ```rs
