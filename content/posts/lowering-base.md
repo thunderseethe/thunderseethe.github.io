@@ -10,7 +10,7 @@ description = "Lowering our typed AST into an IR"
 
 We've been in type checking so long, it's becoming a tar pit deep enough to rival picking a parser.
 Our only hope of escape is to delve deeper.
-Lest we find ourselves fretting over endlessly enticing features available to append to our type checker.
+Lest we find ourselves fretting over the endlessly enticing type checker features available to adjoin.
 We're always free to return to our type checker, older and wiser.
 But this series is called making a language, not type check everything under the sun.
 
@@ -18,10 +18,12 @@ Fortunately delving deeper is exactly what our next compiler pass is all about: 
 Lowering is the process of converting our typed AST into an [intermediate representation](https://en.wikipedia.org/wiki/Intermediate_representation) (IR).
 It marks a fundamental shift in our compiler from frontend to backend.
 
+## Lowering
+
 The AST used in the frontend of our compiler makes a lot of concessions for the user writing code.
 Users don't want to write out obvious metadata, like types, and the AST gets that.
 Any types they leave out, it'll infer on their behalf.
-If we see an error, it's probably because the user gave us invalid code, and we should tell them that with a nice diagnostic.
+If the AST sees an error, it's probably because the user gave us invalid code, and it'll tell them that with a nice diagnostic.
 
 All that falls away with the move to an IR.
 We are now much more concerned with representations that are helpful to the compiler, not the user.
@@ -42,8 +44,6 @@ A panic indicates we have a bug in our compiler to fix.
 In practice, our compiler shouldn't actually panic.
 Robust compilers would perform more graceful error handling.
 But for our purposes, panicking suffices due to its simple implementation.
-
-## Lowering
 
 Equipped with the right mindset, let's delve into implementing lowering.
 Our pass is encapsulated by the `lower` function:
@@ -95,7 +95,7 @@ Applying a type removes the `TyFun` node leaving us with the underlying term, bu
 The same way `App` works on `Fun` for values.
 
 Representing generics as nodes of our IR makes it very easy to see where polymorphism occurs.
-Correspondingly, it also makes it easy to see where it does not occur, which is invaluable for knowing when certain classes of optimizations apply, which can be invaluable for knowing when certain classes of optimizations apply.
+Correspondingly, it also makes it easy to see where it does not occur, which is invaluable for knowing when certain classes of optimizations apply.
 A lot has been said about System F, it's well tread in the realm of theory.
 We won't cover it here, but if you are interested check out:
   
@@ -128,7 +128,7 @@ It comes with all the usual uniqueness guarantees: all `VarId`s in a term are un
 
 Our `IR` is noteworthy for being typed.
 Many `IR`s targeted by lowering are untyped.
-We've already checked all the types line up.
+We've already checked that all the types line up.
 What's the point of keeping them around?
 Part of this choice is motivated by our use of System F.
 `TyFun` and `TyApp` wouldn't have a lot to do if we had no types.
@@ -193,7 +193,7 @@ IR::Int(_) => Type::Int,
 ```
 
 Int's have type Int.
-Our IR `Var`s always have their type, thanks unification, so we just have to return it.
+Our IR `Var`s always have their type, thanks unification, so all we have to do is return it.
 Next up is functions:
 
 ```rs
@@ -201,7 +201,7 @@ IR::Fun(arg, body) => Type::fun(arg.ty.clone(), body.type_of()),
 IR::TyFun(kind, body) => Type::ty_fun(*kind, body.type_of()),
 ```
 
-Both functions are typed similarly.
+Both function nodes are typed similarly.
 Use the `type_of` body and the argument to construct the respective function type.
 `App` is our first case that has to do some work to get a type:
 
@@ -221,18 +221,17 @@ Because we know our code type checks, we can assume `fun` has a function type, a
 We can also assume our function's `fun_arg_ty` is equal to `type_of` arg type, panicking when it's not.
 If that all goes well, our `App`'s type is the return type of our function.
 
-#### Type equality
+#### Type Equality
 
-It's worth pausing for a moment to consider how we check two types are equal.
-During unification, we had to contend with the possibility that any type variable could stand for any type.
-Thankfully, we no longer have to deal with that.
-Our type variables are much more benign now.
-Unfortunately, they are not totally devoid of problems.
+It's worth pausing for a moment to consider `arg.type_of() != *fun_arg_ty` in more depth.
+Innocuous on the surface, but what does `==` (and `!=`) actually do for `Type`?
+It uses the derived instance, so it's a simple tree traversal that checks each node pairing is equal.
+Which is great for speed, but doesn't always equate the types we want to be equal.
 
-Notice that our `IR::TyFun` doesn't take a `TypeVar` (unlike `Fun` which takes a `Var`).
+Pin that concern and notice that our `IR::TyFun` doesn't take a `TypeVar` (unlike `Fun` which takes a `Var`).
 It only takes a `Kind`.
 Let's imagine an alternative `TyFun` that, like `Fun`, takes a `TypeVar`: `TyFun(TypeVar, Box<Self>)`.
-Consider two types `foo` and `bar` using this alternate `TyFun`:
+Summoning our concern again, consider two types `foo` and `bar` using this alternate `TyFun`:
 
 ```rs
 let a = TypeVar(1493);
@@ -242,23 +241,25 @@ let b = TypeVar(762);
 let bar = TyFun(b, Fun(Var(b), Var(b)));
 ```
 
-This `TyFun` has a problem.
 `foo` and `bar` are not equal because `a` does not equal `b`.
-But they really should be.
-It's true these type variables are literally different, but for all intents and purposes they are the same.
+But they should be.
+It's true these type variables are syntactically different, but for all intents and purposes they are the same.
+We'd like to ignore this frivolous difference in names.
+Names only exist to track where we substitute types when we apply our type function.
+
+`a` and `b` are substituted the same way in `foo` and `bar`, so `foo` and `bar` should be equal.
 We can `TyApp` any type to both `foo` and `bar`, and we always get equal types back.
 `foo` may not equal `bar`, but `TyApp(foo, Int)` equals `TyApp(bar, Int)`. 
-
-We'd like to ignore this frivolous difference in names.
-Our variables `a` and `b` are used the same way in their respective bodies. 
 That's enough for us to consider their types equal.
 Equating things in this way is called [alpha equivalence](https://en.wikipedia.org/wiki/Lambda_calculus#Alpha_equivalence).
 
 We could accomplish this with a custom `Eq` implementation for `Type`.
 If we can find a substitution for our names to make two types equal then we know they're alpha equivalent.
 For `foo` and `bar`, we could either substitute `a` for `b` in `foo` or vice versa in `bar`.
-Hang on, finding substitutions sounds an awful lot like unification.
-We're supposed to leave unification behind in the type checker.
+That sounds awful familiar.
+Where else do we try to find a substitution for our type variables to make things equal?
+Unification! That would just be unification in disguise.
+We were supposed to leave unification behind in the type checker.
 This approach works, but we want something faster for our `type_of` check.
 
 Tackling the problem from another direction proves more fruitful.
@@ -268,11 +269,14 @@ We can, however, speed up our check by first sorting our vectors.
 Checking sorted vectors contain the same elements becomes a linear operation.
 
 We'll apply a similar idea when picking our type variables during type construction.
-Rather than assigning a unique type variable using a counter, we'll select type variables via a standard scheme.
-By normalizing how we assign type variables, constructing two equivalent types will select the same type variables.
+Assigning a unique type variable using a counter is like our unsorted vectors.
+Easy to construct but comparing for equality requires unification.
+Instead, we'll use the sorted vector version of type variables.
+Assign type variables intentionally when constructing types, so that comparing for equality is much faster.
+By intentionally assigning type variables, constructing two instances of a type will select the same type variables for each instance.
 Allowing us to rely on the fast derived `Eq` implementation for type equality.
 
-Our method for selecting type variables is called [DeBruijn Indices](https://en.wikipedia.org/wiki/De_Bruijn_index).
+Our method for assigning type variables is called [DeBruijn Indices](https://en.wikipedia.org/wiki/De_Bruijn_index).
 Many a tutorial has been written on DeBruijn Indices.
 I'll only provide a surface level understanding here.
 For a more detailed account see:
@@ -280,7 +284,7 @@ For a more detailed account see:
   * [TAPL, Chapter 6](https://www.cis.upenn.edu/~bcpierce/tapl/)
   * [Lecture 19: Nameless lambda expressions (DeBruijn)](https://vesely.io/teaching/CS4400f20/l/19/19.pdf)
 
-When selecting a type variable, count how many `TyFun` nodes appear between it and its binding `TyFun` node.
+When assigning a type variable, count how many `TyFun` nodes appear between the variable and its binding `TyFun` node.
 Use that count as the value of our type variable.
 If we apply this method to our examples `foo` and `bar` we get:
 
@@ -297,7 +301,7 @@ We assign them type variable `TypeVar(0)` accordingly.
 Voilà! `foo` and `bar` are now equal.
 
 Now that we are systematically assigning type variables, we don't need to list the `TypeVar` bound by a `TyFun`.
-Each type variable tells us how many `TyFun` nodes to skip over to reach its binder.
+Each type variable tells us how reach its binder, so including it in the binder is redundant.
 This is why our `TyFun` in `IR` only includes a `Kind` and not a `TypeVar`.
 
 We actually can't include a type variable in `TyFun`.
@@ -307,7 +311,7 @@ Consider a type that uses nested `TyFun`s, without DeBruijn indices to start:
 ```rs
 let a = TypeVar(12);
 let b = TypeVar(64);
-let nested = TyFun(a, Fun(Var(a), TyFun(b, Fun(Var(b), Var(a)))))
+let nested = TyFun(a, Fun(Var(a), TyFun(b, Fun(Var(b), Var(a)))));
 ```
 
 When we convert to DeBruijn indices, `a` is represented by two different `TypeVar`s:
@@ -323,6 +327,10 @@ let nested =
 ```
 
 Here both `TypeVar(0)` and `TypeVar(1)` refer to `a` depending on how many `TyFun` we're inside.
+This kind of relative indexing works because each of our functions (type or otherwise) only binds a single parameter.
+When `TypeVar(0)` skips over 0 `TyFun` nodes it reaches our topmost `TyFun` that only binds `a`.
+When `TypeVar(1)` skips over 1 `TyFun` node (the binder for `b`) it reaches our topmost `TyFun` that only binds `a`.
+It looks ambiguous to have different valued `TypeVar`s represent the same bound variable but in practice its always unambiguous.
 With that tangent wrapped up, let's return to our final case of `type_of()`:
 
 ```rs
@@ -335,27 +343,28 @@ IR::TyApp(ty_fun, ty) => {
 }
 ```
 Like our sibling application, we assume `ty_fun` has type `TyFun`.
-Unlike `App`, we call `subst` on `ret_ty`.
+Unlike `App`, we finish by calling `subst` on `ret_ty`.
 `subst` replaces every occurrence of the type variable bound by `TyFun` with `ty`.
+`subst` just takes a `Type` though, not the `TypeVar` that it should replace with `ty`.
 Because our types use DeBruijn indices, we always know what type variable to substitute.
-There are no `TyFun` nodes between `TyFun(_, ret_ty)` and `ret_ty`.
-So the type variable bound by `ty_fun` must be `TypeVar(0)`.
+`subst` always starts off replacing `TypeVar(0)`.
+Which makes sense, there are no `TyFun` nodes between `TyFun(_, ret_ty)` and `ret_ty`.
 
 We substitute `ty` for `TypeVar(0)` in `ret_ty`.
-`ret_ty` itself may contain `TyFun` nodes. 
-`subst` handles adjusting the `TypeVar` we're substituting correctly in that case.
-`subst` implementation can be found in the [full code](TODO).
-It's omitted here for brevity.
+But `ret_ty` itself may contain `TyFun` nodes. 
+Fortunately, `subst` handles adjusting the `TypeVar` we're substituting correctly in that case.
+We're not going to covert the details of `subst` to save on time.
+Its implementation can be found in the [full code](TODO).
 
 With that we've completed our `type_of()` function.
 We're talking about `type_of()` like it's a type checker, but it's really more of a lint.
 Nothing forces us to call `type_of()`.
 Our transformation passes could mangle `IR` however we like and simply not check `type_of()`.
-GHC has its own `type_of()`, as one of the few compilers using a typed IR, and they do something like this.
+In fact, GHC has its own `type_of()`, as one of the few compilers using a typed IR, and they do precisely that.
 GHC enables `type_of()` for debugging builds, but turn if off for release builds.
 `type_of()` is far more lightweight than our actual type checker.
 
-Armed with the knowledge of `IR` and `Type`, and a couple of other details, we can finally return to our `lower` function:
+Armed with the knowledge of `IR` and `Type`, and a couple of fun tangents, we can finally return to our `lower` function:
 
 ```rs
 fn lower(
@@ -537,6 +546,9 @@ fn lower(ast: Ast<TypedVar>, scheme: ast::TypeScheme) -> (IR, Type) {
 }
 ```
 We got a couple lines this time. Oh, boy!
+
+## Lowering Ast
+
 `LowerAst` shares a purpose with `LowerTypes`:
 
 ```rs
@@ -621,6 +633,8 @@ It feels almost like we've done nothing at all.
 Each of our cases turns an AST node into an IR node of the same name.
 This is rooted in our AST being lambda calculus and our IR being System F.
 Translating the lambda calculus into System F, a superset of the lambda calculus, requires little work.
+
+## Lowering Totality
 
 With `lower_ast` complete, we return to `lower`.
 One task remains.
