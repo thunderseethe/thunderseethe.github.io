@@ -1,11 +1,11 @@
 +++
-title = "Part 5a: Lower IR (WIP)"
-date = "2024-12-08T00:00:00Z"
+title = "Part 5a: Lowering our AST"
+date = "2025-01-19T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
 series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "System F", "DeBruijn Index"]
-description = "Lowering our typed AST into an IR"
+description = "Lowering our typed AST into an Intermediate Representation"
 +++
 
 We've been in type checking so long it's becoming a tar pit deep enough to rival picking a parser.
@@ -233,7 +233,7 @@ If that all goes well, our `App`'s type is the return type of our function.
 It's worth pausing for a moment to consider `arg.type_of() != *fun_arg_ty` in more depth.
 As we stated earlier, our `TypeVar`s are using something called DeBruijn Indices.
 They're supposed to make checking types for equality faster.
-If you're unfamiliar with DeBruijn Indices, I've written about how they're implemented [here](/posts/debruijn-indices).
+If you're unfamiliar with DeBruijn Indices, I've written about how they work [here](/posts/debruijn-indices).
 We'll just explain the problem they solve here.
 
 To exemplify our problem, let's imagine an alternative `TyFun` that, like `Fun`, takes a `TypeVar`: `TyFun(TypeVar, Box<Self>)`.
@@ -271,7 +271,7 @@ We were supposed to leave unification behind in the type checker.
 This approach works, but we want something faster for our `type_of` check.
 
 DeBruijn Indices solve the problem by picking equal `TypeVar`s for types that are alpha equivalent.
-Making equality testing is trivial.
+Making equality testing trivial.
 Compare the type for syntactic equality; If they're syntactically equal, they're alpha equivalent.
 With that tangent wrapped up, let's return to our final case of `type_of()`:
 
