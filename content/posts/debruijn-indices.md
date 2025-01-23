@@ -188,9 +188,8 @@ In `x z` our array of variables is `[x, y, z]` and in `y w` it's `[x, y, w]`.
 Conceptually, we're building up this array of names as we traverse our AST top to bottom.
 
 Arrays allow for an important feature previously missing: indexing.
-Instead of variables using their names, we'll represent each variable by its index into the array:
-
-The AST:
+Instead of variables using their names, we'll represent each variable by its index into the array.
+For example, the AST:
 ```js
 \[x]. x
 ```
@@ -337,9 +336,7 @@ Then adjust our indices to use the new order:
      └──────────────────────┘
 ```
 
-Let's do a couple more examples to really get a handle on it:
-
-The AST:
+Let's do a couple more examples to really get a handle on it. The AST:
 ```js
 \[x]. 0
   ▲   │
@@ -385,7 +382,7 @@ becomes:
 ```
 
 I've done enough leetcode to know how to reverse an array.
-I could get hired, if I could just figure out how to invert a binary tree.
+If I could just figure out how to invert a binary tree, I could get hired.
 Equipped with our new DeBruijn Indices, our previous inlining example is now trivial:
 
 ```js
