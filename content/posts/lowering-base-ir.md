@@ -1,11 +1,12 @@
 +++
-title = "Part 5a: Lowering our AST"
+title = "Part 5a: Lowering our AST into an intermediate representation"
 date = "2025-01-19T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
 series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "System F", "DeBruijn Index"]
-description = "Lowering our typed AST into an Intermediate Representation"
+description = "Lowering our typed AST into a System-F based IR"
+draft = true
 +++
 
 We've been in type checking so long it's becoming a tar pit deep enough to rival picking a parser.
@@ -268,14 +269,13 @@ We could also solve `b` to `a` and update `bar` to replace all `b`s with `a`s.
 That sounds awful familiar.
 Where else do we try to find a substitution for our type variables to make things equal?
 Unification! That would just be unification in disguise.
-We were supposed to leave unification behind in the type checker.
-This approach works, but we want something faster for our `type_of` check.
+We were supposed to leave that behind in the type checker.
+You can make this approach work, albeit it's expensive and error prone, but we want something faster for our `type_of` check.
 
 DeBruijn Indices solve the problem by picking equal `TypeVar`s for types that are alpha equivalent.
 Making equality testing trivial.
 Compare the type for syntactic equality; If they're syntactically equal, they're alpha equivalent.
 With that tangent wrapped up, let's return to our final case of `type_of()`:
-
 
 ```rs
 IR::TyApp(ty_fun, ty) => {

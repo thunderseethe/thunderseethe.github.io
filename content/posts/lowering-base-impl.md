@@ -1,11 +1,12 @@
 +++
-title = "Part 5b: Implementing lower (WIP)"
+title = "Part 5b: Lowering our AST, an Implementation"
 date = "2024-12-08T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
 series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "System F", "DeBruijn Index"]
-description = ""
+description = "Implementation of our lowering function"
+draft = true
 +++
 
 Armed with the knowledge of `IR` and `Type` from [last time](/posts/lowering-base-ir), we can finally write some code:
@@ -22,8 +23,7 @@ fn lower(
 ```
 
 One line down.
-That's great progress!
-Now that we've explained our `IR` and `Type`, we'll pick up the pace.
+That's great progress (especially compared to last time)!
 
 ## Lowering Type Schemes
 
