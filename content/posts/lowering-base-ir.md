@@ -45,7 +45,7 @@ In practice, our compiler shouldn't actually panic.
 Robust compilers would perform more graceful error handling.
 But for our purposes, panicking suffices due to its simple implementation.
 
-Equipped with the right mindset, let's delve into implementing lowering.
+Enlightened with the right mindset, let's delve into implementing lowering.
 Our pass is encapsulated by the `lower` function:
 
 ```rs
@@ -91,10 +91,11 @@ Where functions take a term and produce a term, type functions take a type and p
 Each type variable from our `TypeScheme` will become bound by a `TyFun` node in our `IR`.
 
 We would expect `TyFun` to contain a `TypeVar`, same as `Fun` contains a `Var`.
-The reason it doesn't lies in a property of our IR's type variables.
+The reason it doesn't lies in our IR's representation of type variables.
 Rather than normal names, like `Var` in `Fun`, our type variables use [DeBruijn Indices](https://en.wikipedia.org/wiki/De_Bruijn_index).
 Using DeBruijn Indices allows us to efficiently check if two types are equal. 
-Put a pin in that for now, we'll discuss it more when we talk about our `Type`s.
+Don't worry if you don't know what DeBruijn Indices are. 
+We'll discuss it more when we talk about our `Type`s.
 
 When we want to instantiate a generic, we use a `TyApp` to apply a type to our `TyFun`.
 Applying a type removes the `TyFun` node leaving us with the underlying term, but every instance of our bound type variable has been replaced by our applied type.
@@ -318,7 +319,7 @@ fn lower(
   ast: Ast<TypedVar>, 
   scheme: ast::TypeScheme
 ) -> (IR, Type) {
-  todo!()
+  todo!("Remember me?")
 }
 ```
 
