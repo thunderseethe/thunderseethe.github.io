@@ -1,6 +1,6 @@
 +++
 title = "Picking Equatable Names"
-date = "2025-01-15T00:00:00Z"
+date = "2025-01-23T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages"]
 series = []
