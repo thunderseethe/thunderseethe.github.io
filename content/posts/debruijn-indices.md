@@ -78,8 +78,8 @@ M N // application
 Where `M` and `N` in stand for arbitrary ASTs, think of them like `Box<Self>`.
 We'll employ a bit of syntax sugar for functions of multiple parameter.
 We write `\x y . x` as shorthand for the AST `\x. \y. x`.
-Terms will be named to make them easier to reference: `samantha = \s z. s (s (s z))`.
-These are just for our comprehension and don't affect the AST.
+Syntax sugar for named ASTs appear to clarify ambiguity: `samantha = \s z. s (s (s z))`.
+These are just for our comprehension; The names don't appear in AST.
 Our substitution example is now much easier to see:
 
 ```js
