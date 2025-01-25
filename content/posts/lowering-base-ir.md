@@ -91,8 +91,6 @@ Where functions take a term and produce a term, type functions take a type and p
 `TyFun` and `TyApp` work together to implement generics in our `IR`.
 Each type variable from our `TypeScheme` will become bound by a `TyFun` node in our `IR`.
 
-We would expect `TyFun` to contain a `TypeVar`, same as `Fun` contains a `Var`.
-The reason it doesn't lies in our IR's representation of type variables.
 Rather than normal names, like `Var` in `Fun`, our type variables use [DeBruijn Indices](https://en.wikipedia.org/wiki/De_Bruijn_index).
 Using DeBruijn Indices allows us to efficiently check if two types are equal. 
 Don't worry if you don't know what DeBruijn Indices are. 
@@ -233,13 +231,15 @@ If that all goes well, our `App`'s type is the return type of our function.
 #### Type Equality
 
 It's worth pausing for a moment to consider `arg.type_of() != *fun_arg_ty` in more depth.
-As we stated earlier, our `TypeVar`s are using something called DeBruijn Indices.
-They're supposed to make checking types for equality faster.
-If you're unfamiliar with DeBruijn Indices, I've written about how they work [here](/posts/debruijn-indices).
-We'll just explain the problem they solve here.
+Before we talk about why that's noteworthy, we need to set the scene.
+Our `TyFun` just takes a `Kind`, and not a `TypeVar`.
+Type functions exist to bind type variables.
+It's surprising that they don't hold the type variable that they bind. 
+`IR::Fun` holds the `Var` that it binds, why is `Type::TyFun` different?
+A less delicately designed `IR` might deploy a type function node: `TyFun(TypeVar, Box<Self>)`
 
-To exemplify our problem, let's imagine an alternative `TyFun` that, like `Fun`, takes a `TypeVar`: `TyFun(TypeVar, Box<Self>)`.
-Consider two types `foo` and `bar` using this alternate `TyFun`:
+This introduces an issue for type equality.
+To see the problem, consider two types `foo` and `bar` using this alternate `TyFun`:
 
 ```rs
 let a = TypeVar(1493);
@@ -263,7 +263,7 @@ Equating things in this way is called [alpha equivalence](https://en.wikipedia.o
 
 Ignoring this difference in names turns out to be tricky in practice.
 If we can find a substitution for our names to make two types equal, we know they're alpha equivalent.
-We could solve `a` to `b` and update `foo` to replace all `a`s with `b`s.
+We could solve `a` to `b` and update `foo` to replace all `a`s with `b`sc.
 We could also solve `b` to `a` and update `bar` to replace all `b`s with `a`s.
 
 That sounds awful familiar.
@@ -272,9 +272,11 @@ Unification! That would just be unification in disguise.
 We were supposed to leave that behind in the type checker.
 You can make this approach work, albeit it's expensive and error prone, but we want something faster for our `type_of` check.
 
-DeBruijn Indices solve the problem by picking equal `TypeVar`s for types that are alpha equivalent.
-Making equality testing trivial.
-Compare the type for syntactic equality; If they're syntactically equal, they're alpha equivalent.
+Circling back around, our actual `TyFun` only holds a `Kind` because our `TypeVar`s are represented by [DeBruijn Indices](https://en.wikipedia.org/wiki/De_Bruijn_index).
+They are designed explicitly for checking alpha equivalence efficiently, albeit at the cost of legibility.
+If you're unfamiliar with DeBruijn Indices, I've written about how they work [here](/posts/debruijn-indices).
+For this article it's important to know that we're using them and that they make `==` fast.
+It informs how we lower our `TypeScheme` into our IR `Type`.
 With that tangent wrapped up, let's return to our final case of `type_of()`:
 
 ```rs
