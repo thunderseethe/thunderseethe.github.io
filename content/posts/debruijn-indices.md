@@ -78,6 +78,8 @@ M N // application
 Where `M` and `N` in stand for arbitrary ASTs, think of them like `Box<Self>`.
 We'll employ a bit of syntax sugar for functions of multiple parameter.
 We write `\x y . x` as shorthand for the AST `\x. \y. x`.
+Terms will be named to make them easier to reference: `samantha = \s z. s (s (s z))`.
+These are just for our comprehension and don't affect the AST.
 Our substitution example is now much easier to see:
 
 ```js
@@ -100,16 +102,16 @@ How do names hinder our ability to equate and substitute ASTs?
 Consider two similar AST terms:
 
 ```js
-\x. x
-\y. y
+foo = \x. x
+bar = \y. y
 ```
 I have to say similar, and not equal, because if we chuck these into our `==` implementation today it returns `false`.
 This is our first problem.
 You and I can use simple pattern matching to tell that if we replace `x` in `foo` by `y`:
 
 ```js
-\y. y
-\y. y
+foo = \y. y
+bar = \y. y
 ```
 Our terms are equal, and who really cares if we name our variable `x` or `y`.
 A variable by any other name would smell as...  
@@ -135,13 +137,23 @@ Let's revisit our previous substitution AST with one innocent name change:
 (\fst snd. fst) snd b
 ```
 
-Naively substituting `fst` gives us the AST:
+Recall this desugars into the underlying AST:
+
+```js
+((\fst. (\snd. fst)) snd) b
+```
+
+So our AST only sees one substitution at a time.
+Boy I'm glad we can eschew those parenthesis and leave that to the computer.
+Anyways, naively substituting `fst` gives us the AST:
 
 ```js
 (\snd. snd) b
 ```
 
-Those `snd`s should be different variables, but we've lost that with our inlining. 
+Did you see it? 
+Those `snd`s should be different variables.
+But we've forgotten that with our hapless inlining. 
 Affairs grow more dire as we inline `b`:
 
 ```js
