@@ -1,6 +1,6 @@
 +++
 title = "Part 5a: Lowering our AST into an intermediate representation"
-date = "2025-01-19T00:00:00Z"
+date = "2025-01-27T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
 series = ["Making a Language"]

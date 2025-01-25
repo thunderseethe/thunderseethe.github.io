@@ -1,6 +1,6 @@
 +++
 title = "Part 5b: Lowering our AST, an Implementation"
-date = "2024-12-08T00:00:00Z"
+date = "2024-02-03T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
 series = ["Making a Language"]
