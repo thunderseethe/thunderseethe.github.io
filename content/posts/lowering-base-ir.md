@@ -10,8 +10,7 @@ draft = true
 +++
 
 We've been in type checking so long it's becoming a tar pit deep enough to rival picking a parser.
-Our only hope of escape is to delve deeper.
-Lest we find ourselves fretting over the endlessly enticing type checker features available to adjoin.
+Our only hope of escape is to delve deeper, lest we find ourselves fretting over the endlessly enticing type checker features available to adjoin.
 We're always free to return to our type checker older and wiser.
 But this series is called making a language, not type check until our motivation evaporates.
 
@@ -24,25 +23,24 @@ It marks a fundamental shift in our compiler from frontend to backend.
 The AST used in the frontend of our compiler makes a lot of concessions for the user writing code.
 Users don't want to write out obvious metadata, like types, and the AST gets that.
 Any types they leave out, it'll infer on their behalf.
-If the AST sees an error, it's probably because the user gave us invalid code, and it'll tell them that with a nice diagnostic.
+If the AST sees an error, it's probably because the user wrote the code bad.
+It behooves us to tell them that, with a nice diagnostic.
 
-All that falls away with the move to an IR.
-We are now much more concerned with representations that are helpful to the compiler, not the user.
-The IR sits between the frontend and machine code emission (hence the name intermediate).
-It exists to accommodate optimizations before being translated to machine code.
+All that falls away with the move to an IR. 
+We are now much more concerned with representations that are helpful to the compiler, not the user. 
+The IR sits between the frontend and machine code emission (hence the name intermediate). 
+It exists to accommodate optimizations before being translated to machine code. 
+To this end, our IR reifies metadata that would be a slog for users to write, like memory layout and calling conventions.
 
-To this end, IR makes metadata very explicit. 
-Metadata that would be a slog for users to write out but ease the compiler applying optimizations.
-The IR is where we start caring about memory layout and calling conventions.
 Alongside this shift, our mentality around errors changes.
 During lowering, we know our AST has successfully type checked.
-The type checker's approval gives us a strong guarantee.
-
 We're guaranteed if we see something unexpected, it's now due to an internal compiler error, not a user error.
 Accordingly, we no longer need the recoverable error handling of `Result`.
 When we encounter an error, we'll immediately `panic!` (and maybe cry).
-A panic indicates we have a bug in our compiler to fix.
+
+A panic indicates we have a bug in our compiler to fix. 
 In practice, our compiler shouldn't actually panic.
+It's not like we're going to write any bugs into our compiler.
 Robust compilers would perform more graceful error handling.
 But for our purposes, panicking suffices due to its simple implementation.
 
@@ -60,7 +58,7 @@ fn lower(
 
 `lower` takes the output of our typechecker, an `Ast<TypedVar>` and a `TypeScheme`, and converts them into an `IR` and a `Type` respectively.
 
-### IR
+### Our Intermediate Representation
 
 `IR` is the new tree datatype that represents our intermediate representation:
 
@@ -98,7 +96,7 @@ We'll discuss it more when we talk about our `Type`s.
 
 When we want to instantiate a generic, we use a `TyApp` to apply a type to our `TyFun`.
 Applying a type removes the `TyFun` node leaving us with the underlying term, but every instance of our bound type variable has been replaced by our applied type.
-The same way `App` works on `Fun` for values.
+`App` works the same way on `Fun` nodes for values.
 
 Representing generics as nodes of our IR makes it very easy to see where polymorphism occurs.
 Correspondingly, it also makes it easy to see where it does not occur, which is invaluable for knowing when certain classes of optimizations apply.
@@ -233,10 +231,9 @@ If that all goes well, our `App`'s type is the return type of our function.
 It's worth pausing for a moment to consider `arg.type_of() != *fun_arg_ty` in more depth.
 Before we talk about why that's noteworthy, we need to set the scene.
 Our `TyFun` just takes a `Kind`, and not a `TypeVar`.
-Type functions exist to bind type variables.
-It's surprising that they don't hold the type variable that they bind.
+Type functions exist to bind type variables, so it's surprising that they don't hold the type variable that they bind.
 `IR::Fun` holds the `Var` that it binds, why is `Type::TyFun` different?
-A less delicately designed `IR` might deploy a type function node: `TyFun(TypeVar, Box<Self>)`.
+A less delicately designed `IR` might deploy a type function node such as: `TyFun(TypeVar, Box<Self>)`.
 
 This introduces an issue for type equality.
 To see the problem, consider two types `foo` and `bar` using this alternate `TyFun`:
