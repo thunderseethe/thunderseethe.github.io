@@ -178,7 +178,7 @@ Later on this will be more interesting.
 We'll introduce a `Row` kind.
 For now, rest easy knowing we can't mess up our `Kind`s.
 
-### type_of()
+### type_of() our IR
 
 Now that we know what `Type` looks like, we can construct it for our `IR`:
 
@@ -234,9 +234,9 @@ It's worth pausing for a moment to consider `arg.type_of() != *fun_arg_ty` in mo
 Before we talk about why that's noteworthy, we need to set the scene.
 Our `TyFun` just takes a `Kind`, and not a `TypeVar`.
 Type functions exist to bind type variables.
-It's surprising that they don't hold the type variable that they bind. 
+It's surprising that they don't hold the type variable that they bind.
 `IR::Fun` holds the `Var` that it binds, why is `Type::TyFun` different?
-A less delicately designed `IR` might deploy a type function node: `TyFun(TypeVar, Box<Self>)`
+A less delicately designed `IR` might deploy a type function node: `TyFun(TypeVar, Box<Self>)`.
 
 This introduces an issue for type equality.
 To see the problem, consider two types `foo` and `bar` using this alternate `TyFun`:
