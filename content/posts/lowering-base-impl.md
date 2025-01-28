@@ -23,7 +23,7 @@ fn lower(
 ```
 
 One line down.
-That's great progress (especially compared to last time)!
+That's great progress (especially compared to last post)!
 
 ## Lowering Type Schemes
 
