@@ -1,12 +1,11 @@
 +++
 title = "Part 5a: Lowering our AST into an intermediate representation"
-date = "2025-01-27T00:00:00Z"
+date = "2025-01-28T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
 series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "System F", "DeBruijn Index"]
 description = "Lowering our typed AST into a System-F based IR"
-draft = true
 +++
 
 We've been in type checking so long it's becoming a tar pit deep enough to rival picking a parser.
@@ -298,7 +297,7 @@ We substitute `ty` for `TypeVar(0)` in `ret_ty`.
 But `ret_ty` itself may contain `TyFun` nodes. 
 Fortunately, `subst` handles adjusting the `TypeVar` we're substituting correctly in that case.
 We're not going to cover the details of `subst` to save on time.
-Its implementation can be found in the [full code](TODO).
+Its implementation can be found in the [full code](https://github.com/thunderseethe/making-a-language/tree/main/lowering/base).
 
 With that we've completed our `type_of()` function.
 We're talking about `type_of()` like it's a type checker, but it's really more of a lint.
@@ -308,7 +307,7 @@ In fact, GHC has its own `type_of()`, as one of the few compilers using a typed 
 GHC enables `type_of()` for debugging builds but turns it if off for release builds.
 `type_of()` is far more lightweight than our actual type checker.
 
-With that we've covered everything we need to know about lower-  
+With that we've covered everything we need to know about lower--  
 What's that?  
 We didn't write a single line of code?  
 Our `lower` function is still a giant to-do?

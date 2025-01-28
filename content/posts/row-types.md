@@ -773,9 +773,9 @@ This first case actually covers two cases:
 Isn't counting fun?
 Thanks to our great abstractions, we handle both cases the same way.
 Combine our `left` and `right` into a new row and unify that row against our `goal`.
-[ClosedRow::merge](https://github.com/thunderseethe/type-inference-example/blob/rows/src/ty.rs#L23) is a helper to merge closed rows.
+`ClosedRow::merge` is a helper to merge closed rows.
 It appends the two rows' fields and sorts them while maintaining the original mapping from field to type.
-We're going to be unifying a lot of rows; let's introduce a helper [`unify_row_row`](https://github.com/thunderseethe/type-inference-example/blob/rows/src/unification.rs#L269) to do it for us:
+We're going to be unifying a lot of rows; let's introduce a helper `unify_row_row` to do it for us:
 ```rs
 fn unify_row_row(&mut self, left: Row, right: Row) -> Result<(), TypeError> {
   let left = self.normalize_row(left);
@@ -851,7 +851,7 @@ Now that we know how to unify rows, let's return to unifying row combinations wi
 Regardless of where our single variable resides, we handle it the same way.
 We have enough to solve our variable from our goal row and our sub row.
 We create a new row from the difference of our goal row and our sub row.
-Determining the difference between our goal row and sub row is done by [`diff_and_unify`](https://github.com/thunderseethe/type-inference-example/blob/rows/src/unification.rs#L223).
+Determining the difference between our goal row and sub row is done by `diff_and_unify`.
 The created row is unified with our variable using `unify_row_row`.
 
 
@@ -1017,6 +1017,6 @@ Project and Inject both generate row combinations with unused row variables, the
 Quite handy that we can just foist our unsolved problems off onto someone else.
 With that final stroke we've reached the coveted shore.
 Our language supports data types, and quite flexible ones, thanks to row types.
-We skimmed over some code for time, but if you want all the gory details you can always find them in the [full implementation](https://github.com/thunderseethe/type-inference-example/tree/rows).
+We skimmed over some code for time, but if you want all the gory details you can always find them in the [full implementation](https://github.com/thunderseethe/making-a-language/tree/main/types/rows).
 Next on our list of challenges to tackle is [top level functions](/posts/check-top-level-items).
 

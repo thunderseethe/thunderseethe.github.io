@@ -307,4 +307,4 @@ Our typed AST has a type associated to every variable (and from that we can reco
 However, a lot of these are still unknown type variables. 
 We'll save that AST for now and revisit it once we've solved our set of constraints and have a solution for all our type variables. 
 Naturally then, [next time](/posts/unification) we'll implement constraint solving.
-Full source code can be found in the [companion repo](https://github.com/thunderseethe/type-inference-example/tree/main/base)
+Full source code can be found in the [companion repo](https://github.com/thunderseethe/making-a-language/tree/main/types/base)

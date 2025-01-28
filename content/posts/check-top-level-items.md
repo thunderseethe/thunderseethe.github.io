@@ -248,7 +248,7 @@ Type variables are rigid because they cannot be solved.
 ## Bifurcating our variables and cleaning up the mess
 
 With our two new variables come the penance for our sins, we have a lot of refactoring to do.
-A lot of this is rote, so I won't cover the details. You can find the [gory details in the repo](https://github.com/thunderseethe/type-inference-example/tree/main/items).
+A lot of this is rote, so I won't cover the details. You can find the [gory details in the repo](https://github.com/thunderseethe/making-a-language/tree/main/types/items).
 Our laundry list of refactors:
 
 1. First we rename our old `TypeVar` to `TypeUniVar`.
@@ -577,7 +577,7 @@ Each reference to an item is unique and should have a unique type (unlike variab
 So even if we didn't introduce this unification variable/type variable split, we'd still have to instantiate our item's type schemes so each referenced used fresh unification variables.
 
 We'll peek at instantiation, but we won't cover the details because they are rote (similar to generalisation).
-If you're interested, you can find the details [in the repo](https://github.com/thunderseethe/type-inference-example/tree/main/items).
+If you're interested, you can find them [in the repo](https://github.com/thunderseethe/making-a-language/tree/main/types/items).
 
 ```rs
 struct Instantiate<'a> {

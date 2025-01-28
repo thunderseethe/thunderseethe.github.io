@@ -203,7 +203,7 @@ struct LowerAst {
 
 It holds state for the recursive AST functions we're going to write.
 `VarSupply` exists to map AST variables into IR variables and generate new IR variables.
-Its internals are uninteresting but can be found in the [full code](TODO).
+Its internals are uninteresting but can be found in the [full code](https://github.com/thunderseethe/making-a-language/tree/main/lowering/base).
 Suffice to say, it supports one method:
 
 ```rs
