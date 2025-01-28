@@ -1,6 +1,6 @@
 +++
 title = "Part 5b: Lowering our AST, an Implementation"
-date = "2024-02-03T00:00:00Z"
+date = "2025-02-03T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
 series = ["Making a Language"]
@@ -24,6 +24,66 @@ fn lower(
 
 One line down.
 That's great progress (especially compared to last post)!
+
+{{< accessory title="Refresher on Base AST" >}}
+It's been awhile since we worked with our base typechecker.
+I don't really remember what all was in there, so let's go over it to get back up to speed.
+
+Recall that our base AST is:
+
+```rs
+enum Ast<V> {
+  /// A local variable
+  Var(V),
+  /// An integer literal
+  Int(isize),
+  /// A function literal 
+  /// (lambda, closure, etc.)
+  Fun(V, Box<Self>),
+  /// Function application
+  App(Box<Self>, Box<Self>), 
+}
+```
+
+Where our `V` generic is the type of variables. It starts out as `Var`:
+
+```rs
+struct Var(usize);
+```
+
+By the end of type checking, we've graduated it to `TypedVar`:
+
+```rs
+struct TypedVar(Var, Type);
+```
+
+Naturally, our next question is "What's `Type`?":
+
+```rs
+struct TypeVar(u32);
+enum Type {
+  // A type variable
+  Var(TypeVar),
+  // Type of integers
+  Int,
+  // Type of functions
+  Fun(Box<Self>, Box<Self>),
+}
+```
+
+Alongside the `Ast<TypedVar>`, `lower` also takes the `TypeScheme` produced by typechecking.
+The `TypeScheme` binds all the unsolved type variables that appear in our typed AST:
+
+```rs
+struct TypeScheme {
+  unbound: BTreeSet<TypeVar>,
+  ty: Type,
+}
+```
+
+With that we know everything we'll see from the typechecker, back to lowering.
+
+{{< /accessory >}}
 
 ## Lowering Type Schemes
 

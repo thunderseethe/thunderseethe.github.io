@@ -8,7 +8,7 @@ keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR"
 description = "Lowering our typed base AST into a System-F based IR"
 +++
 
-We've been in type checking so long it's becoming a tar pit deep enough to rival picking a parser.
+We've been in [type checking](/posts/check-top-level-items) so long it's becoming a tar pit deep enough to rival picking a parser.
 Our only hope of escape is to delve deeper, lest we find ourselves fretting over the endlessly enticing type checker features available to adjoin.
 We're always free to return to our type checker older and wiser.
 But this series is called making a language, not type check until our motivation evaporates.
