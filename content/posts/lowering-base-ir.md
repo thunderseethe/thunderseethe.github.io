@@ -322,5 +322,5 @@ fn lower(
 ```
 
 Whelp, we don't have time to fix that now.
-But next time we have our work cut out for us.
+But [next time](/posts/lowering-base-impl) we have our work cut out for us.
 We'll use our new understanding of `IR` and `Type` to finally write some gosh darn code.

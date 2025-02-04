@@ -1,12 +1,11 @@
 +++
-title = "Part 5b: Lowering our AST, an Implementation"
-date = "2025-02-03T00:00:00Z"
+title = "Part 5b: Escaping the Typechecker, an Implementation"
+date = "2025-02-04T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
 series = ["Making a Language"]
-keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "System F", "DeBruijn Index"]
+keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "System F", "DeBruijn Index", "Implementation"]
 description = "Implementation of our lowering function"
-draft = true
 +++
 
 Armed with the knowledge of `IR` and `Type` from [last time](/posts/lowering-base-ir), we can finally write some code:
@@ -18,7 +17,7 @@ fn lower(
 ) -> (IR, Type) {
   let (ir_ty, types) = lower_ty_scheme(scheme);
 
-  todo!();
+  todo!()
 }
 ```
 
