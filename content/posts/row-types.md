@@ -428,9 +428,35 @@ Ast::Concat(_, left, right) => {
 ```
 We start by creating a fresh row combination.
 The goal of this row combination will be our inferred product type.
-Our `left` and `right` nodes have to be product types.
+We know our `left` and `right` nodes have to be product types.
 Again we can exploit this knowledge to check them against Product types made from our combination's `left` and `right` rows.
+
+When we construct our `typed_ast`, we reuse the `row_comb` we put in our constraint to create the evidence for our `Concat` node.
+This uses a helper method `into_evidence`:
+
+```rs
+impl RowCombination { 
+  fn into_evidence(self) -> Evidence {
+    Evidence::RowEquation { 
+      left: self.left, 
+      right: self.right, 
+      goal: self.goal 
+    }
+  }
+}
+```
+
+Pretty straightforward translation.
+The reason we store an Evidence, rather than a `Constraint`, is because after type checking completes constraints cease to exist.
+In the final pass, when we construct our `TypeScheme` any unsolved constraints become evidence in the type scheme.
+We don't want to put `Constraint`s in our `TypeScheme` because not all `Constraint`s are valid evidence (notably `TypeEqual` must not appear in our `TypeScheme`).
+Since we'll need an `Evidence` at the end of type checking, we store one in our `Ast` to avoid having to convert our AST nodes from storing a `Constraint` to an `Evidence`.
+This would require adding another generic parameter to `Ast`, which I'm not strong enough to do.
+
+This pattern is loosely shared by all our row nodes.
+We'll see each of them store their generated `RowCombination` as `Evidence`.
 A similar approach works for `Project`:
+
 ```rs
 Ast::Project(dir, goal) => {
   let row_comb = 
@@ -447,15 +473,18 @@ Ast::Project(dir, goal) => {
   let mut out = 
     self.check(env, *goal, Type::Prod(row_comb.goal.clone()));
 
-  out.constraints
-    .push(Constraint::RowCombine(row_comb));
+  out
+    .constraints
+    .push(Constraint::RowCombine(row_comb.clone()));
   (
-    out.with_typed_ast(|ast| Ast::project(dir, ast)),
+    out.with_typed_ast(|ast| 
+      Ast::project(row_comb.into_evidence(), dir, ast)),
     // Our sub row is the output type of the projection
     Type::Prod(sub_row),
   )
 }
 ```
+
 One notable difference, the goal of our row combination is our input type this time.
 Our output type is either the `left` or `right` of our row combination based on direction.
 Direction exists solely to allow us to toggle whether `left` or `right` is used.
@@ -496,12 +525,16 @@ Ast::Branch(left, right) => {
   constraints
     .extend(right_out.constraints);
   constraints
-    .push(Constraint::RowCombine(row_comb));
+    .push(Constraint::RowCombine(row_comb.clone()));
 
   (
     InferOut {
       constraints,
       typed_ast: Ast::branch(
+        BranchMeta {
+          evidence: row_comb.into_evidence(),
+          ty: Type::Var(ret_ty),
+        },
         left_out.typed_ast, 
         right_out.typed_ast
       ),
@@ -514,9 +547,10 @@ Ast::Branch(left, right) => {
 This is almost exactly the same as our `Concat` case. 
 Except branch expects its `left` and `right` nodes to be functions.
 We have to do more bookkeeping to ensure the return types of all our functions line up.
+`Branch` also saves its return type into its `BranchMeta` alongside the `Evidence` we saw in `Concat`.
 
 ```rs
-Ast::Inject(dir, value) => {
+Ast::Inject(_, dir, value) => {
   let row_comb = 
     self.fresh_row_combination();
 
@@ -532,16 +566,18 @@ Ast::Inject(dir, value) => {
 
   let mut out = 
     self.check(env, *value, Type::Sum(sub_row));
-  out.constraints
-    .push(Constraint::RowCombine(row_comb));
+  out
+    .constraints
+    .push(Constraint::RowCombine(row_comb.clone()));
   (
-    out.with_typed_ast(
-      |ast| Ast::inject(dir, ast)),
+    out.with_typed_ast(|ast| 
+      Ast::inject(row_comb.into_evidence(), dir, ast)),
     // Our goal row is the type of our output
     out_ty,
   )
 }
 ```
+
 This one is almost exactly the same as our `Project` case.
 The big difference is `Inject` maps a smaller row into a bigger row.
 So goal is used as our output type instead of input type.
@@ -607,7 +643,7 @@ Next we're going to check our Product nodes.
 We got an early start on checking `Concat` nodes against `Label` types. 
 The bulk of our work is in checking them against `Product` types:
 ```rs
-(Ast::Concat(left, right), Type::Prod(goal_row)) => {
+(Ast::Concat(_, left, right), Type::Prod(goal_row)) => {
   let left_row = 
     Row::Open(self.fresh_row_var());
   let right_row = 
@@ -624,19 +660,24 @@ The bulk of our work is in checking them against `Product` types:
   let mut constraints = left_out.constraints;
   constraints.extend(right_out.constraints);
   // Add a row combination for our goal row
+  let row_comb = RowCombination {
+    left: left_row,
+    right: right_row,
+    goal: goal_row.clone(),
+  };
+
   constraints
-    .push(Constraint::RowCombine(RowCombination {
-      left: left_row,
-      right: right_row,
-      goal: goal_row,
-    }));
+    .push(Constraint::RowCombine(row_comb.clone()));
+
+  let typed_ast = Ast::concat(
+    row_comb.into_evidence(),
+    left_out.typed_ast,
+    right_out.typed_ast,
+  );
 
   InferOut {
     constraints,
-    typed_ast: Ast::concat(
-      left_out.typed_ast, 
-      right_out.typed_ast
-    ),
+    typed_ast,
   }
 }
 ```
@@ -649,7 +690,7 @@ Finally, we merge all our sub-constraints and add our new row combination as a n
 Next up is `Project`:
 
 ```rs
-(Ast::Project(dir, goal), Type::Prod(sub_row)) => {
+(Ast::Project(_, dir, goal), Type::Prod(sub_row)) => {
   let goal_row = Row::Open(self.fresh_row_var());
 
   let (left, right) = match dir {
@@ -658,13 +699,16 @@ Next up is `Project`:
   };
 
   let mut out = self.check(env, *goal, Type::Prod(goal_row.clone()));
-  out.constraints.push(Constraint::RowCombine(RowCombination {
+  let row_comb = RowCombination {
     left,
     right,
     goal: goal_row,
-  }));
+  };
+  out.constraints
+     .push(Constraint::RowCombine(row_comb.clone()));
 
-  out.with_typed_ast(|ast| Ast::project(dir, ast))
+  out.with_typed_ast(|ast| 
+    Ast::project(row_comb.into_evidence(), dir, ast))
 }
 ```
 
@@ -681,7 +725,7 @@ Oh hey! I didn't see you there.
 I was just checking our `Branch` node against a `Fun` type:
 
 ```rs
-(Ast::Branch(left_ast, right_ast), Type::Fun(arg_ty, ret_ty)) => {
+(Ast::Branch(_, left_ast, right_ast), Type::Fun(arg_ty, ret_ty)) => {
   let mut constraints = vec![];
   let goal = match arg_ty.deref() {
     Type::Sum(goal) => goal.clone(),
@@ -707,11 +751,20 @@ I was just checking our `Branch` node against a `Fun` type:
 
   constraints.extend(left_out.constraints);
   constraints.extend(right_out.constraints);
-  constraints.push(Constraint::RowCombine(RowCombination { left, right, goal }));
+  let row_comb = RowCombination { left, right, goal };
+  constraints
+    .push(Constraint::RowCombine(row_comb.clone()));
 
   InferOut {
     constraints,
-    typed_ast: Ast::branch(left_out.typed_ast, right_out.typed_ast),
+    typed_ast: Ast::branch(
+      BranchMeta {
+        evidence: row_comb.into_evidence(),
+        ty: *ret_ty,
+      },
+      left_out.typed_ast, 
+      right_out.typed_ast
+    ),
   }
 }
 ```
@@ -726,7 +779,7 @@ That difference aside, we check our subnodes, merge our subconstraints, add our 
 Onto `Inject`:
 
 ```rs
-(Ast::Inject(dir, value), Type::Sum(goal)) => {
+(Ast::Inject(_, dir, value), Type::Sum(goal)) => {
   let sub_row = self.fresh_row_var();
   let mut out = self.check(env, *value, Type::Sum(Row::Open(sub_row)));
   let (left, right) = match dir {
@@ -738,8 +791,10 @@ Onto `Inject`:
     right: Row::Open(right),
     goal,
   };
-  out.constraints.push(Constraint::RowCombine(row_comb));
-  out.with_typed_ast(|ast| Ast::inject(dir, ast))
+  out.constraints
+    .push(Constraint::RowCombine(row_comb.clone()));
+  out.with_typed_ast(|ast| 
+    Ast::inject(row_comb.into_evidence(), dir, ast))
 }
 ```
 Armed with the context of all our previous `check` cases, `Inject` is our simplest case yet.
