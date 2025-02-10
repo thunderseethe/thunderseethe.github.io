@@ -97,20 +97,70 @@ type Label = String
 
 enum Ast<V> {
   // ...
-  Concat(Box<Self>, Box<Self>),
-  Project(Direction, Box<Self>),
+  Concat(Option<Evidence>, Box<Self>, Box<Self>),
+  Project(Option<Evidence>, Direction, Box<Self>),
 ```
+
 `Concat` combines two product types into a bigger product type.  
 `Project` maps a product into a smaller product made from a subset of its fields.  
 Our next pair is sum types:
+
 ```rs
-  Inject(Direction, Box<Self>),
-  Branch(Box<Self>, Box<Self>),
+  Inject(Option<Evidence>, Direction, Box<Self>),
+  Branch(Option<BranchMeta>, Box<Self>, Box<Self>),
 ```
+
 `Inject` maps a small sum into a bigger sum containing the smaller sum's cases.  
 `Branch` combines two destructors for sum types into a big destructor for the combination of the two sum types.  
 This is our row-ified version of a match statement.
 We won't cover what that looks like in practice, but [THE paper](https://dl.acm.org/doi/10.1145/3290325) has a section devoted to it if you're interested.
+
+Each of our row node has some extra optional metadata `Evidence` (or `BranchMeta`).
+This is so we can reconstruct our types after type checking.
+In `base`, it was enough to attach a type to each variable.
+That won't work for rows.
+
+Consider a project: 
+
+```rs
+Ast::project(..., Left, 
+  Ast::concat(
+    Ast::label("foo", Type::Int),
+    Ast::label("bar", Type::Int)
+  )
+)
+```
+
+This project could produce any number of rows: `(foo: Int)`, `(bar: Int)`, or even `()`.
+We can't tell just from looking at the `Project` node itself (even with typed variables).
+Evidence remembers the row combination that was associated with our `Project`:
+
+```rs
+enum Evidence {
+  RowEquation {
+    left: Row, 
+    right: Row, 
+    goal: Row 
+  },
+}
+```
+
+We'll talk more about evidence when we're substituting
+Saving the row combination gives us enough context to reconstruct the type of our `Project` (or `Concat`, `Branch`, etc.).
+`Branch` needs some more context on top of evidence, so it stores a `BranchMeta`:
+
+```rs
+struct BranchMeta {
+  evidence: Evidence,
+  ty: Type
+}
+```
+
+`BranchMeta` is an evidence paired with a type.
+Our type is the return type of the `Branch`.
+Because `Branch` acts like a match expression, determining its return type can be involved.
+We have to check the type of the body of every branch and if they don't agree who knows what the return type is.
+To save ourselves that trouble moving forward, we do it once in the type checker and then save it.
 
 Our new product and sum nodes don't include a way to make a new row,
 only ways to build bigger and smaller rows out of existing rows.
@@ -338,7 +388,7 @@ We make use of this by constructing a `Label` with a fresh type variable and che
 We're getting the hang of it. 
 `Concat` will make use of our new row combination constraint:
 ```rs
-Ast::Concat(left, right) => {
+Ast::Concat(_, left, right) => {
   let row_comb = 
     self.fresh_row_combination();
 
@@ -359,12 +409,18 @@ Ast::Concat(left, right) => {
     left_out.constraints;
   constraints.extend(right_out.constraints);
   // Add a new constraint for our row equation to solve concat
-  constraints.push(Constraint::RowCombine(row_comb));
+  constraints.push(Constraint::RowCombine(row_comb.clone()));
+
+  let typed_ast = Ast::concat(
+    row_comb.into_evidence(),
+    left_out.typed_ast,
+    right_out.typed_ast,
+  );
 
   (
     InferOut {
       constraints,
-      typed_ast: Ast::concat(left_out.typed_ast, right_out.typed_ast),
+      typed_ast,
     },
     out_ty,
   )
@@ -761,8 +817,8 @@ The cases of our match can be categorized by their row variable count:
 With that, let's look at our 0 variable case(s):
 ```rs
 (Row::Closed(left), Row::Closed(right), goal) => {
-    let calc_goal = ClosedRow::merge(left, right);
-    self.unify_row_row(Row::Closed(calc_goal), goal)
+  let calc_goal = ClosedRow::merge(left, right);
+  self.unify_row_row(Row::Closed(calc_goal), goal)
 }
 ```
 This first case actually covers two cases:
@@ -793,10 +849,10 @@ We have two rows, so there are 4 possibilities.
 But two of our possibilities are handled the same way, so we only have to consider 3 cases:
 ```rs
 (Row::Open(left), Row::Open(right)) => 
-    self
-      .row_unification_table
-      .unify_var_var(left, right)
-      .map_err(TypeError::RowsNotEqual),
+  self
+    .row_unification_table
+    .unify_var_var(left, right)
+    .map_err(TypeError::RowsNotEqual),
 
 ```
 When two row variables meet, we unify them in our Union-Find.
