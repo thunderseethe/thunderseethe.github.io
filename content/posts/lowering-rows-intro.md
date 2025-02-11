@@ -6,7 +6,6 @@ tags = ["Programming Languages", "Lowering"]
 series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "Evidence Passing", "Witness", "Row Types", "Abstracting Extensible Datatypes"]
 description = "Explaining how we'll lower row types into our IR"
-draft = true
 +++
 
 [Last time](/posts/lowering-base-ir), we lowered [types/base](https://github.com/thunderseethe/making-a-language/tree/main/types/base) into our IR.
