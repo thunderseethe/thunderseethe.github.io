@@ -7,6 +7,15 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: "AnkhSanctuary";
+  src:
+    url("/fonts/AnkhSanctuary.woff2") format("woff2"),
+    url("/fonts/AnkhSanctuary.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+}
+
 *,
 *:after,
 *:before {

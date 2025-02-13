@@ -1,8 +1,9 @@
 baseURL = 'https://thunderseethe.dev/'
 languageCode = 'en-us'
-title = "thunderseethe's devlog"
+title = "Thunderseethe's Devlog"
 theme = "hugo-coder"
 enableEmoji = true
+enalbeGitInfo = true
  
 [markup.highlight]
 tabWidth = 2
@@ -12,7 +13,7 @@ style = "github-dark"
 startLevel = 1
 
 [params]
-author = "thunderseethe"
+author = "THUNDERSEETHE'S DEVLOG"
 colorScheme = "auto"
 hideColorSchemeToggle = false
 info = """
@@ -20,7 +21,7 @@ Welcome to my blog.
 
 I write about all things programming languages. My goal is to regurgitate academic papers into a more digestible (but less detailed) format.
 
-I'm currently working on [designing a programming language](series/making-a-language)
+I'm currently working on [making a language](series/making-a-language)
 """
 
 [params.goatCounter]
@@ -28,9 +29,22 @@ code = "thunderseethe"
 
 [[params.social]]
 name = "Github"
-icon = "fa fa-2x fa-github"
+icon = "fa-brands fa-2x fa-github"
 weight = 1
 url = "https://github.com/thunderseethe/"
+
+[[params.social]]
+name = "Bluesky"
+icon = "fa-brands fa-2x fa-bluesky"
+weight = 2
+url = "https://bsky.app/profile/thunderseethe.dev"
+
+[[params.social]]
+name = "Email"
+icon = "fa fa-2x fa-envelope"
+weight = 3
+url = "mailto:blog@thunderseethe.dev"
+
 
 [taxonomies]
 tag = "tags"
