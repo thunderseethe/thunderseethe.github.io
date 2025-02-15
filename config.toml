@@ -23,6 +23,7 @@ I write about all things programming languages. My goal is to regurgitate academ
 
 I'm currently working on [making a language](series/making-a-language)
 """
+customJS =["js/main.js"]
 
 [params.goatCounter]
 code = "thunderseethe"

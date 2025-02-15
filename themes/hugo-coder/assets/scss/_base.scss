@@ -79,6 +79,17 @@ html {
   font-size: 62.5%;
 }
 
+:root {
+  --last-wave-color: #{$last-wave-color};
+  --acc-color: #{$acc-color};
+
+  --last-wave-color-light: #{$bg-color};
+  --acc-color-light: #{$acc-color};
+
+  --last-wave-color-dark: #{$bg-color-dark};
+  --acc-color-dark: #{$acc-color-dark};
+}
+
 body {
   color: $fg-color;
   background-color: $bg-color;

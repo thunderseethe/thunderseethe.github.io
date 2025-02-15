@@ -79,7 +79,9 @@ function setTheme(theme) {
         waitForElm('.utterances-frame').then((iframe) => {
             iframe.contentWindow.postMessage(message, 'https://utteranc.es');
         })
-
+        var doc = document.documentElement;
+        doc.style.setProperty('--last-wave-color', 'var(--last-wave-color-dark)');
+        doc.style.setProperty('--acc-color', 'var(--acc-color-dark)');
     }
     else {
         const message = {
@@ -89,7 +91,9 @@ function setTheme(theme) {
         waitForElm('.utterances-frame').then((iframe) => {
             iframe.contentWindow.postMessage(message, 'https://utteranc.es');
         })
-
+        var doc = document.documentElement;
+        doc.style.setProperty('--last-wave-color', 'var(--last-wave-color-light)');
+        doc.style.setProperty('--acc-color', 'var(--acc-color-light)');
     }
 
     function sendMessage(message) {
