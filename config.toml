@@ -51,7 +51,7 @@ url = "mailto:blog@thunderseethe.dev"
 
 [taxonomies]
 tag = "tags"
-seriers = "series"
+series = "series"
 
 
 [[menu.main]]
