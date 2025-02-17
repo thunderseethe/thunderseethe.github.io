@@ -49,7 +49,6 @@ icon = "fa fa-2x fa-envelope"
 weight = 3
 url = "mailto:blog@thunderseethe.dev"
 
-
 [taxonomies]
 tag = "tags"
 seriers = "series"
@@ -65,3 +64,5 @@ seriers = "series"
   weight = 2
   url = "series"
 
+[outputs]
+  home = ["HTML", "RSS"]

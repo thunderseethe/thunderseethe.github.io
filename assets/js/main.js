@@ -17,7 +17,7 @@ const ondeSvg = document.querySelector("svg#onde");
 function onde(config) {
   let width = config.width;
   let height = config.height;
-  let step = config.step;
+  let step = config.width / config.steps;
 
   let arr = new Uint32Array(config.curve_colors.length);
   window.crypto.getRandomValues(arr);
@@ -59,23 +59,17 @@ function onde(config) {
 async function generateNavSVG() { 
   let wasm_promise = wasm.default({ module_or_path: onde_wasm_path });
 
-  /*let width = 500;
-  let overall_height = 30;
-  let bounds = ondeSvg.getBoundingClientRect();
-  ondeSvg.setAttributeNS(null, "height", (bounds.width * (overall_height / width)) + "px");*/
-
   let start = "var(--acc-color)";
   let end = "var(--last-wave-color)";
   let num_curves = 5;
   let curves = calculate_curves(start, end, num_curves);
 
   let width = document.documentElement.clientWidth;
-  console.log(width);
   let config = {
     width: width,
     height: 15,
     separation: 15,
-    step: width / 20,
+    steps: 20,
     curve_colors: curves,
   };
 
@@ -85,6 +79,17 @@ async function generateNavSVG() {
 
   ondeSvg.setAttributeNS(null, "opacity", "1");
   ondeSvg.style.display = "block";
+
+  let delay = 100;
+  var timeout;
+  window.addEventListener('resize', function() {
+    clearTimeout(timeout);
+    timeout = setTimeout((evt) => {
+      let cfg = config;
+      cfg.width = window.innerWidth;
+      onde(cfg);
+    }, delay);
+  });
 }
 
 await generateNavSVG();

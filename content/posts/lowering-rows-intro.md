@@ -435,4 +435,4 @@ You can find them in the [full code](https://github.com/thunderseethe/making-a-l
 We've covered a lot of ground.
 We know what we have to do, and we've prepared our `IR` and `Type` for the rows ahead.
 But we still have a lot to do.
-Next time, we'll use our additions to lower evidence in our type scheme.
+[Next time](/posts/rows-lowering-intro), we'll use our additions to lower evidence in our type scheme.
