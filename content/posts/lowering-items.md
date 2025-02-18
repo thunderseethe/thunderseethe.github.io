@@ -10,10 +10,11 @@ description = "Lowering top level items into our IR. A more elaborate affair tha
 
 * Intro
   * Lowering items will be saccharine.
+  * (What a relief)(replace this with something more specific) to see there's no letter in the title.
 
 * New ItemId
   * We don't reuse `ast::ItemId`
-  * Saves us 
+  * Similar to `VarId` (and `Var`) our `ItemId` starts as a 1:1 mapping with `ast::ItemId`, but that will swiftly change.
 
 * `ItemSupply` converts `ast::ItemId` to `ItemId`.
   * Twin to `VarSupply`.
@@ -39,3 +40,5 @@ description = "Lowering top level items into our IR. A more elaborate affair tha
 
 * `lower_ast` new case
   * Handler wrapper
+
+
