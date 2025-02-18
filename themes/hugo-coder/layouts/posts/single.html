@@ -29,7 +29,7 @@
             </span>
             {{ if .Lastmod }}
               {{ $lastmod := .Lastmod.Format (.Site.Params.dateFormat | default "January 2, 2006" ) }}
-              {{ if ne $lastmod $published }}
+              {{ if gt $lastmod $published }}
                 <span class="posted-last-modified">
                   <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
                   <time datetime="{{ .Lastmod }}" title="{{ .Lastmod }}">

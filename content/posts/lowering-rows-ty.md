@@ -6,7 +6,6 @@ tags = ["Programming Languages", "Lowering"]
 series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "Evidence Passing", "Witness", "Row Types", "Abstracting Extensible Datatypes"]
 description = "Lowering row evidence from our type scheme"
-draft = true
 +++
 
 [Last time](/posts/lowering-rows-intro) we learned how we're going to lower row types and made some row addendums for `IR` and `Type`.
