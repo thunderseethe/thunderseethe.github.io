@@ -33,18 +33,19 @@
   </script>
   {{ end }}
 
-  {{ if hugo.IsServer }}
-  {{ $script := resources.Get "js/coder.js" }}
-  <script src="{{ $script.RelPermalink }}"></script>
-  {{ else }}
+  {{ if hugo.IsProduction }}
   {{ $script := resources.Get "js/coder.js" | minify | fingerprint }}
   <script src="{{ $script.RelPermalink }}" integrity="{{ $script.Data.Integrity }}"></script>
+  {{ else }}
+  {{ $script := resources.Get "js/coder.js" }}
+  <script src="{{ $script.RelPermalink }}"></script>
   {{ end }}
 
   {{ $onde_wasm_path := resources.Get "wasm/onde_bg.wasm" }}
 
   <script>
     onde_wasm_path = "{{ $onde_wasm_path.Permalink }}";
+    console.log("{{ hugo.IsProduction }}");
   </script>
 
   {{ range .Site.Params.customJS }}
@@ -66,12 +67,12 @@
   {{ end }}
 
   {{ range .Site.Params.customRemoteJS }}
-  {{ if hugo.IsServer }}
-  {{ $script := resources.GetRemote . }}
-  <script src="{{ $script.RelPermalink }}"></script>
-  {{ else }}
+  {{ if hugo.IsProduction }}
   {{ $script := resources.GetRemote . | minify | fingerprint }}
   <script src="{{ $script.RelPermalink }}" integrity="{{ $script.Data.Integrity }}"></script>
+  {{ else }}
+  {{ $script := resources.GetRemote . }}
+  <script src="{{ $script.RelPermalink }}"></script>
   {{ end }}
   {{ end }}
 

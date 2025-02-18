@@ -1,24 +1,35 @@
 <link rel="preload" href="/fonts/fa-brands-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
 
-{{ if hugo.IsServer }}
+{{ if hugo.IsProduction }}
+  {{ $cssOpts := (dict "targetPath" "css/coder.css" ) }}
+  {{ $styles := resources.Get "scss/coder.scss" | resources.ExecuteAsTemplate "style.coder.css" . | toCSS $cssOpts | minify | fingerprint }}
+  <link rel="preload" href="{{ $styles.RelPermalink }}" integrity="{{ $styles.Data.Integrity }}" crossorigin="anonymous" media="screen" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="styles.css"></noscript>
+{{ else }}
   {{ $cssOpts := (dict "targetPath" "css/coder.css" "enableSourceMap" true ) }}
   {{ $styles := resources.Get "scss/coder.scss" | resources.ExecuteAsTemplate "style.coder.css" . | toCSS $cssOpts }}
   <link rel="stylesheet" href="{{ $styles.RelPermalink }}" media="screen">
+{{ end }}
+
+{{ if hugo.IsProduction }}
+  {{ $cssOpts := (dict "targetPath" "css/critical.css" ) }}
+  {{ $styles := resources.Get "scss/critical.scss" | resources.ExecuteAsTemplate "style.coder.css" . | toCSS $cssOpts | minify | fingerprint }}
+  <style>{{ $styles.Content | safeCSS }}</style>
 {{ else }}
-  {{ $cssOpts := (dict "targetPath" "css/coder.css" ) }}
-  {{ $styles := resources.Get "scss/coder.scss" | resources.ExecuteAsTemplate "style.coder.css" . | toCSS $cssOpts | minify | fingerprint }}
-  <link rel="stylesheet" href="{{ $styles.RelPermalink }}" integrity="{{ $styles.Data.Integrity }}" crossorigin="anonymous" media="screen" />
+  {{ $cssOpts := (dict "targetPath" "css/critical.css" "enableSourceMap" true ) }}
+  {{ $styles := resources.Get "scss/critical.scss" | resources.ExecuteAsTemplate "style.coder.css" . | toCSS $cssOpts }}
+  <style>{{ $styles.Content | safeCSS }}</style>
 {{ end }}
 
 {{ if .Site.Params.rtl }}
-  {{ if hugo.IsServer }}
-    {{ $cssOpts := (dict "targetPath" "css/coder-rtl.css" "enableSourceMap" true ) }}
-    {{ $styles := resources.Get "scss/coder-rtl.scss" | resources.ExecuteAsTemplate "style.coder-rtl.css" . | toCSS $cssOpts }}
-    <link rel="stylesheet" href="{{ $styles.RelPermalink }}" media="screen">
-  {{ else }}
+  {{ if hugo.IsProduction }}
     {{ $cssOpts := (dict "targetPath" "css/coder-rtl.css" ) }}
     {{ $styles := resources.Get "scss/coder-rtl.scss" | resources.ExecuteAsTemplate "style.coder-rtl.css" . | toCSS $cssOpts | minify | fingerprint }}
     <link rel="stylesheet" href="{{ $styles.RelPermalink }}" integrity="{{ $styles.Data.Integrity }}" crossorigin="anonymous" media="screen" />
+  {{ else }}
+    {{ $cssOpts := (dict "targetPath" "css/coder-rtl.css" "enableSourceMap" true ) }}
+    {{ $styles := resources.Get "scss/coder-rtl.scss" | resources.ExecuteAsTemplate "style.coder-rtl.css" . | toCSS $cssOpts }}
+    <link rel="stylesheet" href="{{ $styles.RelPermalink }}" media="screen">
   {{ end }}
 {{ end }}
