@@ -2,7 +2,6 @@
   href="{{ .Destination | safeURL }}"
   {{ with .Title}} title="{{ . }}"{{ end }} 
   {{ if findRE "^(https?:)?//" (lower .Destination) }} 
-    class="external-link" 
     target="_blank" 
     rel="noopener" 
     data-goatcounter-click="{{ .Destination | safeURL }}"
@@ -10,4 +9,7 @@
     data-goatcounter-referrer="{{ .Page.Title }}"
   {{ end }}>
   {{ .Text | safeHTML }}
+  {{ if findRE "^(https?:)?//" (lower .Destination) }}
+    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+  {{ end }}
 </a>
