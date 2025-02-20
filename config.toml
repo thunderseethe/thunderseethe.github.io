@@ -21,7 +21,7 @@ Welcome to my blog.
 
 I write about all things programming languages. My goal is to regurgitate academic papers into a more digestible (but less detailed) format.
 
-I'm currently working on [making a language](series/making-a-language)
+I'm currently working on [making a language.](series/making-a-language)
 """
 customJS =["js/main.js"]
 
