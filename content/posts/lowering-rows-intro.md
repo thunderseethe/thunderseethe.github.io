@@ -304,7 +304,6 @@ enum IR {
   Tag(Type, usize, Box<Self>),
   // Case match on a sum.
   Case(Type, Box<Self>, Vec<Branch>),
-  Local(Var, Box<Self>, Box<Self>),
 }
 ```
 
@@ -347,27 +346,6 @@ With no branches to guide us it could be any type.
 One might question our premise, but it will come up when we generate evidence that contains an empty row.
 While this is a problem in general, the type checker will have figured out the return type for any particular `Case` (or we have a type error).
 So an easy resolution is to save the return type from type checking in our `Case`.
-
-We have one more sneaky non-row related node slipped in: `Local`.
-This isn't required for lowering Rows, but it helps.
-We'll need it eventually anyway, so we might as well introduce it now.
-`Local` binds a value to a local variable allowing it to be referenced later in an expression.
-It's like `let` from Rust.
-
-Similar to `Branch`, we could represent `Local` using function nodes.
-Instead of having explicit locals, we could use a function and an application.
-A local such as `IR::Local(x, <defn>, <body>)` could be represented as `IR::app(IR::fun(x, <body>), <defn>)`.
-The two behave identically.
-
-The reason we don't lies in optimization, again.
-While the two terms behave identically, we compile them differently.
-A `Fun` node represents a lambda.
-It might capture variables before being returned to God knows where.
-We're on the hook to handle that possibility.
-
-Not so for our humble `Local`.
-Because its _local_ to the current definition, we don't have to worry about capturing anything.
-Keeping them as different nodes in the tree makes it easy to distinguish their different use cases while compiling.
 
 ## Row Type Nodes
 
