@@ -458,9 +458,9 @@ struct ItemWrapper {
 ```
 
 Our wrapper will start out `None`.
-We'll see how it's used during type checking.
-We introduce a new operation, instantiation, and our wrapper will save all the types we produce from instantiating an item.
-At the end of type checking we'll substitute `ItemWrapper`s (like the rest of our `Ast`) solving their variables to types and rows.
+Type checking an item fills out the `ItemWrapper` field.
+We'll introduce a new operation, instantiation, and our wrapper will save all the types we produce from instantiating an item.
+At the end of type checking we'll substitute `ItemWrapper`s (like the rest of our `Ast`).
 
 A natural question arises from here. 
 If items aren't bound by `fun` nodes, how do we know what items are available, and (more importantly) how do we know their types?
