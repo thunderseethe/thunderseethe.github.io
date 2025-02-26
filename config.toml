@@ -28,9 +28,6 @@ customJS =["js/main.js"]
 [params.goatCounter]
 code = "thunderseethe"
 
-[params.cloudflare]
-token = "e83c9fb1a9c4431da83ed671092b3470"
-
 [[params.social]]
 name = "Github"
 icon = "fa-brands fa-2x fa-github"
