@@ -573,4 +573,4 @@ let ir = lower_ast.lower_ast(ast);
 
 Just like `LoweredTyScheme`, it's got some new fields as well.
 We're familiar with `ev_to_var`.
-We'll use `solved` for solved evidence during `lower_ast`, more on that next time.
+We'll use `solved` for solved evidence during `lower_ast`, more on that [next time](/posts/lowering-rows-ast).
