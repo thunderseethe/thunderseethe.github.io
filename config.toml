@@ -7,7 +7,7 @@ enableGitInfo = true
  
 [markup.highlight]
 tabWidth = 2
-style = "github-dark"
+style = "doom-one"
 
 [markup.tableOfContents]
 startLevel = 1

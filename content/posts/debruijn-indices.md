@@ -1,5 +1,5 @@
 +++
-title = "Picking Equatable Names"
+title = "DeBruijn Indices: Picking Equatable Names"
 date = "2025-01-23T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages"]
