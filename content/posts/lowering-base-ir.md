@@ -69,6 +69,7 @@ enum IR {
   App(Box<Self>, Box<Self>),
   TyFun(Kind, Box<Self>),
   TyApp(Box<Self>, Type),
+  Local(Var, Box<Self>, Box<Self>),
 }
 ```
 
@@ -77,8 +78,8 @@ This is because our IR is based on [System F](https://en.wikipedia.org/wiki/Syst
 System F is another calculus, like the lambda calculus, often called the polymorphic lambda calculus.
 Named such because it is the lambda calculus plus two new nodes: type function and type application.
 
-Given our AST is the lambda calculus, it makes a lot of sense our System F-based IR looks like `Ast` but with two new nodes.
-As the name polymorphic lambda calculus implies, our two new nodes deal with polymorphism:
+Given our AST is the lambda calculus, it makes a lot of sense our System F-based IR looks like `Ast` but with a few new nodes.
+As the name polymorphic lambda calculus implies, two of our new nodes deal with polymorphism:
 
   * `TyFun` - type function, a function that binds a type variable in a term.
   * `TyApp` - type application, applies a type to a type function to produce a term.
@@ -89,8 +90,8 @@ Where functions take a term and produce a term, type functions take a type and p
 Each type variable from our `TypeScheme` will become bound by a `TyFun` node in our `IR`.
 
 Rather than normal names, like `Var` in `Fun`, our type variables use [DeBruijn Indices](https://en.wikipedia.org/wiki/De_Bruijn_index).
-Using DeBruijn Indices allows us to efficiently check if two types are equal. 
-Don't worry if you don't know what DeBruijn Indices are. 
+Using DeBruijn Indices allows us to efficiently check if two types are equal.
+Don't worry if you don't know what DeBruijn Indices are.
 We'll discuss it more when we talk about our `Type`s.
 
 When we want to instantiate a generic, we use a `TyApp` to apply a type to our `TyFun`.
@@ -108,6 +109,27 @@ We won't cover it here, but if you are interested check out:
 
 Our use of System F is motivated by its handling of polymorphism.
 Its theoretical underpinnings are just a nice to have.
+
+Our final new node, `Local`, is more bureaucratic in nature.
+You won't find usages of `Local` here today.
+We'll need it in future passes, so we add it now as future proofing.
+`Local` binds a value to a local variable allowing it to be referenced later in an expression.
+It's like `let` from Rust.
+
+We could represent `Local` using function nodes.
+Instead of having explicit locals, we could use a function and an application.
+A local such as `IR::Local(x, <defn>, <body>)` could be represented as `IR::app(IR::fun(x, <body>), <defn>)`.
+The two behave identically.
+
+The reason we don't lies in optimization.
+While the two terms behave identically, we compile them differently.
+A `Fun` node represents a lambda (or closure).
+It might capture variables before being returned to God knows where.
+We're on the hook to handle that possibility.
+
+Not so for our humble `Local`.
+Because its _local_ to the current definition, we don't have to worry about capturing anything.
+Keeping them as different nodes in the tree makes it easy to distinguish their different use cases while compiling.
 
 The next difference in our `IR` is variables.
 `Var` is similar to AST's `TypedVar`:
@@ -298,6 +320,21 @@ But `ret_ty` itself may contain `TyFun` nodes.
 Fortunately, `subst` handles adjusting the `TypeVar` we're substituting correctly in that case.
 We're not going to cover the details of `subst` to save on time.
 Its implementation can be found in the [full code](https://github.com/thunderseethe/making-a-language/tree/main/lowering/base).
+
+We'll make a pitstop to get the `type_of` locals but it won't take long:
+
+```rs
+IR::Local(v, defn, body) => {
+  if v.ty != defn.type_of() {
+    panic!("ICE: Type mismatch local variable has different type from it's definition.")
+  }
+  body.type_of()
+}
+```
+
+We could be even briefer were we less interested in checking our assumptions.
+The type of `Local` is the type of its body.
+We don't have to modify an environment for our `v` because all our `Var`s are already annotated with their `Type`.
 
 With that we've completed our `type_of()` function.
 We're talking about `type_of()` like it's a type checker, but it's really more of a lint.

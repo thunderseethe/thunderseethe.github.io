@@ -55,9 +55,9 @@ If we combine local variables and items, we lose the ability to split up work ef
 The distinction provided by items has another use in our language.
 Local variables always have a type, but items have a type scheme.
 We could allow local variables to have a type scheme.
-This feature is called let generalisation.
+This feature is called let generalization.
 We won't be doing that, for reasons that are well detailed  in [Let Should not be Generalised](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tldi10-vytiniotis.pdf).
-To summarize, let generalisation does not come up often in practice, and we can simplify things considerably if we only generalise items.
+To summarize, let generalization does not come up often in practice, and we can simplify things considerably if we only generalise items.
 
 Ideology isn't the only principle driving our decision.
 On the pragmatic side, we want to compile local variables and items differently.
@@ -443,9 +443,25 @@ Since `ItemId` is a new type, it will need a new AST variant `Item`:
 pub enum Ast<V> {
   // our previous cases... 
   // A reference to a top level definition
-  Item(ItemId),
+  Item(Option<ItemWrapper>, ItemId),
 }
 ```
+
+Alongside the `ItemId` itself we store an optional `ItemWrapper`:
+
+```rs
+struct ItemWrapper {
+  types: Vec<Type>,
+  rows: Vec<Row>,
+  evidence: Vec<Evidence>
+}
+```
+
+Our wrapper will start out `None`.
+Type checking an item fills out the `ItemWrapper` field.
+We'll introduce a new operation, instantiation, and our wrapper will save all the types we produce from instantiating an item.
+At the end of type checking we'll substitute `ItemWrapper`s (like the rest of our `Ast`).
+
 A natural question arises from here. 
 If items aren't bound by `fun` nodes, how do we know what items are available, and (more importantly) how do we know their types?
 
@@ -521,15 +537,25 @@ fn infer(&mut self, env: im::HashMap<Var, Type>, ast: Ast<Var>) -> (InferOut, Ty
       let ty_scheme = self.item_source.type_of_item(item_id);
 
       // Create fresh unifiers for each type and row variable in our type scheme.
+      let mut wrapper_tyvars = vec![];
       let tyvar_to_unifiers = ty_scheme
         .unbound_tys
         .iter()
-        .map(|ty_var| (*ty_var, self.fresh_ty_var()))
+        .map(|ty_var| {
+          let unifier = self.fresh_ty_var();
+          wrapper_tyvars.push(Type::Unifier(unifier));
+          (*ty_var, unifier)
+        })
         .collect::<HashMap<_, _>>();
+      let mut wrapper_rowvars = vec![];
       let rowvar_to_unifiers = ty_scheme
         .unbound_rows
         .iter()
-        .map(|row_var| (*row_var, self.fresh_row_var()))
+        .map(|row_var| {
+          let unifier = self.fresh_row_var();
+          wrapper_rowvars.push(Row::Unifier(unifier));
+          (*row_var, unifier)
+        })
         .collect::<HashMap<_, _>>();
 
       // Instantiate our scheme mapping it's variables to the fresh unifiers we just generated.
@@ -537,7 +563,30 @@ fn infer(&mut self, env: im::HashMap<Var, Type>, ast: Ast<Var>) -> (InferOut, Ty
       // unfiers.
       let (constraints, ty) =
         Instantiate::new(&tyvar_to_unifiers, &rowvar_to_unifiers).type_scheme(ty_scheme);
-      (InferOut::new(constraints, Ast::Item(item_id)), ty)
+      let wrapper = ItemWrapper {
+        types: wrapper_tyvars,
+        rows: wrapper_rowvars,
+        evidence: constraints
+          .clone()
+          .into_iter()
+          .filter_map(|c| match c {
+            Constraint::RowCombine(row_combo) => Some(Evidence::RowEquation {
+              left: row_combo.left,
+              right: row_combo.right,
+              goal: row_combo.goal,
+            }),
+            _ => None,
+          })
+          .collect(),
+      };
+      (
+        InferOut::new(
+          constraints, 
+          Ast::Item(
+            Some(wrapper), 
+            item_id)), 
+        ty
+      )
     }
     // ...
   }
@@ -545,7 +594,7 @@ fn infer(&mut self, env: im::HashMap<Var, Type>, ast: Ast<Var>) -> (InferOut, Ty
 ```
 
 Let's walk through this code one section at a time.
-First of all, what is `type_of_item(item_id)`?
+First off, what is `type_of_item(item_id)`?
 
 ```rs
 impl ItemSource {
@@ -559,7 +608,7 @@ Huh... I don't know what I was expecting.
 All the same nothing to write home about, what's going on with all this `tyvar_to_unifiers` and `rowvar_to_unifiers` business?
 
 These are part of instantiation.
-Instantiation is the compliment operation to generalisation.
+Instantiation is the compliment operation to generalization.
 When we substitute a type at the end of inference, we track all the free variables in that type and wrap them up in a type scheme.
 As of this article, we also convert unification variables into type variables en route.
 
@@ -576,7 +625,7 @@ This is by design.
 Each reference to an item is unique and should have a unique type (unlike variables which are implicitly referencing the same thing).
 So even if we didn't introduce this unification variable/type variable split, we'd still have to instantiate our item's type schemes so each referenced used fresh unification variables.
 
-We'll peek at instantiation, but we won't cover the details because they are rote (similar to generalisation).
+We'll peek at instantiation, but we won't cover the details because they are rote (similar to generalization).
 If you're interested, you can find them [in the repo](https://github.com/thunderseethe/making-a-language/tree/main/types/items).
 
 ```rs

@@ -7,6 +7,67 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: "AnkhSanctuary";
+  src:
+    url("/fonts/AnkhSanctuary.woff2") format("woff2"),
+    url("/fonts/AnkhSanctuary.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "AtkinsonHyperlegibleNext";
+  src: url("/fonts/AtkinsonHyperlegibleNext-Light.woff2") format("woff2");
+  font-weight: 100;
+  font-style: normal;
+}
+@font-face {
+  font-family: "AtkinsonHyperlegibleNext";
+  src: url("/fonts/AtkinsonHyperlegibleNext-LightItalic.woff2") format("woff2");
+  font-weight: 100;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "AtkinsonHyperlegibleNext";
+  src: url("/fonts/AtkinsonHyperlegibleNext-SemiBold.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "AtkinsonHyperlegibleNext";
+  src: url("/fonts/AtkinsonHyperlegibleNext-SemiBoldItalic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "AtkinsonHyperlegibleNext";
+  src: url("/fonts/AtkinsonHyperlegibleNext-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: "AtkinsonHyperlegibleNext";
+  src: url("/fonts/AtkinsonHyperlegibleNext-BoldItalic.woff2") format("woff2");
+  font-weight: 700;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "AtkinsonHyperlegibleNext";
+  src: url("/fonts/AtkinsonHyperlegibleNext-ExtraBold.woff2") format("woff2");
+  font-weight: 1000;
+  font-style: normal;
+}
+@font-face {
+  font-family: "AtkinsonHyperlegibleNext";
+  src: url("/fonts/AtkinsonHyperlegibleNext-ExtraBoldItalic.woff2") format("woff2");
+  font-weight: 1000;
+  font-style: italic;
+}
+
 *,
 *:after,
 *:before {
@@ -16,6 +77,17 @@
 html {
   box-sizing: border-box;
   font-size: 62.5%;
+}
+
+:root {
+  --last-wave-color: #{$last-wave-color};
+  --acc-color: #{$acc-color};
+
+  --last-wave-color-light: #{$bg-color};
+  --acc-color-light: #{$acc-color};
+
+  --last-wave-color-dark: #{$bg-color-dark};
+  --acc-color-dark: #{$acc-color-dark};
 }
 
 body {

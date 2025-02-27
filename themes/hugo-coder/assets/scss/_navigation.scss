@@ -1,5 +1,4 @@
 .navigation {
-  height: 6rem;
   width: 100%;
   background-color: $acc-color;
 
@@ -21,6 +20,7 @@
   }
 
   .navigation-title {
+    font-family: "AnkhSanctuary";
     letter-spacing: 0.1rem;
     text-transform: uppercase;
   }

@@ -28,13 +28,6 @@
   }
 
   article {
-    a:where(.external-link)::after {
-      @include fa-icon;
-      content: fa-content($fa-var-external-link);
-      padding-left: 0.5em;
-      font-size: 0.75em;
-    }
-
     details {
       summary {
         cursor: pointer;
@@ -74,7 +67,7 @@
       }
 
       .date {
-        .posted-on {
+        .posted-on, .posted-last-modified {
           margin-left: 0;
           margin-right: 1.5rem;
         }
@@ -250,4 +243,8 @@
       }
     }
   }
+}
+
+#author {
+  font-family: "AnkhSanctuary";
 }

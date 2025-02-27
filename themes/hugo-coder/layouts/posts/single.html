@@ -21,11 +21,23 @@
         <div class="post-meta">
           <div class="date">
             <span class="posted-on">
-              <i class="fa fa-calendar" aria-hidden="true"></i>
+              <i class="fa-solid fa-calendar" aria-hidden="true"></i>
+              {{ $published :=  .Date | time.Format (.Site.Params.dateFormat | default "January 2, 2006" ) }}
               <time datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}">
-                {{ .Date | time.Format (.Site.Params.dateFormat | default "January 2, 2006" ) }}
+                {{ $published }}
               </time>
             </span>
+            {{ if .Lastmod }}
+              {{ $lastmod := .Lastmod.Format (.Site.Params.dateFormat | default "January 2, 2006" ) }}
+              {{ if gt $lastmod $published }}
+                <span class="posted-last-modified">
+                  <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                  <time datetime="{{ .Lastmod }}" title="{{ .Lastmod }}">
+                    {{ $lastmod }}
+                  </time>
+                </span>
+              {{ end }}
+            {{ end }}
             <span class="reading-time">
               <i class="fa fa-clock-o" aria-hidden="true"></i>
               {{ i18n "reading_time" .ReadingTime }}

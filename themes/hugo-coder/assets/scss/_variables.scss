@@ -1,5 +1,7 @@
+
 // Fonts
-$font-family: -apple-system,
+$font-family: AtkinsonHyperlegibleNext,
+-apple-system,
 BlinkMacSystemFont,
 "Segoe UI",
 Roboto,
@@ -30,6 +32,7 @@ $alt-bg-color: #e0e0e0 !default;
 $alt-fg-color: #000 !default;
 $darker-alt-bg-color: #ccc !default;
 $link-color: #1565c0 !default;
+$last-wave-color: mix($acc-color, $bg-color, 99%);
 
 // Dark colors
 $bg-color-dark: #212121 !default;
@@ -39,6 +42,7 @@ $alt-bg-color-dark: #424242 !default;
 $alt-fg-color-dark: #dadada !default;
 $lighter-alt-bg-color-dark: #4f4f4f !default;
 $link-color-dark: #42a5f5 !default;
+$last-wave-color-dark: mix($acc-color-dark, $bg-color-dark, 99%);
 
 // Notice colors
 $fg-color-notice-note-icon: #5e35b1 !default;
@@ -62,3 +66,5 @@ $bg-color-notice-warning-content: #ffca281a !default;
 $fg-color-notice-error-icon: #e53935 !default;
 $bg-color-notice-error-title: #f443361a !default;
 $bg-color-notice-error-content: #ef53501a !default;
+
+$fa-font-path: "../fonts" !default;
