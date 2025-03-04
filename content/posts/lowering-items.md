@@ -6,7 +6,6 @@ tags = ["Programming Languages", "Lowering"]
 series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "System F", "Item", "Instantiation", "Generalization", "Recursion"]
 description = "Lowering top level items into our IR. A more elaborate affair than anticipated."
-draft = true
 +++
 
 [Last time](/posts/lowering-rows-intro) saw us endeavoring upon a trilogy to bring rows crashing down from their high-flying AST nodes into the realities of our lowly IR.
