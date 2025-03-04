@@ -1,6 +1,6 @@
 +++
 title = "Part 7: Lowering Top Level Items"
-date = "2025-02-10T00:00:00Z"
+date = "2025-03-04T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
 series = ["Making a Language"]
@@ -10,7 +10,8 @@ draft = true
 +++
 
 [Last time](/posts/lowering-rows-intro) saw us endeavoring upon a trilogy to bring rows crashing down from their high-flying AST nodes into the realities of our lowly IR.
-Our goals this time are less highfalutin, we're going to be lowering items.
+Our goals this time are less highfalutin. 
+We're going to be lowering items.
 I can't tell you how relieved I am to see this titled "Part 7", not "Part 7a".
 
 Items represent top level functions in our language.
@@ -357,7 +358,7 @@ Gah, `supply_for` got us, but at least our speed bought us an extra line.
 We construct our `IR::Item` using the `ty` we just looked up.
 Construction makes use of `supply_for` to convert our `ast::ItemId` into `ItemId`.
 `supply_for` is like `VarSupply::supply_for`, but for items.
-Its implementation is uninteresting, and can be found in the [full code](TODO).
+Its implementation is uninteresting, and can be found in the [full code](https://github.com/thunderseethe/making-a-language/tree/main/lowering/items).
 
 ## Ordering Our Applications
 
