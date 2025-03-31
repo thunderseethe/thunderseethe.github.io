@@ -1,6 +1,6 @@
 +++
 title = "Function Application Needs to Grow a Spine Already"
-date = "2025-03-18T00:00:00Z"
+date = "2025-03-31T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
 keywords = ["Programming Languages", "Type Inference", "Functional", "Impredicativity", "Higher-Rank types", "Function Application", "Spine", "Lambda Calculus"]
@@ -8,9 +8,10 @@ description = "Typechecking multiple applications at a time opens new opportunit
 +++
 
 Function application can be found nestled into the heart of basically every functional language. 
-At the risk of aggrandizing, I would even say every programming language.
+At the risk of hyperbole, I would even say every programming language.
 Unlike languages inheriting from the C family, function application in functional languages makes use of [currying](https://en.wikipedia.org/wiki/Currying).
-Heralding all the way back to the dawn of the lambda calculus:
+Currying lets us eschew multi argument functions in favor of a bunch of single argument functions that return more functions.
+Function application (and currying) herald all the way back to the dawn of the lambda calculus:
 
 ```hs
 data LambdaCalc 
@@ -30,24 +31,23 @@ What's that?
 People don't feel that strongly about AST nodes?
 They care way more about keyword length?
 Alright, fair enough.
-Personally I'm partial to the keyword `fun`.
-A length of 3 is true, just, and it's literally fun.
+Personally I'm partial to `fun`.
+A keyword length of 3 is true, just, and it's literally fun.
 
 ## A Quick Look at Currying
 
-Function application is integral to functional programming.
 Curried function application is a long-standing tradition in functional languages.
-So it might come as a surprise, that not currying your function, taking multiple parameters at a time, allows you to infer better types then just considering one application at a time.
+So it might come as a surprise that not currying your function, taking multiple arguments at a time, allows you to infer better types then just considering one application at a time.
 
 Before we understand why, let's take a step back and talk about currying.
 Currying is a feature that turns multi argument functions into a series of single argument functions.
 Each function taking one parameter at a time and returning a new function that takes the next parameter.
 Instead of a single application `f(x, y)`, we have two applications `(f x) y`.
 `f x` returns a new function that takes our `y`.
-This chain of applications `(. x) y` is called the application's spine.
+This chain of applications `(_ x) y` is called the application's spine.
 `f` is called the head of the application.
 
-For how common currying is in functional languages, it is quite divisive.
+For how common currying is in functional programming, it is quite divisive.
 Some people swear by currying as elevating programming above mundane concerns such as function arity.
 Others say it makes it impossible to reason about programs. 
 You can never tell when a function does real work, rather than just returning a new function immediately.
@@ -85,17 +85,16 @@ We have to go look at `f` to figure out that it needs more arguments and isn't r
 While they're not wrong, I harbor a fondness for currying.
 I miss it whenever I find myself using Rust.
 When I return to Haskell, I delight in indulging currying to construct [pointless](https://en.wikipedia.org/wiki/Tacit_programming) programs.
-[`(.:.)`](https://hackage.haskell.org/package/composition-1.0.2.2/docs/Data-Composition.html#v:.:.) my beloved.
 
 ## A Point Against Currying
 
 I'm here today, however, to place another point in the pile against currying.
 Much as it pains me to do so.
 I've noticed a trend in recent research that favors passing multiple arguments at a time.
-Typechecking multiple arguments to a function gives us enough information to infer polytypes, sometimes.
+Typechecking multiple arguments to a function gives us enough information to infer polytypes, _sometimes_.
 Sounds great, but what's a polytype? 
 
-When we talk about types we distinguish between two _types_ of type: monotypes and polytypes.
+When we talk about inferring types we distinguish between two _types_ of type: monotypes and polytypes.
 Monotypes are free to contain any number of type variables, but they cannot introduce them (aka bind them).
 These are some of your favorite types like `Int`, `a -> a`, `Map k (Int, v)`, etc.
 Polytypes are monotypes but free to introduce any number of type variables.
@@ -107,9 +106,9 @@ id x = x
 ```
 
 The `forall a` there introduces our type variable `a` and makes `forall a. a -> a` a polytype.
-Haskell allows omitting the `forall` and just writing `a -> a`, but this is still a polytype when it appears as a top level annotation.
-Haskell allows syntax sugar to avoid explicitly introducing `a`. 
-We'll avoid that syntax sugar so our monotypes and polytypes are clearly distinguishable.
+Haskell allows omitting the `forall` and just writing `a -> a`, but this is still a polytype.
+Haskell just allows syntax sugar to avoid spelling out the `forall`. 
+We'll avoid that syntax sugar, so our monotypes and polytypes are clearly distinguishable.
 
 Polytypes, however, can put the `forall` in more interesting places as well:
 
@@ -132,7 +131,7 @@ For our purposes today, it suffices to know that it's not possible to infer type
 
 [This](https://dl.acm.org/doi/abs/10.1145/2641638.2641653) [is](https://www.cambridge.org/core/journals/journal-of-functional-programming/article/practical-type-inference-for-arbitraryrank-types/5339FB9DAB968768874D4C20FA6F8CB6) [not](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/hmf.pdf) [for](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/07/impredicative-pldi18.pdf) [lack](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/boxy-icfp.pdf) [of](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/fph-long.pdf) [trying](https://dl.acm.org/doi/abs/10.1145/3385412.3386003).
 Many attempts have been made to allow for inference of arbitrary polytypes.
-Even with the approach we're talking about today we can infer all polytypes, just some of them.
+Even with the approach we're talking about today we can't infer all polytypes, just some of them.
 Inferring all polytypes requires annotations to disambiguate where `forall`s should appear.
 
 A recent line of research, however, shows that if you make use of multiple arguments during inference you can infer polytypes without annotations:
@@ -146,7 +145,7 @@ Higher-Rank Polymorphism with Existentials and
 Indexed Types](https://www.cs.tufts.edu/~nr/cs257/archive/neel-krishnaswami/bidirectional-gadt.pdf)
 
 It's always neat to see when disparate work converges on the same solution out of a set of shared constraints.
-Finally, there's also a great talk that covers the idea if you'd rather learn in video format:
+There's also a great talk that covers the idea:
 
   * [Type inference for application spines](https://youtu.be/suktIDmFAbk?si=5jo7OI6hUhQSX5pd)
 
@@ -157,7 +156,8 @@ If we don't gather enough information, we're free to bail out and do inference n
 ## Turns Out It's About Type Inference
 
 Traditionally, type checking an application starts by inferring a function type.
-Commonly this will be a function type with two variables `a -> b`, which we use to check our argument has type `a`.
+Commonly this will be a function type with two variables `a -> b`. 
+Followed by checking our argument has type `a`.
 Our new quick look approach proceeds in the opposite direction.
 We collect all the types of our arguments and then use them to check our function type.
 If our argument types provide enough information we can check our function has a polytype, rather than a monotype.
@@ -180,23 +180,22 @@ x : xs = -- the implementation doesn't matter
 ```
 
 With normal inference, we have to give `id : ids` the type `[a -> a]`.
-We're only allowed to solve `p` to a monotype, so we have to pick the monotype `a -> a`.
+We're only allowed to solve `p` to a monotype, so we have to pick `a -> a`.
 But we've lost important information, notably that the `id`s in our list work for different types.
 They don't all have to be applied to the same type `a`.
 
 By examining both our arguments, `id` and `ids`, we can determine a more specific type for `id : ids`.
-We can deconstruct our application into its head `(:)`, and it's list of arguments `[id, ids]`.
-This list of arguments is called the application's spine.
+We can deconstruct our application into its head `(:)`, and it's spine `[id, ids]`.
 We can match up the argument types of `(:)`, `p` and `[p]`, with the types of our argument spines, `forall a . a -> a` and `[forall a . a -> a]`.
 
 Our first match, `p` and `forall a . a -> a`, proves unfruitful.
-[Quick look](https://www.microsoft.com/en-us/research/wp-content/uploads/2020/01/quick-look.pdf) details the technical reasons why, but we can't solve a naked type variable to a polytype `forall a . a -> a`.
+[Quick look](https://www.microsoft.com/en-us/research/wp-content/uploads/2020/01/quick-look.pdf) details the technical reasons why, but we can't solve our naked type variable `p` to a polytype `forall a . a -> a`.
 Doing so makes typechecking undecidable, and people generally aren't willing to wait that long for their types.
 Fortunately, our vertebrate application provides a second match to consider: `[p]` and `[forall a . a -> a]`.
 With this pairing we can determine that `p` must be `forall a . a -> a`.
 
 The reason for this is a little subtle.
-Dressing `p` in `[p]` makes it unambiguous where the `forall` must go.
+Dressing `p` in `[p]` makes it unambiguous where the `forall` must appear.
 In contrast to our first pair `p` and `forall a . a -> a`, where the `forall` has two valid placements.
 If we only had our first argument `(:) id`, our term would have two valid typings:
 
@@ -204,7 +203,7 @@ If we only had our first argument `(:) id`, our term would have two valid typing
 * `[forall a . a -> a] -> [forall a . a -> a]`
 
 Our poor type inference doesn't have enough information to tell which type to choose.
-But once we see `[forall a . a -> a]`, we can be certain only the second typing applies.
+But once we see `[forall a . a -> a]`, we can be certain only the second type applies.
 
 Multi argument application is instrumental to allowing this enhanced inference to take place on more terms.
 Our approach relies on two critical pieces of information provided by our application spine:
@@ -219,21 +218,21 @@ It's not valid, however, to infer `forall f . [f] -> [f]` for `(:) id`.
 We only get away with giving a polytype to `(:)` because it's a bound variable.
 
 Bound variables can have polytypes because variables don't require any inference.
-Again this runs into intricacies in how type inference is implemented.
-Type inference works out a type for each bound variable in scope and save it in an environment.
+Again, this runs against intricacies in type inference implementation.
+Type inference works out a type for each bound variable in scope and saves it in an environment.
 All we have to do when we see `(:)` is lookup its type in that environment.
 
-We also might wonder if we really need a polytype for our application head.
+We might also wonder if we really need a polytype for our application head.
 If `(:)` has the type `p -> [p] -> [p]` it looks like our approach would work just as well.
 Our `p` looks the same but is distinct from the `p` in `forall p . p -> [p] -> [p]`.
-The `forall` ensures us that `p` doesn't show up anywhere else in the expression we're currently inferring.
-Without that guarantee, it's not safe to solve our type variables to polytypes. 
-Our variable might be used elsewhere and lead to us accidentally inferring a polytype unexpectedly.
+The `forall` ensures us that `p` doesn't show up anywhere else in the type we're currently inferring.
+Without that guarantee, it's not safe to solve our type variables to polytypes.
+Similar to solving a naked type variable, solving an unbound variable to a polytype will make type checking undecidable.
 
 This leads us to an important caveat where this approach does not apply.
 If the head of our application spine is a more complicated expression than a variable, we can't apply this tactic.
 For example if instead of `(:) id ids`, we had `(\ x y -> (:) x y) id ids` that would stop us in our tracks.
-`(\x y -> x y)` has to be given a monotype, not a polytype, and that prevents us from inferring a polytype.
+`(\x y -> x y)` has to be given a monotype, not a polytype.
 
 I worry opportunities to apply quick look won't arise in practice.
 We need our applications be headed by a variable and contain enough arguments to unambiguously determine a polytype.
