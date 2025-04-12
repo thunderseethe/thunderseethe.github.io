@@ -1,0 +1,43 @@
+
+.mal-pass {
+  border: 0.2rem solid $acc-color;
+  margin-bottom: 1.2rem;
+  box-shadow: 5px 5px mix($fg-color, $bg-color, 10%);
+  h3 {
+    margin-top: 2rem;
+    text-decoration: underline;
+  }
+
+  .mal-header {
+    h2 {
+      margin: 0;
+      padding-left: 1rem;
+      padding-top: 1rem;
+      padding-bottom: 2rem;
+    }
+    background-color: $acc-color;
+  }
+  .mal-content {
+    margin: 0 0.5rem 0.5rem 0.5rem;
+  }
+}
+
+@mixin mal_dark {
+  .mal-pass {
+    border: 1px solid $acc-color-dark;
+    box-shadow: 5px 5px mix($fg-color-dark, $bg-color-dark, 10%);
+    .mal-header {
+      background-color: $acc-color-dark;
+    }
+  }
+}
+
+body.colorscheme-dark {
+  @include mal_dark();
+}
+
+body.colorscheme-auto {
+  @media (prefers-color-scheme: dark) {
+    @include mal_dark();
+  }
+}

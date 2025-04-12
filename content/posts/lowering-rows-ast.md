@@ -1,5 +1,5 @@
 +++
-title = "Part 6c: The Heart of Lowered Rows"
+title = "Lowering[1].Rows[2]: The Heart of Lowered Rows"
 date = "2025-02-26T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]

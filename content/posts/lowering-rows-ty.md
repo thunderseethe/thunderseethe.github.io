@@ -1,5 +1,5 @@
 +++
-title = "Part 6b: The Types of Lowered Rows"
+title = "Lowering[1].Rows[1]: The Types of Lowered Rows"
 date = "2025-02-18T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]

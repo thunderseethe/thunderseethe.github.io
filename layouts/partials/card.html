@@ -1,0 +1,11 @@
+<div class="post" stlye="display:flex; flex-shrink: 1;">
+  <a class="title" href="{{ .Params.externalLink | default .RelPermalink }}">
+    {{ $title := .Title }}
+    {{ index (split $title ":") 1 }}
+  </a>
+  <div>
+    <span class="date">{{ .Date | time.Format (.Site.Params.dateFormat | default "January 2, 2006" ) }}</span>
+    <span class="accent-fg">⊢</span>
+    <span class="description" style="flex-shrink: 1;">{{ .Description }}</span>
+  </div>
+</div>

@@ -1,5 +1,5 @@
 +++
-title = "Part 4: TypeChecking Top Level Functions"
+title = "Types[2].Items: TypeChecking Top Level Functions"
 date = "2024-07-05T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]

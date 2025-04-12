@@ -1,5 +1,5 @@
 +++
-title = "Part 5b: Escaping the Typechecker, an Implementation"
+title = "Lowering[0].Base[1]: Escaping the Typechecker, an Implementation"
 date = "2025-02-04T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]

@@ -1,5 +1,5 @@
 +++
-title = "Part 5a: Lowering Our AST to Escape the Typechecker"
+title = "Lowering[0].Base[0]: Lowering Our AST to Escape the Typechecker"
 date = "2025-01-28T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]

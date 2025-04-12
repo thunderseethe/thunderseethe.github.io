@@ -1,7 +1,7 @@
 {{ define "title" }}
   {{- if eq .Kind "term" -}}
-    {{- i18n .Data.Plural 1 | title -}}
-    {{- print ": test" -}}
+    {{- i18n .Data.Plural | title -}}
+    {{- print ": gorp" -}}
   {{- end -}}
   {{- i18n (lower .Title) | default .Title | title }} · {{ .Site.Title -}}
 {{ end }}

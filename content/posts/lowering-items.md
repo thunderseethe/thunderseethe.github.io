@@ -1,5 +1,5 @@
 +++
-title = "Part 7: Lowering Top Level Items"
+title = "Lowering[2].Items: Lowering Top Level Items"
 date = "2025-03-04T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
@@ -11,7 +11,7 @@ description = "Lowering top level items into our IR. A more elaborate affair tha
 [Last time](/posts/lowering-rows-intro) saw us endeavoring upon a trilogy to bring rows crashing down from their high-flying AST nodes into the realities of our lowly IR.
 Our goals this time are less highfalutin. 
 We're going to be lowering items.
-I can't tell you how relieved I am to see this titled "Part 7", not "Part 7a".
+I can't tell you how relieved I am to see this titled ".Items", not ".Items[0]".
 
 Items represent top level functions in our language.
 In our [previous work](/types/check-top-level-items/), which type checked items, we learned items differ from local variables in the types they're allowed to have.

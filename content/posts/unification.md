@@ -1,5 +1,5 @@
 +++
-title = "Part 2: Tying up Type Inference"
+title = "Types[0].Base[2]: Tying up Type Inference"
 date = "2023-07-01T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]

@@ -57,9 +57,9 @@ series = "series"
   url  = "posts/"
 
 [[menu.main]]
-  name = "Series"
+  name = "Making a Language"
   weight = 2
-  url = "series"
+  url = "series/making-a-language"
 
 [outputs]
   home = ["HTML", "RSS"]

@@ -1,0 +1,123 @@
+{{ define "title" }}
+  {{ .Title }} · {{ .Site.Title }}
+{{ end }}
+{{ define "content" }}
+<section class="container list">
+  <header>
+    <h1 class="title">
+      <a class="title-link" href="{{ .Permalink | safeURL }}">
+        {{- i18n (lower .Title) | default .Title | title -}}
+      </a>
+    </h1>
+  </header>
+  <section>
+    <p>
+    This is a series that teaches you how to make a programming language. 
+    Our language's implementation can be divided up into passes: Typechecking, Lowering, etc.
+    Each pass has a section below that is subdivided into features for the language.
+    We can see "Types" (our first pass about type inference) is subdivided into three features: Base, Rows, Items.
+    </p>
+    <p>
+    Each feature layers  new capabilities atop the previous feature.
+    Base is the initial feature, and Rows layers support for row types on top of the Base language (and Item layers on Rows etc).
+    Pass/feature combos connect together.
+    Lowering/Base depends on Types/Base, and at the end we can combine all our passes' Base features to create a compiler for our Base language.
+    </p>
+    <p>
+    You can read each feature set for a pass, or you can read each pass for a feature.
+    Implementation code is available in the 
+    <a href="https://github.com/thunderseethe/making-a-language" target="_blank">
+      accompanying repo
+      <i class="fa-solid fa-arrow-up-right-from-square"></i>
+    </a>
+    </p>
+  </section>
+  <section style="display: flex; flex-direction: column">
+    <div class="mal-pass">
+      <div class="mal-header">
+        <h2>Types</h2>
+      </div>
+      <div class="mal-content">
+        <p>
+        Types introduces the Abstract Syntax Tree (AST) for our language and starts us off by inferring types for our AST.
+        <p>
+        <div style="display: flex; flex-flow: row wrap">
+          <div>
+            <h3>Base</h3>
+            <div style="display: flex; flex-direction: column; flex-shrink: 1">
+              {{ with (.GetPage "/posts/type-inference") }}
+                {{ partial "card.html" . }}
+              {{ end }}
+              {{ with (.GetPage "/posts/bidirectional-constraint-generation") }}
+                {{ partial "card.html" . }}
+              {{ end }}
+              {{ with (.GetPage "/posts/unification") }}
+                {{ partial "card.html" . }}
+              {{ end }}
+            </div>
+          </div>
+          <div>
+            <h3>Rows</h3>
+            <div style="display: flex; flex-direction: column">
+              {{ with (.GetPage "/posts/row-types") }}
+                {{ partial "card.html" . }}
+              {{ end }}
+            </div>
+          </div>
+          <div>
+            <h3>Items</h3>
+            <div style="display: flex; flex-direction: column">
+              {{ with (.GetPage "/posts/check-top-level-items") }}
+                {{ partial "card.html" . }}
+              {{ end }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mal-pass">
+      <div class="mal-header">
+        <h2>Lowering</h2>
+      </div>
+      <div class="mal-content">
+        <p>
+        Lowering turns our typed AST into our Intermediate Representation (IR). This shifts us from the frontend of the compiler to the middle/backend of the compiler.
+        </p>
+        <div>
+          <h3>Base</h3>
+          <div style="display: flex; flex-direction: column">
+            {{ with (.GetPage "/posts/lowering-base-ir") }}
+              {{ partial "card.html" . }}
+            {{ end }}
+            {{ with (.GetPage "/posts/lowering-base-impl") }}
+              {{ partial "card.html" . }}
+            {{ end }}
+          </div>
+          <div>
+            <h3>Rows</h3>
+            <div style="display: flex; flex-direction: column">
+              {{ with (.GetPage "/posts/lowering-rows-intro") }}
+                {{ partial "card.html" . }}
+              {{ end }}
+              {{ with (.GetPage "/posts/lowering-rows-ty") }}
+                {{ partial "card.html" . }}
+              {{ end }}
+              {{ with (.GetPage "/posts/lowering-rows-ast") }}
+                {{ partial "card.html" . }}
+              {{ end }}
+            </div>
+          </div>
+          <div>
+            <h3>Items</h3>
+            <div style="display: flex; flex-direction: column">
+              {{ with (.GetPage "/posts/lowering-items") }}
+                {{ partial "card.html" . }}
+              {{ end }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</section>
+{{ end }}

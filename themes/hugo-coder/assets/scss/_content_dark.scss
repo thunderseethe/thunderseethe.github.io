@@ -25,7 +25,17 @@
               color: $link-color-dark;
             }
           }
+        }
+      }
 
+      .post {
+        .title {
+          color: $fg-color-dark;
+
+          &:hover,
+          &:focus {
+            color: $link-color-dark;
+          }
         }
       }
     }
