@@ -1,8 +1,6 @@
 
 .mal-pass {
-  border: 0.2rem solid $acc-color;
   margin-bottom: 1.2rem;
-  box-shadow: 5px 5px mix($fg-color, $bg-color, 10%);
   h3 {
     margin-top: 2rem;
     text-decoration: underline;
@@ -19,13 +17,14 @@
   }
   .mal-content {
     margin: 0 0.5rem 0.5rem 0.5rem;
+    .post .title {
+      font-size: 2rem;
+    }
   }
 }
 
 @mixin mal_dark {
   .mal-pass {
-    border: 1px solid $acc-color-dark;
-    box-shadow: 5px 5px mix($fg-color-dark, $bg-color-dark, 10%);
     .mal-header {
       background-color: $acc-color-dark;
     }
