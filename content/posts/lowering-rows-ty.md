@@ -99,12 +99,26 @@ Back to your regularly scheduled programming.
 All our books are kept, in order even, we'll crack open `lower` briefly to see how `lower_ty_scheme` is used now:
 
 ```rs
-fn lower(ast: Ast<TypedVar>, scheme: ast::TypeScheme) -> (IR, Type) {
-  let lowered_scheme = lower_ty_scheme(scheme);
+fn lower(out: TypesOutput) -> (IR, Type) {
+  let lowered_scheme = lower_ty_scheme(out.scheme);
 
   todo!("We'll cover the rest later.");
 }
 ```
+
+`TypesOutput` is new to our rows feature, but captures the previous stuff we passed to lower:
+
+```rs
+struct TypesOutput {
+  typed_ast: Ast<TypedVar>,
+  scheme: TypeScheme,
+  row_to_ev: HashMap<NodeId, Evidence>,
+  branch_to_ret_ty: HashMap<NodeId, Type>,
+}
+```
+
+Alongside our old friends `Ast<TypedVar>` and `TypeScheme`, we have the two sidetables produced by type checking: `row_to_ev` and `branch_to_ret_ty`.
+We'll use these to lower our row nodes.
 
 ## What's a `lowered_scheme`
 
@@ -530,8 +544,8 @@ LoweredTyScheme {
 Once we're in `lower`, we immediately make use of our `ev_to_ty` field:
 
 ```rs
-fn lower(ast: Ast<TypedVar>, scheme: ast::TypeScheme) -> (IR, Type) {
-  let lowered_scheme = lower_ty_scheme(scheme);
+fn lower(out: TypesOutput) -> (IR, Type) {
+  let lowered_scheme = lower_ty_scheme(out.scheme);
   let mut supply = VarSupply::default();
   let mut params = vec![];
   let ev_to_var = lowered_scheme.ev_to_ty
@@ -567,8 +581,10 @@ let mut lower_ast = LowerAst {
   types: lowered_scheme.lower_types,
   ev_to_var,
   solved: vec![],
+  row_to_ev: out.row_to_ev,
+  branch_to_ret_ty: out.branch_to_ret_ty,
 };
-let ir = lower_ast.lower_ast(ast);
+let ir = lower_ast.lower_ast(out.typed_ast);
 ```
 
 Just like `LoweredTyScheme`, it's got some new fields as well.

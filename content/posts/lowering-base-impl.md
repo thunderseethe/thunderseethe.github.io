@@ -33,18 +33,24 @@ Recall that our base AST is:
 ```rs
 enum Ast<V> {
   /// A local variable
-  Var(V),
+  Var(NodeId, V),
   /// An integer literal
-  Int(isize),
+  Int(NodeId, isize),
   /// A function literal 
   /// (lambda, closure, etc.)
-  Fun(V, Box<Self>),
+  Fun(NodeId, V, Box<Self>),
   /// Function application
-  App(Box<Self>, Box<Self>), 
+  App(NodeId, Box<Self>, Box<Self>), 
 }
 ```
 
-Where our `V` generic is the type of variables. It starts out as `Var`:
+`NodeId` uniquely identifiers each node of our `Ast`:
+
+```rs
+struct NodeId(u32);
+```
+
+Our `V` generic is the type of variables. It starts out as `Var`:
 
 ```rs
 struct Var(usize);
@@ -292,7 +298,7 @@ Match on the `ast` and produce an `IR` term for each case.
 First up is variables:
 
 ```rs
-Ast::Var(TypedVar(var, ty)) => IR::Var(Var::new(
+Ast::Var(_, TypedVar(var, ty)) => IR::Var(Var::new(
   self.supply.supply_for(var),
   self.types.lower_ty(ty),
 )),
@@ -303,14 +309,14 @@ We convert our `ast::Var` into a `Var` using `VarSupply` and lower our `ast::Typ
 Because `self.types` uses the same `ty_env` as in `lower_ty_scheme`, we can be confident it will lower types equivalently.
 
 ```rs
-Ast::Int(i) => IR::Int(i),
+Ast::Int(_, i) => IR::Int(i),
 ```
 
 Once again `Int` holds us down by being a consistent freebie.
 `Fun` isn't much more complicated:
 
 ```rs
-Ast::Fun(TypedVar(var, ty), body) => {
+Ast::Fun(_, TypedVar(var, ty), body) => {
   let ir_ty = self.types.lower_ty(ty);
   let ir_var = self.supply.supply_for(var);
   let ir_body = self.lower_ast(*body);
@@ -323,7 +329,7 @@ We deconstruct our `Fun` node, lower all its parts, and recombine them into an I
 Last but not least, `App`:
 
 ```rs
-Ast::App(fun, arg) => {
+Ast::App(_, fun, arg) => {
   let ir_fun = self.lower_ast(*fun);
   let ir_arg = self.lower_ast(*arg);
   IR::app(ir_fun, ir_arg)

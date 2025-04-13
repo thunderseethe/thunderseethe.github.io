@@ -307,7 +307,7 @@ Because these variants can't be solved, they behave similarly to `Type::Int`.
 They are only equal with themselves:
 
 ```rs
-fn unify_ty_ty(...) -> Result<(), TypeError> {
+fn unify_ty_ty(...) -> Result<(), TypeErrorKind> {
   // ...normalize and match on our types
     // Our new match case for the rigid variables.
     (Type::Var(a), Type::Var(b)) if a == b => Ok(()),
@@ -318,14 +318,14 @@ fn unify_ty_ty(...) -> Result<(), TypeError> {
 We do the same for rows in `unify_row_row`:
 
 ```rs
-fn unify_row_row(...) -> Result<(), TypeError> {
+fn unify_row_row(...) -> Result<(), TypeErrorKind> {
   // ..normalize and match on our rows
     // Our new match case for the rigid variables.
     (Row::Open(left), Row::Open(right)) if left == right => Ok(()),
     // ...The rest of our unification cases
     // Update our RowsNotEqual case to include the new possibility 
     // that two `Row::Open`'s aren't equal.
-    (left, right) => Err(TypeError::RowsNotEqual((left, right))),
+    (left, right) => Err(TypeErrorKind::RowsNotEqual((left, right))),
   }
 }
 ```
@@ -335,7 +335,7 @@ Now that we separate unification variables and row variables, two row variables 
 Easy fix, we update `RowsNotEqual` to allow for arbitrary `Row`s instead of `ClosedRow`s:
 
 ```rs
-enum TypeError {
+enum TypeErrorKind {
   // This used to be (ClosedRow, ClosedRow).
   RowsNotEqual((Row, Row)),
   // ...
@@ -355,7 +355,7 @@ Instead of leaving them as is, we're going to replace them with fresh type varia
 This is how we'll ensure unification variables don't escape the type checker.
 
 Making this change is relatively straightforward.
-We add two new members to our `TypeInference` struct: 
+We add new members to our `TypeInference` struct: 
 
 ```rs
 struct TypeInference {
@@ -364,6 +364,8 @@ struct TypeInference {
   next_tyvar: u32,
   subst_unifiers_to_rowvars: HashMap<RowUniVar, RowVar>,
   next_rowvar: u32,
+  // we'll need this one later for item type inference.
+  item_wrappers: HashMap<NodeId, ItemWrapper>,
 }
 ```
 
@@ -418,6 +420,22 @@ fn substitute_ty(&mut self, ty: Type) -> SubstOut<Type> {
 It looks mostly the same.
 Except when we have an unsolved unifier we call `tyvar_for_unifier` to convert it and then return a `Type::Var` instead of a `Type::Unifier`.
 
+We have one more new member `item_wrappers`.
+This map attaches metadata to each of our `Item`s using their `NodeId`s.
+Alongside each item we store an `ItemWrapper`:
+
+```rs
+struct ItemWrapper {
+  types: Vec<Type>,
+  rows: Vec<Row>,
+  evidence: Vec<Evidence>
+}
+```
+
+Type checking an item fills out the `ItemWrapper` field.
+We'll introduce a new operation, instantiation, and our wrapper will save all the types we produce from instantiating an item.
+At the end of type checking we'll substitute each `ItemWrapper` (like the rest of our `Ast`).
+
 # Item type inference
 
 Phew, that's enough refactoring.
@@ -443,24 +461,9 @@ Since `ItemId` is a new type, it will need a new AST variant `Item`:
 pub enum Ast<V> {
   // our previous cases... 
   // A reference to a top level definition
-  Item(Option<ItemWrapper>, ItemId),
+  Item(NodeId, ItemId),
 }
 ```
-
-Alongside the `ItemId` itself we store an optional `ItemWrapper`:
-
-```rs
-struct ItemWrapper {
-  types: Vec<Type>,
-  rows: Vec<Row>,
-  evidence: Vec<Evidence>
-}
-```
-
-Our wrapper will start out `None`.
-Type checking an item fills out the `ItemWrapper` field.
-We'll introduce a new operation, instantiation, and our wrapper will save all the types we produce from instantiating an item.
-At the end of type checking we'll substitute `ItemWrapper`s (like the rest of our `Ast`).
 
 A natural question arises from here. 
 If items aren't bound by `fun` nodes, how do we know what items are available, and (more importantly) how do we know their types?
@@ -502,7 +505,7 @@ Ostensibly this `ItemSource` will be produced by name resolution and passed to o
 fn type_infer_with_items(
   item_source: ItemSource,
   ast: Ast<Var>,
-) -> Result<(Ast<TypedVar>, TypeScheme), TypeError> {
+) -> Result<TypesOutput, TypeError> {
     let mut ctx = TypeInference {
         item_source,
         //... normal defaults
@@ -515,7 +518,7 @@ fn type_check_with_items(
   item_source: ItemSource,
   ast: Ast<Var>,
   signature: TypeScheme,
-) -> Result<Ast<TypedVar>, TypeError> {
+) -> Result<TypesOutput, TypeError> {
     let mut ctx = TypeInference {
         item_source,
         //... normal defaults
@@ -533,7 +536,7 @@ With the type schemes for all our items available, we can delve into inferring a
 fn infer(&mut self, env: im::HashMap<Var, Type>, ast: Ast<Var>) -> (InferOut, Type) {
   match ast {
     // ...
-    Item(item_id) => {
+    Item(id, item_id) => {
       let ty_scheme = self.item_source.type_of_item(item_id);
 
       // Create fresh unifiers for each type and row variable in our type scheme.
@@ -562,7 +565,7 @@ fn infer(&mut self, env: im::HashMap<Var, Type>, ast: Ast<Var>) -> (InferOut, Ty
       // After this we'll have a list of constraints and a type that only reference the fresh
       // unfiers.
       let (constraints, ty) =
-        Instantiate::new(&tyvar_to_unifiers, &rowvar_to_unifiers).type_scheme(ty_scheme);
+        Instantiate::new(id, &tyvar_to_unifiers, &rowvar_to_unifiers).type_scheme(ty_scheme);
       let wrapper = ItemWrapper {
         types: wrapper_tyvars,
         rows: wrapper_rowvars,
@@ -570,7 +573,7 @@ fn infer(&mut self, env: im::HashMap<Var, Type>, ast: Ast<Var>) -> (InferOut, Ty
           .clone()
           .into_iter()
           .filter_map(|c| match c {
-            Constraint::RowCombine(row_combo) => Some(Evidence::RowEquation {
+            Constraint::RowCombine(_, row_combo) => Some(Evidence::RowEquation {
               left: row_combo.left,
               right: row_combo.right,
               goal: row_combo.goal,
@@ -579,11 +582,12 @@ fn infer(&mut self, env: im::HashMap<Var, Type>, ast: Ast<Var>) -> (InferOut, Ty
           })
           .collect(),
       };
+      self.item_wrappers.insert(id, wrapper);
       (
         InferOut::new(
           constraints, 
           Ast::Item(
-            Some(wrapper), 
+            id,
             item_id)), 
         ty
       )
@@ -630,6 +634,7 @@ If you're interested, you can find them [in the repo](https://github.com/thunder
 
 ```rs
 struct Instantiate<'a> {
+  id: NodeId,
   tyvar_to_unifiers: &'a HashMap<TypeVar, TypeUniVar>,
   rowvar_to_unifiers: &'a HashMap<RowVar, RowUniVar>,
 }

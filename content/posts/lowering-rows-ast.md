@@ -14,8 +14,8 @@ We're getting to the heart of lowering rows this time: generating and applying o
 Recall we left off our with a partially updated `lower`:
 
 ```rs
-fn lower(ast: Ast<TypedVar>, scheme: ast::TypeScheme) -> (IR, Type) {
-  let lowered_scheme = lower_ty_scheme(scheme);
+fn lower(out: TypesOutput) -> (IR, Type) {
+  let lowered_scheme = lower_ty_scheme(out.scheme);
   let mut supply = VarSupply::default();
   let mut params = vec![];
   let ev_to_var = lowered_scheme.ev_to_ty
@@ -33,8 +33,10 @@ fn lower(ast: Ast<TypedVar>, scheme: ast::TypeScheme) -> (IR, Type) {
     types: lowered_scheme.lower_types,
     ev_to_var,
     solved: vec![],
+    row_to_ev: out.row_to_ev,
+    branch_to_ret_ty: out.branch_to_ret_ty,
   };
-  let ir = lower_ast.lower_ast(ast);
+  let ir = lower_ast.lower_ast(out.typed_ast);
 
   todo!()
 }
@@ -54,9 +56,9 @@ We confront them in pairs, first is our `Label` and `Unlabel` nodes:
 enum Ast<V> {
   // ... our base nodes
   // Label a node turning it into a singleton row
-  Label(Label, Box<Self>),
+  Label(NodeId, Label, Box<Self>),
   // Unwrap a singleton row into it's underlying value
-  Unlabel(Box<Self>, Label),
+  Unlabel(NodeId, Box<Self>, Label),
   // ...
 }
 ```
@@ -79,9 +81,9 @@ After `Label` and `Unlabel`, we look at our nodes for product row types:
 enum Ast<V> {
   // ...
   // Concat two products
-  Concat(Option<Evidence>, Box<Self>, Box<Self>),
+  Concat(NodeId, Box<Self>, Box<Self>),
   // Project a product into a sub product
-  Project(Option<Evidence>, Direction, Box<Self>),
+  Project(NodeId, Direction, Box<Self>),
   // ...
 }
 ```
@@ -92,9 +94,9 @@ Combined with `Label`, we can represent a record such as `{ x: 3, y: 42 }` with 
 
 ```rs
 Concat(
-  None,
-  Label("x", Int(3)),
-  Label("y", Int(42))
+  ...,
+  Label(..., "x", Int(3)),
+  Label(..., "y", Int(42))
 )
 ```
 
@@ -103,23 +105,6 @@ It takes in a larger record and returns a subset of that record.
 Returning to `{ x: 3, y: 42 }`, `Project` could return any of `{ x: 3 }`, `{ y: 42 }`, `{}`, or even `{ x: 3, y: 42 }`.
 We rely on type inference to determine the output of our `Project`.
 
-Both these nodes contain an `Option<Evidence>`.
-This field is filled out by type checking.
-When type checking our Row nodes, we create a row constraint.
-We save this constraint in our Row node and turn it into `Evidence` when we substitute everything.
-
-An `Evidence` is a bunch of Rows:
-
-```rs
-enum Evidence {
-  RowEquation { 
-    left: Row, 
-    right: Row, 
-    goal: Row 
-  },
-}
-```
-
 Last, but not least, we have two nodes for sum row types.
 Again one to introduce them and one to destruct them:
 
@@ -127,9 +112,9 @@ Again one to introduce them and one to destruct them:
 enum Ast<V> {
   // ...
   // Inject a value into a sum type
-  Inject(Option<Evidence>, Direction, Box<Self>),
+  Inject(NodeId, Direction, Box<Self>),
   // Branch on a sum type to two handler functions
-  Branch(Option<BranchMeta>, Box<Self>, Box<Self>),
+  Branch(NodeId, Box<Self>, Box<Self>),
   // ...
 }
 ```
@@ -155,15 +140,27 @@ If we have a value of sum type `enum { X(Int), Y(Int) }`, we can branch on it wi
 
 ```rs
 Branch(
-  None,
-  Fun(x, Unlabel("X", Var(x))),
-  Fun(y, Unlabel("Y", Var(y))))
+  ...,
+  Fun(..., x, Unlabel(..., Var(x), "X")),
+  Fun(..., y, Unlabel(..., Var(y), "Y")))
 ```
 
 Our branch takes two functions.
 They take `enum { X(Int) }` and `enum { Y(Int) }` as input respectively.
 Both of them return an `Int`.
 Branch combines them into a function from `enum { X(Int), Y(Int) }` to `Int`.
+
+We keep metadata about our row nodes in two new outputs from type checking: `row_to_ev` and `branch_to_ret_ty`:
+
+```rs
+struct TypesOutput {
+  row_to_ev: HashMap<NodeId, Evidence>,
+  branch_to_ret_ty: HashMap<NodeId, Type>,
+}
+```
+
+`row_to_ev` has an entry for each row node in our `Ast` and provides the row combination solved for that node during type checking.
+`branch_to_ret_ty` is similar, but only has an entry for `Branch` nodes and provides the return type of each branch.
 
 {{< /accessory >}}
 
@@ -187,8 +184,8 @@ impl LowerAst {
 We'll start by adding cases for `Label` and `Unlabel`:
 
 ```rs
-Ast::Label(_, body) => self.lower_ast(*body),
-Ast::Unlabel(body, _) => self.lower_ast(*body),
+Ast::Label(_, _, body) => self.lower_ast(*body),
+Ast::Unlabel(_, body, _) => self.lower_ast(*body),
 ```
 
 These are trivial.
@@ -196,8 +193,11 @@ Erase the labels and lower their bodies.
 `Concat` is where the action starts:
 
 ```rs
-Ast::Concat(meta, left, right) => {
-  let param = meta
+Ast::Concat(id, left, right) => {
+  let param = self
+    .row_to_ev
+    .get(&id)
+    .cloned()
     .map(|ev| self.lookup_ev(ev))
     .expect("ICE: Concat AST node lacks an expected evidence");
 
@@ -958,28 +958,35 @@ Popping the stack one more time, we look upon `lower_ast` with a new appreciatio
 We'll pick back up with our next case `Branch`:
 
 ```rs
-Ast::Branch(meta, left, right) => {
-  let meta = meta.expect("ICE: Branch AST node lacks expected meta");
+Ast::Branch(id, left, right) => {
   todo!()
 }
 ```
 
-Our branch meta isn't just an `ast::Evidence`.
-It contains both an `ast::Evidence` and a `Type`.
-We know what to do with the evidence.
-Look it up to get our term:
+Our branch has both evidence and a return type.
+We start by grabbing its evidence.
+Looking it up to get our term:
 
 ```rs
-let param = self.lookup_ev(meta.evidence);
+let param = self
+  .row_to_ev
+  .get(&id)
+  .cloned()
+  .map(|ev| self.lookup_ev(ev))
+  .expect("ICE: Branch AST node lacks an expected evidence");
 ```
 
-Our `meta`'s `Type` is the return type of our `branch` operation:
+Next we get our return type and apply it to our evidence.
 
 ```rs
-let ret_ty = self.types.lower_ty(meta.ty);
+let ret_ty = self
+  .branch_to_ret_ty
+  .get(&id)
+  .map(|ty| self.types.lower_ty(ty.clone()))
+  .expect("ICE: Branch AST node lacks expected type");
 let branch = IR::ty_app(IR::field(IR::Var(param), 1), TyApp::Ty(ret_ty));
 ```
-Once we've type applied our `branch`, we lower `left` and `right` and pass them:
+Once we've type applied our `branch`, we lower `left` and `right` and pass them as arguments:
 
 ```rs
 let left = self.lower_ast(*left);
@@ -991,8 +998,11 @@ That's all for our `Branch` case.
 Next up is `Project`:
 
 ```rs
-Ast::Project(meta, direction, body) => {
-  let param = meta
+Ast::Project(id, direction, body) => {
+  let param = self
+    .row_to_ev
+    .get(&id)
+    .cloned()
     .map(|ev| self.lookup_ev(ev))
     .expect("ICE: Project AST node lacks an expected evidence");
 
@@ -1019,8 +1029,11 @@ From there we always access index `0` to retrieve `prj`.
 `Inject` is the same, but we retrieve index `1` instead of `0` at the end:
 
 ```rs
-Ast::Inject(meta, direction, body) => {
-  let param = meta
+Ast::Inject(id, direction, body) => {
+  let param = self
+    .row_to_ev
+    .get(&id)
+    .cloned()
     .map(|ev| self.lookup_ev(ev))
     .expect("ICE: Inject AST node lacks an expected evidence");
 
@@ -1046,8 +1059,7 @@ We have one more stop in `lower` to polish off our additions, and then we're don
 
 ```rs
 fn lower(
-  ast: Ast<TypedVar>, 
-  scheme: ast::TypeScheme
+  out: TypesOutput
 ) -> (IR, Type) {
   // ...Everything up to lower_ast
   let ir = lower_ast.lower_ast(ast);

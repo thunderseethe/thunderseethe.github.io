@@ -39,7 +39,7 @@ In [types/items](/types/check-top-level-items/), we only needed one new AST node
 ```rs
 enum Ast<V> {
   // ...our other nodes
-  Item(Option<ItemWrapper>, ItemId),
+  Item(NodeId, ItemId),
 }
 ```
 
@@ -68,8 +68,16 @@ struct ItemWrapper {
 ```
 
 The role of `ItemWrapper` is to save the result of instantiation for each item call.
-Our `Item` nodes begin unannotated.
-When we instantiate an item, we set its `Option<ItemWrapper>` to `Some` with all the variables and evidence introduced.
+When we instantiate an item, we store an `ItemWrapper` in `item_wrappers`  with all the variables and evidence introduced.
+
+`item_wrappers` is a map from `NodeId` to `ItemWrapper` with an entry for each `Item`:
+
+```rs
+struct TypesOutput {
+  //...our other outputs
+  item_wrappers: HashMap<NodeId, ItemWrapper>,
+}
+```
 
 Items require new data outside the AST itself.
 We also create `ItemSource`.
@@ -95,8 +103,7 @@ We start our journey in our old friend the `lower` function:
 ```rs
 fn lower_with_items(
   item_source: ast::ItemSource,
-  ast: Ast<TypedVar>,
-  scheme: ast::TypeScheme,
+  out: TypesOutput,
 ) -> (IR, Type) {
   // ...some code
 }
@@ -110,13 +117,11 @@ I didn't scroll far enough:
 
 ```rs
 fn lower(
-  ast: Ast<TypedVar>, 
-  scheme: ast::TypeScheme
+  out: TypesOutput,
 ) -> (IR, Type) {
   lower_with_items(
     ast::ItemSource::default(), 
-    ast, 
-    scheme)
+    out)
 }
 ```
 
@@ -143,46 +148,47 @@ A cursory look into `lower_with_items` convinces us things are more familiar tha
 ```rs {hl_lines=[27,28]}
 fn lower_with_items(
   item_source: ast::ItemSource,
-  ast: Ast<TypedVar>,
-  scheme: ast::TypeScheme,
+  out: TypesOutput
 ) -> (IR, Type) {
-  let ev = scheme.evidence.clone();
-  let (ir_ty, kinds, lower_ty) = lower_ty_scheme(scheme);
+  let lowered_scheme = lower_ty_scheme(out.scheme);
 
   let mut supply = VarSupply::default();
-  let mut ev_to_var: HashMap<ast::Evidence, Var> = HashMap::default();
-  let params = ev
-    .into_iter()
-    .map(|ev| {
-      let ty = lower_ty.lower_ev_ty(ev.clone());
-      let param = supply.supply();
-      let var = Var::new(param, ty);
-      ev_to_var.insert(ev, var.clone());
-      var
-    })
-    .collect::<Vec<_>>();
+  let mut params = vec![];
+  let ev_to_var: HashMap<ast::Evidence, Var> =
+    lowered_scheme.ev_to_ty
+      .into_iter()
+      .map(|(ev, ty)| {
+        let param = supply.supply();
+        let var = Var::new(param, ty);
+        params.push(var.clone());
+        (ev, var)
+      })
+      .collect();
 
   let mut lower_ast = LowerAst {
     supply,
     types: lower_ty,
     ev_to_var,
     solved: vec![],
+    row_to_ev: out.row_to_ev,
+    branch_to_ret_ty: out.branch_to_ret_ty,
+    item_wrappers: out.item_wrappers,
     item_source: lower_item_source(item_source),
     item_supply: ItemSupply::default(),
   };
 
-  let ir = lower_ast.lower_ast(ast);
+  let ir = lower_ast.lower_ast(out.typed_ast);
   let solved_ir = lower_ast
     .solved
     .into_iter()
-    .fold(ir, |ir, (var, solved)| IR::app(IR::fun(var, ir), solved));
+    .fold(ir, |ir, (var, solved)| IR::local(var, solved, ir));
   let param_ir = params
     .into_iter()
     .rfold(solved_ir, |ir, var| IR::fun(var, ir));
-  let bound_ir = kinds
+  let bound_ir = lowered_scheme.kinds
     .into_iter()
     .fold(param_ir, |ir, kind| IR::ty_fun(kind, ir));
-  (bound_ir, ir_ty)
+  (bound_ir, lowered_scheme.scheme)
 }
 ```
 The highlighted lines are the only ones requiring our attention.
@@ -288,7 +294,7 @@ impl LowerAst {
 We have a single new case to add to our `match`:
 
 ```rs
-Ast::Item(wrapper, item_id) => {
+Ast::Item(id, item_id) => {
   todo!()
 }
 ```
@@ -317,7 +323,7 @@ Embedding the type side steps the problem entirely.
 Our `IR` qualifies for lowering now, back in `lower_ast`:
 
 ```rs
-Ast::Item(wrapper, item_id) => { 
+Ast::Item(id, item_id) => { 
   let ty = self.item_source.lookup_item(item_id);
   todo!()
 }
@@ -347,7 +353,11 @@ Quick, we've got to make some headway before another impeding implementation str
 Ast::Item(wrapper, item_id) => { 
   let ty = self.item_source.lookup_item(item_id);
   let item_ir = IR::Item(ty, self.item_supply.supply_for(item_id));
-  let wrapper = wrapper.expect("ICE: Item lacks expected wrapper");
+  let wrapper = self
+    .item_wrappers
+    .get(&id)
+    .cloned()
+    .expect("ICE: Item lacks expected wrapper");
   todo!()
 }
 ```
@@ -366,7 +376,7 @@ Recall that upon lowering an item body we wrap it in type functions and function
 Correspondingly, when we lower an item call we have to apply extra parameters for those extra functions.
 
 These parameters didn't exist in the type checker, but we saved enough information to figure out what they are.
-This is why `Ast::Item` holds a reference to `ItemWrapper`.
+This is why we store an `ItemWrapper` for each `Item` node.
 This struct remembers how we instantiated our item.
 
 The information from instantiation is precisely what we need to add our parameters to our item.

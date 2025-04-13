@@ -97,8 +97,8 @@ type Label = String
 
 enum Ast<V> {
   // ...
-  Concat(Option<Evidence>, Box<Self>, Box<Self>),
-  Project(Option<Evidence>, Direction, Box<Self>),
+  Concat(NodeId, Box<Self>, Box<Self>),
+  Project(NodeId, Direction, Box<Self>),
 ```
 
 `Concat` combines two product types into a bigger product type.  
@@ -106,61 +106,14 @@ enum Ast<V> {
 Our next pair is sum types:
 
 ```rs
-  Inject(Option<Evidence>, Direction, Box<Self>),
-  Branch(Option<BranchMeta>, Box<Self>, Box<Self>),
+  Inject(NodeId, Direction, Box<Self>),
+  Branch(NodeId, Box<Self>, Box<Self>),
 ```
 
 `Inject` maps a small sum into a bigger sum containing the smaller sum's cases.  
 `Branch` combines two destructors for sum types into a big destructor for the combination of the two sum types.  
 This is our row-ified version of a match statement.
 We won't cover what that looks like in practice, but [THE paper](https://dl.acm.org/doi/10.1145/3290325) has a section devoted to it if you're interested.
-
-Each of our row node has some extra optional metadata `Evidence` (or `BranchMeta`).
-This is so we can reconstruct our types after type checking.
-In `base`, it was enough to attach a type to each variable.
-That won't work for rows.
-
-Consider a project: 
-
-```rs
-Ast::project(..., Left, 
-  Ast::concat(
-    Ast::label("foo", Type::Int),
-    Ast::label("bar", Type::Int)
-  )
-)
-```
-
-This project could produce any number of rows: `(foo: Int)`, `(bar: Int)`, or even `()`.
-We can't tell just from looking at the `Project` node itself (even with typed variables).
-Evidence remembers the row combination that was associated with our `Project`:
-
-```rs
-enum Evidence {
-  RowEquation {
-    left: Row, 
-    right: Row, 
-    goal: Row 
-  },
-}
-```
-
-We'll talk more about evidence when we're substituting
-Saving the row combination gives us enough context to reconstruct the type of our `Project` (or `Concat`, `Branch`, etc.).
-`Branch` needs some more context on top of evidence, so it stores a `BranchMeta`:
-
-```rs
-struct BranchMeta {
-  evidence: Evidence,
-  ty: Type
-}
-```
-
-`BranchMeta` is an evidence paired with a type.
-Our type is the return type of the `Branch`.
-Because `Branch` acts like a match expression, determining its return type can be involved.
-We have to check the type of the body of every branch and if they don't agree who knows what the return type is.
-To save ourselves that trouble moving forward, we do it once in the type checker and then save it.
 
 Our new product and sum nodes don't include a way to make a new row,
 only ways to build bigger and smaller rows out of existing rows.
@@ -169,8 +122,8 @@ Fortunately, we still have 2 nodes left to solve that exact problem:
 
 ```rs
   //...
-  Label(Label, Box<Self>),
-  Unlabel(Box<Self>, Label),
+  Label(NodeId, Label, Box<Self>),
+  Unlabel(NodeId, Box<Self>, Label),
 }
 ``` 
 `Label` turns a term into a singleton row.
@@ -191,15 +144,20 @@ Let's look at an example that combines two rows and accesses one of their member
 
 ```rs
 Ast::unlabel(
+  ...,
   Ast::project(
+    ...,
     Left,
     Ast::concat(
+      ...,
       Ast::label(
+        ...,
         "x", 
-        Ast::Int(4)),
+        Ast::Int(..., 4)),
       Ast::label(
+        ...,
         "y", 
-        Ast::Int(3)),
+        Ast::Int(..., 3)),
     )
   ),
   "x"
@@ -273,7 +231,7 @@ Our new constraint is a row combination:
 ```rs
 enum Constraint {
   // ... our previous cases
-  RowCombine(RowCombination),
+  RowCombine(NodeId, RowCombination),
 }
 struct RowCombination {
   left: Row,
@@ -313,6 +271,10 @@ struct TypeInference {
     InPlaceUnificationTable<RowVar>,
   partial_row_combs: 
     BTreeSet<RowCombination>,
+  row_to_combo: 
+    HashMap<NodeId, RowCombination>,
+  branch_to_ret_ty:
+    HashMap<NodeId, Type>,
 }
 // We'll add some helper methods while we're here
 impl TypeInference {
@@ -341,17 +303,29 @@ Our row variables are solved to `ClosedRow`s.
 Alongside this we have a set of partial row combinations, we'll need that later during unification.
 These are row combinations we don't know enough about to solve and will solve as we learn more row information during unification.
 
+Our final new members, `row_to_combo` and `branch_to_ret_ty`, store output for the end of type inference.
+`row_to_combo` maps our Row AST's `NodeId` to the row combination we'll generate for each of them.
+`branch_to_ret_ty` maps Branch `NodeId`s to the return type we infer for the node.
+We'll use these in later passes, so we save them during type inference.
+
+Each row node may give rise to any number of possible row combinations.
+A `Project` can return any subset of fields from its input row.
+We can rely on type inference to figure out which particular row combination is being used at any given row node.
+Unlike our variables, however, we can't later figure out which row combination was picked by simply reconstructing types.
+Instead, we save our row combination allowing us to know what selection type inference made in later passes.
+
 ## Infer
 Okay, enough bureaucracy, let's look at our `infer` cases for rows starting with our `Label` case:
 
 ### Labels
 ```rs
-Ast::Label(label, value) => {
+Ast::Label(id, label, value) => {
   let (out, value_ty) = 
     self.infer(env, *value);
   (
     out.with_typed_ast(|ast| 
       Ast::label(
+        id,
         label.clone(), 
         ast
       )
@@ -368,13 +342,16 @@ Our label case is straightforward.
 We infer a type for our value and wrap whatever type we infer as a new `Label` type using the provided `label`.
 Easy, onto the `Unlabel` case:
 ```rs
-Ast::Unlabel(value, label) => {
+Ast::Unlabel(id, value, label) => {
   let value_var = 
     self.fresh_ty_var();
   let expected_ty = 
     Type::label(label, Type::Var(value_var));
+  let out = 
+    self.check(env, *value, expected_ty);
   (
-    self.check(env, *value, expected_ty), 
+    out.with_typed_ast(|ast|
+      Ast::unlabel(id, ast, label)),
     Type::Var(value_var)
   )
 }
@@ -388,7 +365,7 @@ We make use of this by constructing a `Label` with a fresh type variable and che
 We're getting the hang of it. 
 `Concat` will make use of our new row combination constraint:
 ```rs
-Ast::Concat(_, left, right) => {
+Ast::Concat(id, left, right) => {
   let row_comb = 
     self.fresh_row_combination();
 
@@ -410,9 +387,10 @@ Ast::Concat(_, left, right) => {
   constraints.extend(right_out.constraints);
   // Add a new constraint for our row equation to solve concat
   constraints.push(Constraint::RowCombine(row_comb.clone()));
+  self.row_to_ev.insert(id, row_comb);
 
   let typed_ast = Ast::concat(
-    row_comb.into_evidence(),
+    id,
     left_out.typed_ast,
     right_out.typed_ast,
   );
@@ -431,34 +409,12 @@ The goal of this row combination will be our inferred product type.
 We know our `left` and `right` nodes have to be product types.
 Again we can exploit this knowledge to check them against Product types made from our combination's `left` and `right` rows.
 
-When we construct our `typed_ast`, we reuse the `row_comb` we put in our constraint to create the evidence for our `Concat` node.
-This uses a helper method `into_evidence`:
-
-```rs
-impl RowCombination { 
-  fn into_evidence(self) -> Evidence {
-    Evidence::RowEquation { 
-      left: self.left, 
-      right: self.right, 
-      goal: self.goal 
-    }
-  }
-}
-```
-
-Pretty straightforward translation.
-The reason we store an Evidence, rather than a `Constraint`, is because after type checking completes constraints cease to exist.
-In the final pass, when we construct our `TypeScheme` any unsolved constraints become evidence in the type scheme.
-We don't want to put `Constraint`s in our `TypeScheme` because not all `Constraint`s are valid evidence (notably `TypeEqual` must not appear in our `TypeScheme`).
-Since we'll need an `Evidence` at the end of type checking, we store one in our `Ast` to avoid having to convert our AST nodes from storing a `Constraint` to an `Evidence`.
-This would require adding another generic parameter to `Ast`, which I'm not strong enough to do.
-
 This pattern is loosely shared by all our row nodes.
-We'll see each of them store their generated `RowCombination` as `Evidence`.
+We'll see each of them store their generated `RowCombination`.
 A similar approach works for `Project`:
 
 ```rs
-Ast::Project(dir, goal) => {
+Ast::Project(id, dir, goal) => {
   let row_comb = 
     self.fresh_row_combination();
 
@@ -476,9 +432,10 @@ Ast::Project(dir, goal) => {
   out
     .constraints
     .push(Constraint::RowCombine(row_comb.clone()));
+  self.row_to_ev.insert(id, row_comb);
   (
     out.with_typed_ast(|ast| 
-      Ast::project(row_comb.into_evidence(), dir, ast)),
+      Ast::project(id, dir, ast)),
     // Our sub row is the output type of the projection
     Type::Prod(sub_row),
   )
@@ -496,7 +453,7 @@ Inferring sum types is very similar to inferring product types (the magic of sym
 Thanks for stopping by!
 
 ```rs
-Ast::Branch(left, right) => {
+Ast::Branch(id, left, right) => {
   let row_comb = 
     self.fresh_row_combination();
   let ret_ty = 
@@ -526,15 +483,16 @@ Ast::Branch(left, right) => {
     .extend(right_out.constraints);
   constraints
     .push(Constraint::RowCombine(row_comb.clone()));
+  self.row_to_ev
+      .insert(id, row_comb);
+  self.branch_to_ret_ty
+      .insert(id, Type::Var(ret_ty));
 
   (
     InferOut {
       constraints,
       typed_ast: Ast::branch(
-        BranchMeta {
-          evidence: row_comb.into_evidence(),
-          ty: Type::Var(ret_ty),
-        },
+        id,
         left_out.typed_ast, 
         right_out.typed_ast
       ),
@@ -547,10 +505,9 @@ Ast::Branch(left, right) => {
 This is almost exactly the same as our `Concat` case. 
 Except branch expects its `left` and `right` nodes to be functions.
 We have to do more bookkeeping to ensure the return types of all our functions line up.
-`Branch` also saves its return type into its `BranchMeta` alongside the `Evidence` we saw in `Concat`.
 
 ```rs
-Ast::Inject(_, dir, value) => {
+Ast::Inject(id, dir, value) => {
   let row_comb = 
     self.fresh_row_combination();
 
@@ -569,9 +526,10 @@ Ast::Inject(_, dir, value) => {
   out
     .constraints
     .push(Constraint::RowCombine(row_comb.clone()));
+  self.row_to_ev.insert(id, row_comb);
   (
     out.with_typed_ast(|ast| 
-      Ast::inject(row_comb.into_evidence(), dir, ast)),
+      Ast::inject(id, dir, ast)),
     // Our goal row is the type of our output
     out_ty,
   )
@@ -595,11 +553,11 @@ But before any of that, we need to check labels:
 
 ### Labels
 ```rs
-( Ast::Label(ast_lbl, val)
+( Ast::Label(id, ast_lbl, val)
 , Type::Label(ty_lbl, ty)) 
     if ast_lbl == ty_lbl => {
   self.check(env, *val, *ty)
-    .with_typed_ast(|term| Ast::label(ast_lbl, term))
+    .with_typed_ast(|term| Ast::label(id, ast_lbl, term))
 }
 ```
 Like our `Int` or `Fun` case, a `Label` node checks against a `Label` type.
@@ -629,10 +587,10 @@ But until a product or sum coerces our label, we don't know which it will be.
 So we have to account for all possibilities in our checking logic.
 Moving along, next is our much more succinct `Unlabel` case:
 ```rs
-(Ast::Unlabel(term, lbl), ty) => {
+(Ast::Unlabel(id, term, lbl), ty) => {
   self.check(env, *term, 
     Type::label(lbl.clone(), ty))
-    .with_typed_ast(|term| Ast::unlabel(term, lbl))
+      .with_typed_ast(|term| Ast::unlabel(id, term, lbl))
 }
 ```
 An `Unlabel` checks against any type by constructing a `Label` type and checking it against `val`.
@@ -643,7 +601,7 @@ Next we're going to check our Product nodes.
 We got an early start on checking `Concat` nodes against `Label` types. 
 The bulk of our work is in checking them against `Product` types:
 ```rs
-(Ast::Concat(_, left, right), Type::Prod(goal_row)) => {
+(Ast::Concat(id, left, right), Type::Prod(goal_row)) => {
   let left_row = 
     Row::Open(self.fresh_row_var());
   let right_row = 
@@ -668,9 +626,11 @@ The bulk of our work is in checking them against `Product` types:
 
   constraints
     .push(Constraint::RowCombine(row_comb.clone()));
+  self.row_to_ev
+      .insert(id, row_comb);
 
   let typed_ast = Ast::concat(
-    row_comb.into_evidence(),
+    id,
     left_out.typed_ast,
     right_out.typed_ast,
   );
@@ -690,7 +650,7 @@ Finally, we merge all our sub-constraints and add our new row combination as a n
 Next up is `Project`:
 
 ```rs
-(Ast::Project(_, dir, goal), Type::Prod(sub_row)) => {
+(Ast::Project(id, dir, goal), Type::Prod(sub_row)) => {
   let goal_row = Row::Open(self.fresh_row_var());
 
   let (left, right) = match dir {
@@ -707,8 +667,9 @@ Next up is `Project`:
   out.constraints
      .push(Constraint::RowCombine(row_comb.clone()));
 
+  self.row_to_ev.insert(id, row_comb);
   out.with_typed_ast(|ast| 
-    Ast::project(row_comb.into_evidence(), dir, ast))
+    Ast::project(id, dir, ast))
 }
 ```
 
@@ -725,7 +686,7 @@ Oh hey! I didn't see you there.
 I was just checking our `Branch` node against a `Fun` type:
 
 ```rs
-(Ast::Branch(_, left_ast, right_ast), Type::Fun(arg_ty, ret_ty)) => {
+(Ast::Branch(id, left_ast, right_ast), Type::Fun(arg_ty, ret_ty)) => {
   let mut constraints = vec![];
   let goal = match arg_ty.deref() {
     Type::Sum(goal) => goal.clone(),
@@ -754,14 +715,13 @@ I was just checking our `Branch` node against a `Fun` type:
   let row_comb = RowCombination { left, right, goal };
   constraints
     .push(Constraint::RowCombine(row_comb.clone()));
+  self.row_to_ev.insert(id, row_comb);
+  self.branch_to_ret_ty.insert(id, *ret_ty);
 
   InferOut {
     constraints,
     typed_ast: Ast::branch(
-      BranchMeta {
-        evidence: row_comb.into_evidence(),
-        ty: *ret_ty,
-      },
+      id,
       left_out.typed_ast, 
       right_out.typed_ast
     ),
@@ -779,7 +739,7 @@ That difference aside, we check our subnodes, merge our subconstraints, add our 
 Onto `Inject`:
 
 ```rs
-(Ast::Inject(_, dir, value), Type::Sum(goal)) => {
+(Ast::Inject(id, dir, value), Type::Sum(goal)) => {
   let sub_row = self.fresh_row_var();
   let mut out = self.check(env, *value, Type::Sum(Row::Open(sub_row)));
   let (left, right) = match dir {
@@ -793,8 +753,9 @@ Onto `Inject`:
   };
   out.constraints
     .push(Constraint::RowCombine(row_comb.clone()));
+  self.row_to_ev.insert(id, row_comb);
   out.with_typed_ast(|ast| 
-    Ast::inject(row_comb.into_evidence(), dir, ast))
+    Ast::inject(id, dir, ast))
 }
 ```
 Armed with the context of all our previous `check` cases, `Inject` is our simplest case yet.
@@ -839,7 +800,8 @@ fn unification(
     match constr {
       // the other constraint
       Constraint::RowConcat(row_comb) => 
-        self.unify_row_comb(row_comb)?,
+        self.unify_row_comb(row_comb)
+            .map_err(|kind| TypeError { kind, node_id })?,
     }
   }
   Ok(())
@@ -847,7 +809,7 @@ fn unification(
 ```
 We've added a new case for our new constraint that immediately calls `unify_row_comb`:
 ```rs
-fn unify_row_comb(&mut self, row_comb: RowCombination) -> Result<(), TypeError> {
+fn unify_row_comb(&mut self, row_comb: RowCombination) -> Result<(), TypeErrorKind> {
   let left = self.normalize_row(row_comb.left);
   let right = self.normalize_row(row_comb.right);
   let goal = self.normalize_row(row_comb.goal);
@@ -888,7 +850,7 @@ Combine our `left` and `right` into a new row and unify that row against our `go
 It appends the two rows' fields and sorts them while maintaining the original mapping from field to type.
 We're going to be unifying a lot of rows; let's introduce a helper `unify_row_row` to do it for us:
 ```rs
-fn unify_row_row(&mut self, left: Row, right: Row) -> Result<(), TypeError> {
+fn unify_row_row(&mut self, left: Row, right: Row) -> Result<(), TypeErrorKind> {
   let left = self.normalize_row(left);
   let right = self.normalize_row(right);
   match (left, right) {
@@ -1034,7 +996,7 @@ Row combinations commute so we have to check both orders of their components.
 If we find a unifiable combination, we can skip adding a new row combination to our set entirely.
 It suffices to unify our combination against the found combination.
 Only when we can't find a unifiable combination do we need to insert our combination into our set.
-This guarentees we learn the most about our row variables from each combination and keeps our partial combination set minimal.
+This guarantees we learn the most about our row variables from each combination and keeps our partial combination set minimal.
 
 We're now successfully solving row combinations.
 There's just one last detail we brushed over earlier that we'll cover now.
@@ -1042,7 +1004,7 @@ When a row variable unifies with a closed row we call `dispatch_any_solved`.
 What does `dispatch_any_solved` entail:
 
 ```rs
-fn dispatch_any_solved(&mut self, var: RowVar, row: ClosedRow) -> Result<(), TypeError> {
+fn dispatch_any_solved(&mut self, var: RowVar, row: ClosedRow) -> Result<(), TypeErrorKind> {
   let mut changed_combs = vec![];
   self.partial_row_combs = std::mem::take(&mut self.partial_row_combs)
     .into_iter()
