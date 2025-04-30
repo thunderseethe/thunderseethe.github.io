@@ -1164,6 +1164,8 @@ The rest of these values are purely determined by `ir` and could be calculated o
 If you look at GHC it actually does do this, and only `some_benefit` is calculated per occurrence.
 We've omitted that caching here for simplicity, but I wanted you to know about it.
 
+## Rebuild
+
 With the completion of `callsite_inline`, that's all our simplify cases.
 We can move on to the second half of our equation `rebuild`.
 `simplify` drilled down into our term building up context.
@@ -1276,6 +1278,9 @@ To account for this, we check our variable's occurrence info before committing t
 If our variable is dead, we can drop our local.
 
 That's everything in `rebuild`.
+
+## A simpler time
+
 With all our components, we can assemble our overarching entrypoint the `simplify` method:
 
 ```rs
