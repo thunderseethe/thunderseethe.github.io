@@ -1,17 +1,93 @@
 +++
 title = "Simplify[0].Base: Back to basics by simplifying our IR"
-date = "2025-04-13T00:00:00Z"
+date = "2025-04-30T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Simplify"]
 series = ["Making a Language"]
-keywords = ["Programming Languages", "Compiler", "Lowering", "Optimization", "IR"]
+keywords = ["Programming Languages", "Compiler", "Lowering", "Optimization", "IR", "Inlining", "Simplification"]
 description = "Optimizing our base IR via inlining"
 +++
 
-* Intro Making a language
-  * Put this post in context.
-  * Follows lowering/base.
-  * IR refresher.
+{{< accessory title="Making a Language Series" >}}
+This post is part of the [making a languages series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+Today's post is preceded by the [base lowering pass](/posts/lowering-base-ir/).
+From that post we'll need our `IR`, and it's accompanying data types.
+These will be covered in a refresher below.
+{{< /accessory >}}
+
+Today we're talking about a magical aspect of compilation: optimization.
+Magic both in its ability to peel away abstractions, leaving only efficient machine code, and its inscrutable behavior.
+Optimizers are known for being black boxes with a million knobs, each serving as butterfly wings flapping towards the final result.
+
+The ultimate goal of optimization, improving the runtime performance of your code, is a large cause of this mystical nature.
+The runtime performance of your code relies on many, _many_, factors.
+Optimization wants to account for as many of these factors as it can, but this is a futile endeavor.
+Code performance is often contingent on dynamic input to the program, which is simply unavailable during compilation.
+
+Given optimization can't account for every factor, it's left to try and estimate what changes will give the best outcomes from the information it does have.
+An assuredly imperfect process.
+Which is not to say optimization isn't worthwhile, in fact it's arguably the reason compilers exist in the first place, simply that our goals are going to be less clear than our previous passes.
+Prior passes knew the exact destination they needed to arrive at and failing that is an error.
+It's much harder to tell when we've arrived at our final destination while optimizing.
+
+Compilers perform many kinds of optimizations.
+Our optimizations today will be performed on our intermediate representation (IR) from [lowering](/posts/lowering-base-ir/) and produces a new optimized IR term.
+I'll refer to this pass as simplification, to distinguish it from the other optimizations performed by a compiler, such as instruction specific optimizations, memory layout optimizations etc.
+
+
+{{< accessory title="Quick Refresher" >}}
+
+In lowering, we turned our `Ast` into our `IR`:
+
+```rs
+enum IR {
+  Var(Var),
+  Int(isize),
+  Fun(Var, Box<Self>),
+  App(Box<Self>, Box<Self>),
+  TyFun(Kind, Box<Self>),
+  TyApp(Box<Self>, Type),
+  Local(Var, Box<Self>, Box<Self>),
+}
+```
+
+Our IR is explicitly typed and represents generics using type functions and type applications.
+It also introduces `Locals` which are not strictly required, but we'll see are very useful in simplification.
+Simplification will work purely in terms of the IR (as will the remainder of our downstream passes), so we'll just need to be familiar with IR to understand it.
+
+Alongside our new IR, we introduce a new `Type` (that is lowered from our AST's type):
+
+```rs
+enum Type {
+  Int,
+  Var(TypeVar),
+  Fun(Box<Self>, Box<Self>),
+  TyFun(Kind, Box<Self>),
+}
+```
+
+`TyFun` is the only new addition from our AST's type.
+It is the type of type functions.
+Type functions contain a kind rather than a type variable.
+This is because our type variables use [DeBruijn Indices](/posts/debruijn-indices/), so each variable points at its binding type function without the function containing the variable itself.
+
+In place of a variable, type functions do track the kind of the variable they bind.
+`Kind` can only be one variant in base:
+
+```rs
+enum Kind {
+  Type
+}
+```
+
+Kinds help us ensure that we apply the right kind of type to a type function.
+The same way types help us ensure we apply the right type of value to a function.
+
+That's everything we need to know about our IR, back to simplification.
+
+{{</ accessory >}}
 
 ## Simplification
 
@@ -33,68 +109,85 @@ IR::local(x, IR::Int(3), IR::Var(x))
 This is a performance win, functions require us to allocate closures, whereas locals can be kept on the stack.
 
 Its worth wondering how often does code like this show up in practice?
-Virtuosos, such as you and I, would never write a function immediately applied to an argument.
-Rarely do programmers write such code by hand, but it arises commonly from another important step in simplification: inlining.
+Virtuosos, such as you and I, would never write such a function immediately applied to an argument.
+Rarely do programmers write such code by hand, but it arises commonly from another aspect of simplification: inlining.
 
 ## Inlining 
 
 Inlining replaces a variable by its definition.
-On its own this can be a small optimization.
-Removing a variable does remove a potential memory load.
+On its own this can be a small optimization, removing a variable removes a potential memory load.
 The real benefit, however, lies in inlinings potential to unlock further optimizations.
+Let's look at some Rust code to see this in action:
 
-To see this in action, let's look at some haskell code:
+```rs
+impl Option<T> {
+  fn is_none<T>(&self) -> bool {
+    match self {
+      Some(_) => false,
+      None => true
+    }
+  }
+}
 
-```hs
-isNothing :: Maybe a -> Bool
-isNothing x = 
-  case x of
-    Nothing -> True
-    Just _ -> False
+enum LinkedList<T> {
+  Cons(T, Box<LinkedList<T>>),
+  Nil
+}
 
-head' :: [a] -> Maybe a
-head' xs =
-  case xs of
-    [] -> Nothing
-    (x:_) -> Just x
+impl LinkedList<T> {
+  fn head(&self) -> Option<&T> {
+    match self {
+      Cons(x, _) -> Some(x),
+      Nil -> None
+    }
+  }
 
-isEmpty :: [a] -> Bool
-isEmpty xs = isNothing (head' xs)
+  fn is_empty(&self) -> bool {
+    self.head()
+        .is_none()
+  }
+}
 ```
 
-We like reading the definition of `isEmpty`, it composes two high level operation to describe its functionality.
-But at runtime it has to make two separate function calls and perform two separate matches.
-Inlining our definitions allows simplification to help us out:
+We like reading the definition of `is_empty`. 
+It composes two high level operation to describe its functionality.
+But at runtime it makes two separate function calls and perform two separate matches.
+Inlining our definitions removes the function calls:
 
-```hs
-isEmpty xs = 
-  case (case xs of
-      [] -> Nothing
-      (x:_) -> Just x) of
-    Nothing -> True
-    Just _ -> False
+```rs
+fn is_empty(&self) -> bool {
+  match (match self {
+    Cons(x, _) => Some(x),
+    Nil => None
+  }) {
+    Some(_) => false,
+    None => true,
+  }
+}
 ```
 
-After inlining, our code is inarguably harder to read.
+Hard to say this is better.
+We've removed the function calls, but we're still doing two matches and it's unreadable.
 Our compiler, however, can now see an optimization opportunity previously hidden behind our function calls.
-It will transform our inlined code into:
+We construct an `Option<T>` only to immediately scrutinize it.
+The compiler can elide this now that it can see both matches:
 
-```hs
-isEmpty xs = 
-  case xs of
-    [] -> True
-    (x:_) -> False
+```rs
+fn is_empty(&self) -> bool {
+  match self {
+   Cons(x, _) => false,
+   Nil => true,
+  }
+}
 ```
 
-Far better than our intermediary step.
-Inlining is the backbone these kind of optimization opportunities are built atop.
-While we programmers may not directly apply an argument to a function, through inlining such cases arises quite often.
-Especially in functional programming, where combining many small functions is the norm.
-
+Far better than our first or intermediary step.
+Inlining is the pan mining these golden optimizations out of our code.
+While we programmers may not directly apply an argument to a function, inlining reveals such cases regularly.
+Especially for our functional programming language, where composing many small functions is the norm.
 
 We have a better idea of why we simplify.
 Now it's time to talk about how we simplify.
-Simplification is, in many ways, the secret sauce of compilation, cutting away high level abstractions to leave performant code in its wake.
 It's important to understand that simplification is fundamentally a heuristic based endeavor.
 Unlike our passes in the frontend of the compiler (typechecking etc.), we don't _need_ to do anything to simplify.
 A perfectly valid implementation would be:
@@ -105,50 +198,64 @@ fn simplify(ir: IR) -> IR {
 }
 ```
 
-Of course while valid, this is not a very satisfying implementation.
-We encounter problems trying to do better:
+Of course while valid, this makes me sad inside.
+It also highlights some problems.
+How do we know when we're done simplifying?
 
-  * Our simplifier wants to do as much work as possible in a single pass over our IR.
-  * Our simplifier does not want to do so much work that it never finishes.
-  * Some amount of inlining is beneficial, but only the right amount.
+Naively, you can run simplification until it stops changing your term, until it reaches a fixed point.
+For our simple language, this will actually suffice.
+But upon adding recursion, it becomes possible, even easy, to construct terms that never reach a stable state.
 
-TODO: this is repetitive, reword.
-Our simplifier wants to do as much as possible without looping infinitely.
+With the dream of one day supporting recursion, we'll architect our simplifier to terminate without necessarily reaching a fixed point.
+This unfortunately means there will be some terms we don't optimize as much as we could.
+We can't distinguish between a term that's making progress and one that's endlessly spinning its wheels, so we have to draw a line in the sand somewhere.
+
+Our goal puts our simplifier in tension:
+
+  * On one hand, it would like to do as much work as possible in a single pass over our IR.
+  * On the other hand, it does not want to do so much work that it never terminates.
+
 A valiant goal shared by most computer programs.
 It also wants to improve the performance of our IR.
 This will involve some inlining, but we can't simply inline everything.
 
-For example, inlining a variable that is used multiple times will often duplicate work and hurt performance.
-Except when it doesn't, of course.
+The downside of inlining is found in the upside of variables.
+Variables represent sharing.
+Rather than duplicate the same work in multiple places, we save it in a variable to be reused.
+It must be the case, then, that inlining is reducing that sharing.
+Imprudent inlining will cause a duplication of work that outweighs any optimizations it reveals.
+
 We'll need heuristics to help us determine when inlining is worthwhile.
 Unfortunately, as is the nature of heuristics, different choices in inlining will work better or worse on different programs.
 We won't be able to craft one algorithm that perfectly handles all input.
+We'll have to make tradeoffs.
 
-## The Algorithm
+## Our Algorithm
 
-This is an ongoing issue for compilers.
+Due to the inherent tradeoffs in simplification, our algorithm will need to be tunable, so a user can tailor optimizations to fit the code they're compiling as best as possible.
+Tuning a simplifier to perform well on the widest set of programs is an ongoing issue for compilers.
 We'll introduce a few knobs to tune our simplifier, but if you look at a real compiler they often have dozens if not hundreds of knobs dedicated to tuning optimizations.
-These knobs will be employed by our simplifier to do as much as possible in a single pass.
-Care has to be taken in constructing this pass such that it does not loop infinitely.
-To accomplish that, we break simplification down into 3 components:
+
+Alongside tuning, care has to be taken in constructing our algorithm such that it does not loop infinitely.
+We break simplification into 3 components to accomplish that:
 
   * Occurrence analysis
   * Simplify
   * Rebuild
 
-Our first step is occurrence analysis.
-This walks our IR and determines how often each variable occurs.
+Our first step, occurrence analysis, walks our IR and determines how often each variable occurs.
 Simplify takes this occurrence information and uses it to traverse down into our term, making inlining decisions along the way.
-Once it reaches a leaf of our IR term it calls rebuild to being building back up our simplified term.
+Once it reaches a leaf of our IR term it calls rebuild to begin building back up our simplified term.
 
-Rebuild reassembles our simplified term bottom up.
-While it's doing this it looks for opportunities to optimize.
+Rebuild reassembles our simplified term bottom up, looking for opportunities to optimize.
 Rebuild, not simplify, is where we'll look for functions applied to arguments and convert them into locals.
-Simplify drills down along a single path of our IR tree before calling rebuild.
 It's up to rebuild to call simplify on the other subtrees of our IR.
+Simplify only drills down along a single path of our IR tree before calling rebuild.
 
-Eventually we'll have simplified and rebuilt all of our IR and we're done.
-The diagram below gives a high level overview of how our simplifier willl be structured:
+We'll maintain a loose invariant in rebuild to help us ensure termination: rebuild will only call simplify once on each subtree.
+Once we've simplified the function of an `App` node, we won't call simplify on it again (in a given pass).
+Eventually we'll have simplified and rebuilt all of our IR at which point we're done.
+The diagram below gives a high level overview of how our simplifier will be structured:
 
 ![Diagram explaining call hierarchy of our three components](/img/simplify_base_diagram.svg)
 
@@ -169,19 +276,19 @@ Our base language is:
   * Recursion free
 
 This combination of features is somewhat optimal for simplification (although less than ideal for a usable language).
-Lack of side effects means we're free to reorder expressions and can always delete dead bindings.
+Lack of side effects means we're free to reorder expressions and can always delete unreferenced local variables.
 Being strict means we don't have to worry about simplification making lazy code eager accidentally.
-This is a sizeable consideration in Secrets of the GHC Inliner, so not having to worry about it reduces our complexity.
+A sizeable portion of Secrets of the GHC Inliner is dedicated to dealing with laziness, so not having to worry about it reduces our complexity.
 
 These factors mean the simplifier presented here is well... simpler then what would be found for a full-blown language.
-This, however, does not mean our architecture is simpler.
-The foundation we build here will scale to encompass the features we currently lack.
+We do, however, employ the same core architecture as our predecessors.
+Reaching parity will be a matter of adding features rather than a fundamental change in architecture.
 It does mean that we get to see that foundation more directly without all the complexity required by the features we'll eventually add.
 
 ## Occurrence Analysis
 
 With that we can start talking about our implementation with our first step Occurrence Analysis.
-Our goal is to analyse our term and determine how often variables occur.
+Our aim is to analyze our term and determine how often variables occur.
 We'll use this information to help us inline.
 Variables can occur in one of a few ways:
 
@@ -200,8 +307,8 @@ enum Occurrence {
 
 Dead, Once, and Many are just counts of variable occurrences: 0, 1, 2 or more respectively.
 `OnceInFun` notes that a variable occurs once but within a function body.
-When a variable is captured inside a function body we have to worry about work duplication. 
-Consider some Rust code:
+When a variable is captured inside a function body, we have to worry about work duplication. 
+Consider the code:
 
 ```rs
 let x = fib(100);
@@ -209,9 +316,9 @@ let x = fib(100);
 ```
 
 If we inline `x`, all of a sudden we'll calculate `fib(100)` once per function invocation rather than a single time.
-To avoid this kind of duplicate work we specially note variables that occur once in a function.
-We don't have to do this for `Many` (or `Dead`) variables because we already consider work duplication for them.
-It's only a consideration for `Once` variables. 
+`OnceInFun` helps us remember to be wary of duplicate work.
+We don't have to do this for `Many` (or `Dead`) variables because we already consider work duplication for them regardless of their residence.
+It's only a concern for `Once` variables because they are unconditionally inlined when found outside a function.
 
 We keep track of this information in `Occurrences`:
 
@@ -221,7 +328,7 @@ struct Occurrences {
 }
 ```
 
-Produced by `occurrence_analysis`
+Brought to us by the fine folks at `occurrence_analysis`:
 
 ```rs
 fn occurrence_analysis(ir: &IR) -> (HashSet<VarId>, Occurrences) {
@@ -232,8 +339,8 @@ fn occurrence_analysis(ir: &IR) -> (HashSet<VarId>, Occurrences) {
 ```
 
 `occurrence_analysis` returns the set of free variables and the occurrences for `ir`.
-We won't need the set of free variables, but it's helpful while determining occurrences.
-Starting with `Var`:
+We won't need the set of free variables after analysis, but it's used while determining occurrences.
+Our first case is `Var`:
 
 ```rs
 IR::Var(var) => {
@@ -277,7 +384,9 @@ impl Occurrences {
           .map(|(id, occ)| {
             ( id
             , match occ {
-              Occurrence::Once if free.contains(&id) => Occurrence::OnceInFun,
+              Occurrence::Once 
+                if free.contains(&id) 
+              => Occurrence::OnceInFun,
               occ => occ,
             })
           })
@@ -287,13 +396,12 @@ impl Occurrences {
 }
 ```
 
-`in_fun` checks each occurrence in `self`.
-If we see a free variable that occurs `Once`, we change it to `OnceInFun`.
-The variable needs to be free.
-We only want to mark variables captured by our `Fun`. 
-Bound variables are considered `Once`.
+`in_fun` updates occurrences of `Once` into `OnceInFun` where appropriate.
+We only mark free variables captured by our `Fun` as `OnceInFun`.
+Bound variables are left untouched because they present no chance of work duplication.
+Any bound variable is re-evaluated any time our function is applied, so the work is duplicated regardless of inlining the variable.
 
-Back in `occurrence_analysis`, we're handling `App`:
+We pick back up in `occurrence_analysis` with `App`:
 
 ```rs
 IR::App(fun, arg) => {
@@ -307,7 +415,7 @@ IR::App(fun, arg) => {
 ```
 
 `App` acquires the Occurrences for `fun` and `arg` and merges them together.
-`merge` combines two `Occurrences` updating variable occurrences accordingly:
+`merge` combines two `Occurrences` updating variable occurrences:
 
 ```rs
 impl Occurrences {
@@ -328,26 +436,28 @@ impl Occurrences {
 }
 ```
 
-For each variable in `other.vars`, we attempt to insert it into `self.vars`
-If it's not present, we can simply insert it as is.
-If it is present, we match on our two occurrences to combine them:
+For each variable in `other.vars`, we attempt to insert it into `self.vars`:
+* If it's not present, we can simply insert it as is.
+* If it is present, we match on our two occurrences to combine them.
 
-If one of our occurrences is `Dead`, we take the other occurrence.
+When one occurrence of our match is `Dead`, we take the other occurrence.
 ```rs
 (Occurrence::Dead, occ) | (occ, Occurrence::Dead) => occ,
 ```
-`0 + x` (or `x + 0`) gives us `x`.
+`0 + x` (and `x + 0`) gives us `x`.
 Similarly, if one of our occurrences is `Many`, the result is `Many`:
 ```rs
 (Occurrence::Many, _) | (_, Occurrence::Many) => Occurrence::Many,
 ```
 
-When two `Once` occurrences meet, we mark that variable `Many`:
+Two `Once` occurrences meeting is where we actually update:
 
 ```rs
 (Occurrence::Once, Occurrence::Once) => Occurrence::Many,
 ```
 
+Merge works on occurrences from disjoint IR sub-terms.
+If the same variable occurs once in both terms, that's two occurrences, spelled `Many`, for the overall IR term we're constructing.
 We can cover the rest of our cases with one branch, marking the variable `Many`.
 
 ```rs
@@ -356,14 +466,14 @@ We can cover the rest of our cases with one branch, marking the variable `Many`.
 
 Technically this covers the `(Occurrence::Once, Occurrence::Once)` case as well, but I wanted to call that one out specifically.
 That's all our cases.
-Back to `occurrence_analysis`, to cover `TyFun` and `TyApp`:
+Returning to `occurrence_analysis`, we knock out `TyFun` and `TyApp` in the same stroke:
 
 ```rs
 IR::TyFun(_, ir) => occurrence_analysis(ir),
 IR::TyApp(ir, _) => occurrence_analysis(ir),
 ```
 
-Type function and applications don't affect occurrences because they won't show up at runtime.
+Type function don't affect occurrences because, unlike functions, they won't show up at runtime.
 Finally, `Local`s:
 
 ```rs
@@ -383,10 +493,78 @@ With that we've calculated our occurrences.
 
 ## Simplify
 
-Our `occurrence_analysis` output is used to construct a new struct `Simplifier` that exposes our main method `simplify`.
+With our `occurrence_analysis` output, we construct a new struct `Simplifier` that holds our state for simplification.
 
 ```rs
-impl Simplifier { 
+struct Simplifier {
+  occs: Occurrences,
+  subst: Subst,
+  saturated_fun_count: usize,
+  saturated_ty_fun_count: usize,
+  locals_inlined: usize,
+  inline_size_threshold: usize,
+}
+```
+
+`Simplifier` maintains all the state we'll need for simplifying IR terms.
+It keeps track of how many simplifications we've performed with:
+  * `saturated_fun_count` - number of functions applied to arguments that were reduced.
+  * `satured_ty_fun_count` - number of type functions applied to type arguments that were reduced.
+    * This might open up new optimization opportunities, so we count it as performing simplification.
+  * `locals_inlined` - number of locals inlined.
+These are used to determine if our simplifier performed any work this pass.
+`inline_size_threshold` is a configurable option to help determine when to inline a term.
+
+`subst` is a substitution conveniently of type `Subst`.
+It tracks what variables we want to inline and what we'll inline them with.
+When we encounter a variable binding and determine it's worth inlining we'll map our variable to its definition.
+Once we no longer want to inline that variable, we remove it from the substitution.
+If this sounds like a Hashmap, it's because `Subst` is a Hashmap:
+
+```rs
+type Subst = HashMap<VarId, SubstRng>;
+```
+Where a `SubstRng` is one of two cases:
+
+```rs
+enum SubstRng {
+  Suspend(IR, Subst),
+  Done(IR),
+}
+```
+
+`Done` is an `IR` term that has already been optimized.
+When we inline it, we should not `simplify` it.
+In fact, simplifying it could trigger exponential runtimes.
+This is for variables that occur more than once (which includes `OnceInFun`).
+
+`Suspend` is an `IR` term that has yet to be optimized.
+When we inline it, we also call `simplify` on it to optimize the term.
+Only variables that occur `Once` are suspended, so we don't have to worry about simplifying the same term multiple times.
+
+Couldn't we simplify `Once` variables at their definition and just the `Done` variant?
+This works, but misses out on an opportunity to optimize using the surrounding context of variable.
+For example if we have:
+
+```rs
+let x = |y| 1 + y;
+x(10)
+```
+
+Simplifying our variable definition yields `|y| 1 + y` which performs about the same as the unsimple definition.
+Delaying simplification allows us to inline, producing the term `(|y| 1 + y)(10)` which simplifies to `11`.
+An alluring result, assuredly.
+The question then isn't why don't we only have the `Done`, but why don't we only have the `Suspend` variant?
+
+If we had the time, we would delay all simplification until after inlining.
+Delaying simplification for `Many` variables induces exponential runtime.
+Suddenly we're calling simplify on the same IR once per occurrence, rather than once per IR term.
+We have to settle for only delaying `Once` variable where we can be confident it won't explode our runtime.
+
+Simplifier offers a single method, `simplify`, as its public API:
+
+```rs
+impl Simplifier {
   fn simplify(
     &mut self, 
     mut ir: IR, 
@@ -398,14 +576,16 @@ impl Simplifier {
 }
 ```
 
-Before we dive into the implementation, we have to talk about all the new datatypes we're going to need to simplify.
+Before we dive into the implementation, we have to talk about all the new datatypes introduced.
 `IR` we're familiar with from lowering.
 `InScope` tracks the set of in-scope variables for the `ir` term we're considering:
 
 ```rs
-type InScope = im::HashMap<VarId, Definition>;
+type InScope = HashMap<VarId, Definition>;
 ```
 
+`InScope` looks similar to `Subst`, a hashmap from `VarId` to an enum of two cases (we're going to find out in a second `Definition` is an enum of two cases).
+But they fulfill subtly different roles highlighted by `Definition`.
 For each in scope variable, `Definition` tells us if it's bound to a known term or an unknown parameter:
 
 ```rs
@@ -417,10 +597,11 @@ enum Definition {
 
 A variable will be unknown if it's a function parameter.
 A local variable will be bound to a known `IR` term.
+`Subst` only contains variables we know we want to inline, whereas `InScope` contains every variable regardless of inlining.
 
 Our last datatype, `Context`, tracks the surrounding context of our current term `ir`.
 As we're simplifying we drill down into `ir`.
-`Context` tracks the path we've drilled down, so we can reconstruct our final term when we finish.
+`Context` tracks the path through the tree we've drilled down, so we can reconstruct our final term when we finish.
 Consider an `IR` term:
 
 ```rs
@@ -428,22 +609,21 @@ IR::Local(
   Var(...), <defn>,
   IR::App(
     IR::TyApp(
-      IR::TyFun(...), 
+      <ir>, 
       <ty>), 
     <arg>)
   )
 ```
 
-We're going to drill down and eventually reach the `TyFun`.
+We're going to drill down and eventually reach the `<ir>`.
 When we do, our context will be the path we took to get there:
 
 ```rs
 vec![IR::Local(Var(...), <defn>, _), IR::App(_, <arg>), IR::TyApp(_, <ty>)]
 ```
 
-Where `_` represents a hole where we can put an `IR` term later.
-Once we're done optimizing our `TyFun` we walk context and put our final IR back together.
-This will be the job of rebuild.
+`_` represents a hole where we can put an `IR` term later.
+Once we're done optimizing our `TyFun` we walk context and rebuild our final IR.
 
 Why do we track `context` as a parameter at all?
 We could rely on recursion to track this information for us.
@@ -462,7 +642,7 @@ match ir {
 ```
 
 This is a pattern that has served us well many times before.
-What we're doing with `context` is more complicated than that, but it buys us something important.
+What we're doing with `context` is more complicated, but it buys us something important.
 When we drill into `fun`, `context` remembers that it's surrounded by an `App`.
 We'll make use of this information to make better inlining decisions.
 
@@ -471,61 +651,20 @@ Concretely, `Context` is actually a vector:
 ```rs
 type Context = Vec<(ContextEntry, Subst)>;
 ```
-  * `ContextEntry` is our `IR` with a hole:
+We'll use the vector like a stack, pushing and popping entries from the end.
+`ContextEntry` is our `IR` with a hole:
 
 ```rs
 enum ContextEntry {
   App(IR),
   TyApp(Type),
+  TyFun(Kind),
   Local(Var, Occurrence, IR),
 }
 ```
 When we see a `ContextEntry::App(arg)`, we can combine it with some `ir` to reconstruct an `IR::App(ir, arg)`.
-Alongside each entry, we store a `Subst`.
-`Subst` is a substitution that stores variables that we've decided to inline:
-
-```rs
-type Subst = HashMap<VarId, SubstRng>;
-```
-Where a `SubstRng` is one of two cases:
-
-```rs
-enum SubstRng {
-  Suspend(IR, Subst),
-  Done(IR),
-}
-```
-`Suspend` is an `IR` term that has yet to be optimized.
-When we inline it, we also call `simplify` on it to optimize using the context of its inlining.
-Only variables that occur `Once` are suspended, so we don't have to worry about simplifying the same term multiple times.
-
-`Done` is an `IR` term that has already been optimized.
-When we inline it, we should not `simplify` it.
-In fact, simplifying it could trigger exponential runtimes.
-This is for variables that occur more than once (which includes `OnceInFun`).
-
 `Context` stores a `Subst` for each entry that is restored when rebuilding a term.
-We'll also see `Subst` used with `Occurrences` in our `Simplifier` struct:
-
-```rs
-struct Simplifier {
-  occs: Occurrences,
-  subst: Subst,
-  saturated_fun_count: usize,
-  saturated_ty_fun_count: usize,
-  locals_inlined: usize,
-  inline_size_threshold: usize,
-}
-```
-`Simplifier` maintains all the state we'll need for simplifying IR terms.
-It keeps track of how many simplifications we've performed with:
-  * `saturated_fun_count` - number of functions applied to arguments that were reduced.
-  * `satured_ty_fun_count` - number of type functions applied to type arguments that were reduced.
-    * This might open up new optimization opportunities, so we count it as performing simplification.
-  * `locals_inlined` - number of locals inlined.
-These are used to determine if our simplifier performed any work this pass.
-`inline_size_threshold` is a configurable option to help determine when to inline a term.
-
+When `rebuild` calls simplify we want to do so under the correct substitution, restoring `subst` from the one saved in context ensures we're using the right one.
 We've finally covered enough to start into the implementation of `simplify`:
 
 ```rs
@@ -543,11 +682,11 @@ fn simplify(
 }
 ```
 
-Fundamentally, `simplify` is a recursive algorithm.
+`simplify` is a tree traversal, a fundamentally recursive algorithm.
 We've written it as an iterative algorithm here, though.
 This is a matter of preference.
 Where Rust supports mutation, I find it easier to express our algorithm iteratively with mutation.
-If we were to write this in Haskell, the recursive algorithm would be more attractive.
+If we were to write this in Haskell, the recursive algorithm might be more attractive.
 
 Each iteration will match on `ir` and return its new value from our match.
 Our first two cases are straightforward:
@@ -568,7 +707,7 @@ IR::TyApp(ty_fun, ty_app) => {
   *ty_fun
 }
 ```
-We don't do anything, yet, when we encounter an `App` or a `TyApp`.
+When we encounter an `App` or a `TyApp`, we don't do anything, yet.
 We add them to our context for later and drill down into `fun` or `ty_fun` respectively.
 Type functions are handled the same way:
 
@@ -588,9 +727,10 @@ IR::Int(i) =>
   break self.rebuild(IR::Int(i), in_scope, ctx),
 ```
 
-There's nothing more to optimize about an integer.
-We break out of our loop by rebuilding our integer, wrapping it back up in the surrounding context.
-
+There's nothing to optimize about an integer and no subterms to traverse.
+It's time to start rebuilding.
+Rebuilding will take care of calling simplify on the rest of our IR, so this simplify call is done. 
+We break out of the loop, returning our rebuilt IR.
 Next up is functions:
 
 ```rs
@@ -601,7 +741,7 @@ IR::Fun(var, body) => {
 }
 ```
 
-We might imagine this case would look like:
+We may be shocked to find our case doesn't read:
 
 ```rs
 IR::Fun(var, body) => {
@@ -614,8 +754,9 @@ IR::Fun(var, body) => {
 ```
 
 Which seems simpler.
-Effectively, our code accomplishes the but with an extra recursive call and an extra break.
-We do it this way, so that we can update our `in_scope` set.
+Our code accomplishes the same, effectively, but with an extra recursive call and break.
+We need this extra recursive call, so we can update the `in_scope` set with our parameter.
+Because it's a function parameter, we give it an `Unknown` definition in `in_scope`.
 
 Up till now we've been drilling and rebuilding, but to what end.
 `Local`s are where the real work starts:
@@ -646,7 +787,7 @@ fn simplify_local(
   }
 }
 ```
-We look up the occurrence info of our defined `var` to determine what to do with this binding.
+The fate of our binding is decided by the occurrence info of our defined `var`.
 First up is a `Dead` variable:
 
 ```rs
@@ -657,7 +798,7 @@ Occurrence::Dead => {
 ```
 
 These are straightforward.
-The variable isn't ever referenced, so we simply throw it away by returning `body` as is.
+The variable isn't ever referenced, so we simply throw away the binding by returning `body` directly.
 Because our language lacks side effects we're free to drop any dead binding.
 In a more effective language we'd have to be more careful.
 
@@ -671,28 +812,14 @@ Occurrence::Once => {
   body
 }
 ```
+
 Except we modify `subst` before returning body.
-Variables that occur once are always profitable to inline (or at least never harmful).
+Our updated `subst` will be applied to body when it's scrutinized in the next loop of simplify, so for now we're done.
+Since we know we're gonna inline the sole occurrence of this variable, making the variable dead, we save some work by dropping its binding now.
+
+Variables that occur once are always profitable to inline (or at worst never harmful).
 Again, this is true in part because we lack side effects.
 We'd have to be more careful about reordering expressions if it could change the order of effects.
-
-We know our variable only occurs once within body.
-It's important we delay simplifying the definition of our variable until we inline it, so we store it in our substitution as a `Suspend`.
-[Secrets of the GHC Inliner](https://www.cambridge.org/core/services/aop-cambridge-core/content/view/8DD9A82FF4189A0093B7672193246E22/S0956796802004331a.pdf/secrets-of-the-glasgow-haskell-compiler-inliner.pdf) calls this example out specifically due to its unintuitive behavior.
-Even if we simplify our definition now, we still want to simplify it where we inline it.
-We might discover new optimization opportunities we want to exploit upon inlining.
-
-If we were to simplify now and upon inlining, that would only be two simplifications, what's the harm?
-The harm is this can expand exponentially.
-Our definition could contain its own local variables, which we would also simplify twice.
-Each of those local definitions may contain their own locals, and so on, and so on.
-
-Pretty soon we're performing 2^n simplifications and the programmer is sigkill-ing our compilation process.
-To avoid that, we suspend our definition unsimplified and simplify it at it's callsite.
-Note that we save our current substitution.
-When we do simplify our term, we want to do so under the substitution as it appears at the definition site not at the callsite.
-TODO: Figure out why we need to save our substitution here and explain it.
-
 Our final case covers the remainder of our occurrences:
 
 ```rs
@@ -706,11 +833,10 @@ occ => {
 ```
 
 For any occurrence other than `Once` and `Dead`, we're going to keep our let binding after inlining.
-Because we know this let binding will continue to exist we go ahead and simplify its definition now.
-We accomplish this by saving our var and body in `context` allowing us to reconstruct our let binding later and return `defn` as the next term to simplify.
-We also save `occ` in our `context` for convenience. 
+Because we know this let binding will continue to exist we need to simplify its definition.
+We accomplish this by saving our var and body in `context`, allowing us to reconstruct our let binding later and return `defn` as the next term to simplify.
+We also save `occ` in our `context` for convenience.
 It saves us a lookup later when we reconstruct our binding.
-
 
 That's all our cases, and we're done simplifying locals.
 Back in `simplify`, we have one final case to look at: variables.
@@ -735,7 +861,7 @@ It allows us to encapsulate our variable logic in our helper `simplify_var` whil
 
 ### Simplify variables
 
-The real action starts in `simplify_var`:
+`simplify_var` looks up our variable in our substitution to decide how to proceed:
 
 ```rs
 fn simplify_var(
@@ -758,14 +884,13 @@ fn simplify_var(
 }
 ```
 
-`simplify_var` looks up our variable in our substitution to decide how to proceed.
 Our first case we saw setup in `simplify_local`.
 A `Once` variable is added to the substitution as a suspended IR term.
 Here, we resume that suspended IR term and continue by simplifying it with its restored substitution.
 
-Our second case is for variables we've decided to inline but appear more than once.
+Our second case covers variables we want to inline but appear more than once.
 We decide to inline a variable that appears multiple times when its definition is trivial enough to be beneficial to inline in multiple places (or inside a function where work might be duplicated).
-We'll see how we determine that when we rebuild let bindings.
+We'll see how trivial is determined when we rebuild let bindings.
 Notice that when we inline a `Done` variable, we empty the substitution.
 This ensures that we do not simplify our done definition any further.
 
@@ -781,14 +906,13 @@ fn callsite_inline(
 }
 ```
 
-Our first two cases of `simplify_var` covered situations where we determined a variable was worth inlining at its definition.
+Our first two cases of `simplify_var` covered situations where we determined a variable was worth inlining from its definition.
 Failing that, it still might be worthwhile to inline a variable based on where it occurs in a term.
-`callsite_inline`'s job is to determine when it's beneficial to inline a variable.
-At its core there is always a heuristic to decide this.
+`callsite_inline` performs this task.
 
 Ultimately, simplification can only glean so much from analyzing the code statically without running it.
 We'll see here that we hit that boundary and have to make more arbitrary decisions than we have prior.
-Our function starts by examining the in scope value for our variable:
+`callsite_inline` starts by examining the in scope value for our variable:
 
 ```rs
 in_scope
@@ -804,7 +928,7 @@ in_scope
   .expect("ICE: Unbound variable encountered in simplification")
 ```
 
-We only move on if our in scope variable is defined and `should_inline` determines that definition is worth inlining.
+We only move on if our in scope variable is defined and `should_inline` determines its definition is worth inlining.
 If we decide to inline the variable, we return our definition:
 
 ```rs
@@ -820,14 +944,13 @@ If we decide to inline a `OnceInFun` variable, we know that variable only occurr
 Now that we've inlined it, there are no references to that variable left.
 We go ahead and mark the variable as dead in that case.
 
-Marking it dead here will allow us to throwaway the dead binding when we rebuild our term.
-Otherwise, we'd have to run another round of simplification to determine the binding was now dead and throw it away.
+Marking it dead here allows us to throwaway the now dead binding when we rebuild our term, rather than run another round of simplification to clean up the binding.
 Updating occurrence info live like this gets quite complicated.
 [Secrets of the GHC Inline](https://www.cambridge.org/core/services/aop-cambridge-core/content/view/8DD9A82FF4189A0093B7672193246E22/S0956796802004331a.pdf/secrets-of-the-glasgow-haskell-compiler-inliner.pdf) remarks that they tried a couple varieties and found all of them too complicated and bug ridden to be worth pursuing.
 I'm happy to believe them and learn from their experience rather than my own.
 In this case, however, the frequency it arises in practice and the simplicity of implementation make it worthwhile.
 
-How do we know when we should inline a variable though?
+How do we know when we should inline a variable, though?
 We look to `should_inline` for answers:
 
 ```rs
@@ -843,7 +966,7 @@ fn should_inline(
 }
 ```
 
-`should_inline`, unsurprisingly, makes it decision based on how the variable's occurrence.
+`should_inline`, unsurprisingly, makes it decision based on the variable's occurrence.
 Our first two cases are alarming:
 
 ```rs
@@ -854,8 +977,7 @@ Occurrence::Dead | Occurrence::Once =>
 We handled `Once` and `Dead` in `simplify_var`.
 If we somehow see them in `should_inline`, we have a logic error.
 Call somebody to fix the compiler.
-
-`OnceInFun` is where we actually start deciding if we should inline:
+`OnceInFun` is where we actually start making decisions:
 
 ```rs
 Occurrence::OnceInFun => 
@@ -864,15 +986,15 @@ Occurrence::OnceInFun =>
 ```
 
 We'll inline our variable if its definition is a value and there's some benefit to inlining it.
-I don't know when there's some benefit to inlining, but sounds great on paper!
+It makes a lot of sense to inline when there's some benefit, but I can't help but feel that's kicking the can down the road.
 Before figuring out what that means, let's talk about what it means for an IR to be a value.
 
 An IR is a value when it contains no work to be done.
-For our simple language, this is just `App`.
+For our simple language, work is just `App`.
 If our IR contains an `App` it's not a value, otherwise it is.
-With on caveat, `Fun`s are value regardless of their body.
-Because a `Fun` body is not run until the function is applied we count them as values and not work.
-`is_value` is then a recursive match over `IR` looking for applications:
+With one caveat, `Fun`s are value regardless of their body.
+Because a `Fun` body is not run until the function is applied we count them as values even if there's an `App` in their body.
+`is_value` determines this with a recursive match over `IR` looking for applications:
 
 ```rs
 impl IR {
@@ -894,7 +1016,7 @@ impl IR {
 }
 ```
 
-Now that we know what a value is, we can look into `some_benefit`
+Now that we know what a value is, we can look into `some_benefit`:
 
 ```rs
 fn some_benefit(
@@ -906,7 +1028,6 @@ fn some_benefit(
 }
 ```
 
-Its beneficial to inline a variable when it opens up new opportunities for optimization.
 `some_benefit` is where we make use of context to determine if inlining opens new opportunities for optimization.
 For our current language, that means looking for contexts where we apply arguments to functions.
 We begin our search by first determining how many parameters our `ir` has:
@@ -916,7 +1037,7 @@ let (params, _) = ir.clone().split_funs();
 ```
 
 `split_funs` is a helper that collects the parameters from chained `Fun` nodes and returns them alongside the body of our functions.
-If our `IR` has no top-level `Fun` nodes, for example `IR::App(IR::Fun(...), IR::Int(3))`, we return `ir` itself and an empty vector for params. 
+If our `IR` has no top-level `Fun` nodes, for example `IR::App(IR::Fun(...), IR::Int(3))`, we return `ir` itself and an empty vector for params.
 With our parameters ready, next we prepare our arguments from `context`:
 
 ```rs
@@ -935,11 +1056,44 @@ We walk `context` in reverse order, because it's a stack, and grab all contiguou
 It's important the arguments are contiguous.
 If we encounter a `TyFun` or `Local` entry, any subsequent arguments aren't applied to the variable we're currently examining.
 
-The first benefit we look for is any argument that might justify inlining.
-That is an argument that is either nontrivial or a variable with a known definition:
+The first benefit we check is if we have enough arguments to saturate our current function.
+A simple matter of comparing lengths:
 
 ```rs
-if args
+if args.len() >= params.len() {
+  return true;
+}
+```
+This check accomplishes two things in one:
+  * Check if we saturate all our parameters with arguments.
+  * Check if we apply more arguments after saturating our functions.
+
+Saturating all our parameters means we can drop the functions.
+Functions require allocation, we'll learn why later when we emit code, dropping functions reduces allocation, a performance win.
+Further, if all our call sites saturate the function, we can inline them all and drop the variable's binding entirely.
+
+Applying more arguments than we have parameters implies that our function returns further functions after doing some work.
+In this case inlining wants to reveal those further functions to the extra arguments available.
+Imagine a situation such as:
+
+```rs
+let x = |y| {
+  let a = (y * 10) / 2;
+  |b| a * b
+};
+x(10)(2)
+```
+
+Rust syntax doesn't make this the most idiomatic, but we can still see the benefits of inlining `x` because we reveal `|b| a * b` to its argument `2`:
+
+```rs
+(|b| 50 * b)(2)
+```
+
+If we don't have enough arguments, there still might be value in inlining if one of arguments is interesting enough.
+
+```rs
+args
   .iter()
   .take(params.len())
   .any(|arg| match arg {
@@ -954,11 +1108,15 @@ if args
     }
     Arg::Ty(_) => false,
   })
-{
-  return true;
-}
 ```
 
+An argument is considered interesting when it's:
+
+  * A value, not a type
+  * Non-trivial or a variable with a bound definition
+
+As always, the rationale is that these are likely to pave the way for future optimization opportunities.
+To understand what a non-trivial argument is, we ask what a trivial argument is.
 An `IR` is trivial if it is a variable or an integer:
 
 ```rs
@@ -969,137 +1127,47 @@ impl IR {
 }
 ```
 
-Trivial arguments generally aren't going to open up more optimization opportunities.
+Trivial arguments generally aren't likely to open up more optimization opportunities.
 It's hard to get more optimal than an integer literal.
-Correspondingly, non-trivial expressions can open the door to more optimizations.
-If we can saturate a parameter with a non-trivial expression this is likely to lead to further optimizations, so we want to do it.
-Similarly, if our variable has a known definition, it can open the door for optimizations if we decide to inline that variable.
-
-After checking for interesting arguments, we check if we have more arguments than parameters:
-
-```rs
-args.len() >= params.lens()
-```
-This check accmpolishes two things in one:
-  * Check if we saturate all our parameters with arguments.
-  * Check if we apply more arguments after saturating our functions.
-
-Saturating all our parameters means we can drop the function nodes by inlining.
-Function nodes require allocation, we'll learn why later when we emit code.
-Ergo dropping our function by inlining reduces allocation, a performance win.
-Further, if all our callsites saturate the function, we can inline them all and drop the variable's binding entirely.
-
-When we saturate all our parameters and still have arguments to spare, it's likely inlining will create more opportunities for optimization.
+Hence, our interest in non-trivial `IR`.
+Similarly, if our variable has a known definition, inlining that variable can open the door for optimizations, so we consider that interesting as well.
 That cinches `some_benefit`, back in `simplify_var` we have one final case to cover:
 
 ```rs
 Occurrence::Many => {
-  let size = ir.size();
-  let no_size_increase = size == 0;
-  let small_enough = size <= self.inline_size_threshold;
+  let small_enough =
+    ir.size() <= self.inline_size_threshold;
   ir.is_value()
-    && (no_size_increase
-        || (small_enough && self.some_benefit(ir, ctx)))
+    && small_enough 
+    && self.some_benefit(ir, in_scope, ctx)
 },
 ```
 
-`Many` is where we must be the careful about inlining.
-Correspondingly, it has the most involved check to decide inlining is worthwhile.
-It is also where we do the most speculative reasoning.
-We gesture to vague notions such as `no_size_increase` and `small_enough` to make our decision.
+`Many` is where we must be the most careful about inlining.
+It mirrors our `OnceInFun` check but with the addition of a `small_enough` check.
+Because we may inline our definition an unbounded number of times, we only want to do so if it is small.
 
-The "size" of an IR term is somewhat surprising:
+The size of IR is a loose count of how many nodes are in the tree.
+It's not strictly a node count because it makes accomodations for the runtime and inlining cost of nodes.
+For example if our IR term is a naked variable, we give that a size of zero.
+Type functions and applications do not impact size because they don't impact runtime.
+We won't cover it here, but the full definition of `size()` can be found in the [source code](TODO).
 
-```rs
-impl IR {
-  fn size(&self) -> usize {
-    match self {
-      IR::Var(_) | IR::Int(_) => 0,
-      IR::Fun(_, body) => 10 + body.size(),
-      IR::App(fun, arg) => arg.size() + size_app(fun, 1),
-      IR::TyFun(_, ir) => ir.size(),
-      IR::TyApp(ir, _) => ir.size(),
-      IR::Local(var, defn, body) => {
-        defn.size()
-          + body.size()
-          + (if var.ty.is_stack_alloc() { 0 } else { 10 })
-      }
-    }
-  }
-}
-```
+Once we have size in hand we determine if it's small enough by comparing it against `inline_size_threshold`.
+This is just a number picked out of a hat.
+It defaults to 60, because that's what GHC uses and they seem pretty smart.
+In a full compiler this would be a config option that is tunable.
 
-Rather than the number of nodes in our IR term, as we might expect, `size` gives us size modified to account for runtime performance and keenness to inline.
-An example of this can be found in our variable and integer cases.
-We give them size 0 because we're quite eager to inline them, even in multiple places.
-Type functions and applications return the size of their underlying term because they do not impact runtime, and so we do not want them impact inlining decisions.
-
-I must profess to not fully understanding our size calculation here, though.
-For example, why are all our sizes multiplied by 10?
-I do not know.
-Our `size` function comes to us from GHC, which is my bible when it comes to compiler construction.
-You can find their version [here](https://hackage-content.haskell.org/package/ghc-lib-parser-9.8.5.20250214/docs/src/GHC.Core.Unfold.html#sizeExpr).
-What we have here is a stripped down version that applies to the subset of our language.
-
-Tangent aside, locals consider the runtime performance as well.
-The size of a local is the definition size plus the body size.
-If the type of our local is a stack allocated, we add zero to our size, otherwise we add one.
-A type is stack allocated if it's `Type::Int`.
-
-Our stack/heap distinction in size is guided by runtime performance.
-A stack allocated local requires no allocation, and so does not contribute to size.
-Moving on, our application case doles out to `size_app`:
-
-```rs
-fn size_app(ir: &IR, arg_count: usize) -> usize { 
-  match ir {
-    IR::App(fun, arg) => arg.size() + size_app(fun, args + 1),
-    IR::TyApp(ir, _) => size_app(ir, args),
-    ir => ir.size() + 10 * (1 + args),
-  }
-}
-```
-
-`size_app` counts the number of non-type arguments until we reach the head of our application.
-The number of arguments plus the size of our head determines the size of our application.
-Now that we know how to size our terms, we can make more sense of our `Many` case:
-
-```rs
-Occurrence::Many => {
-  let size = ir.size();
-  let no_size_increase = size == 0;
-  let small_enough = size <= self.inline_size_threshold;
-  ir.is_value()
-    && (no_size_increase
-        || (small_enough && self.some_benefit(ir, ctx)))
-},
-```
-
-`no_size_increase` is for cases like variables or integers.
-It costs us nothing to replace a variable by another variable, so we might as well do it.
-
-`small_enough` is the main inlining heuristic.
-We pick a number, `inline_size_threshold` in this case which defaults to 60, and any term below that size we'll consider inlining.
-Picking the right number is tricky and very much contextual based on the codebase being compiled.
-There's interesting research into picking better numbers for inling that we won't cover here.
-Our number is by no means gospel, it's just the default GHC uses.
-
-With our newfound understanding, we can read off our final conditional.
-Our IR has to be a value, we never want to duplicate work by inlining.
-We'll then inline if either:
-  * It doesn't increase our size (a variable or an integer for example).
-  * There's some benefit to inlining and our definition is small.
-
-  * TODO: Figure out how to note this.
-Only `some_benefit` relies on the context we're in.
+That everything for our `Many` check.
+Of our checks, only `some_benefit` relies on the context we're in.
 The rest of these values are purely determined by `ir` and could be calculated once and cached.
+If you look at GHC it actually does do this, and only `some_benefit` is calculated per occurrence.
+We've omitted that caching here for simplicity, but I wanted you to know about it.
 
-That's all our simplify cases.
+With the completion of `callsite_inline`, that's all our simplify cases.
 We can move on to the second half of our equation `rebuild`.
-`simmplify` drilled down into our term building up context.
-`rebuild` will consume that context to build up our simplified term.
-As we build up our term, we'll still be looking for optimization opportunities.
-  * TODO: transition to the code.
+`simplify` drilled down into our term building up context.
+`rebuild` will consume that context to build up our simplified term:
 
 ```rs
 fn rebuild(&mut self, mut ir: IR, in_scope: InScope, mut ctx: Context) -> IR {
@@ -1113,7 +1181,10 @@ fn rebuild(&mut self, mut ir: IR, in_scope: InScope, mut ctx: Context) -> IR {
 }
 ```
 
-For each context entry, we restore our saved substitution.
+As we build up our term, we'll be looking for optimization opportunities.
+In fact, all of our optimizations actually occur in `rebuild`. 
+Simplify is solely responsible for inlining.
+Each context entry restores its saved substitution.
 We proceed based on the kind of entry we're examining, starting with `App`:
 
 ```rs
@@ -1132,22 +1203,16 @@ While rebuilding an `App`, we check if our current `ir` is a `Fun`.
 When it is, we optimize and replace that with a local binding.
 This transformation, however, might open up new opportunities for simplification, so we call simplify on our new `local` and break out of our loop.
 
-Why do we turn a function applied to its argument into a local?
-Couldn't we simply substitute the argument into the body directly?
-Of course, we could, but it's not a given that doing so would be beneficial.
-By creating a local for our argument and simplifying it, we accomplish two goals:
-
-* We remove the `Fun`, reducing allocations
-* We reuse all our logic for inlining locals
-
-If our argument is only used once, simplification will pick that up and remove our local.
+We don't substitute our parameter into our body for the same reason we don't inline every variable in our program.
+Consideration has to be given to how often and where the variable occurs before deciding to inline.
+We already wrote the logic to do all that considering for locals, so we reuse that here.
+If our argument is only used once, simplification will recognize that and remove our local.
 
 If `ir` isn't a `Fun`, we construct an `App` and continue.
-We didn't simplify our argument when we pushed it into the context, so we simplify our argument now.
+We didn't simplify our argument when we pushed it into our context, so we simplify our argument now.
 It's important we do this with an empty context.
-`simplify` will eventually call `rebuild` on our arg, and we want it to only rebuild context that's part of our argument, not our argument plus `ir`'s context.
+`simplify` will eventually call `rebuild` on our argument, and we want it to only rebuild context that's part of our argument, not our argument plus `ir`'s context.
 From there we construct an `App` to use as our new `ir`.
-
 Our next case, `TyApp`, is similar to `App`:
 
 ```rs
@@ -1163,10 +1228,7 @@ ContextEntry::TyApp(ty) => {
 
 Like `App`, if `ir` is a `TyFun`, we're going to simplify it.
 Unlike `App`, we are going to immediately substitute our type into our body.
-Types are going to have a runtime cost, so we don't have to worry about inlining them.
-There are some memory concerns in creating exponential instances of a type like this.
-But these are relegated to the compiler, not the produced program, and we won't worry about it (for now atleast).
-
+Types don't have a runtime cost, so we don't worry about inlining them all over our term.
 Rebuilding a `TyFun` is simple:
 
 ```rs
@@ -1175,7 +1237,7 @@ ContextEntry::TyFun(kind) => {
 }
 ```
 
-Nothing to optimize or even simplify here, we create our node and move on.
+Nothing to optimize, or even simplify here, we create our node and move on.
 We've saved the most interesting case for last, `Local`s:
 
 ```rs
@@ -1201,24 +1263,26 @@ ContextEntry::Local(var, occ, body) => {
 ```
 
 When we drilled down into a `local`, we drilled into the definition not the body.
-We did this so that we canc make inlining decisions based on the simplified definition of the local.
-After deciding what to do, we still have to simplify the body of our local.
+We did this so that we can make inlining decisions based on the simplified definition of the local.
 
-First we check if our definition is trivial, recall this means it's a variable or an integer.
-These are always free to inline because they're small and do no work.
+If our definition is trivial, recall this means it's a variable or an integer, inlinining is free because its small and does no work.
 We add our definition to our substitution and proceed by simplifying our body.
 Because we've already simplified the definition, we add it to our substitution as `Done` preventing further simplification when we inline.
 
 When our definition is nontrivial, we assume we're going to emit a binding.
 We update our in-scope map with our binding and simplify body.
 While simplifying our body, we might inline all occurrences of our variable.
-To account for this, we check our variable's occurrence info before comitting to creating a binding.
-If our variable is dead, we can drop our local, otherwise we construct our local.
+To account for this, we check our variable's occurrence info before committing to creating a binding.
+If our variable is dead, we can drop our local.
 
-With all our components, we can finally assemble our main entrypoint the `simplify` method.
+That's everything in `rebuild`.
+With all our components, we can assemble our overarching entrypoint the `simplify` method:
 
 ```rs
-fn simplify(&mut self, mut ir: IR) -> IR {
+fn simplify(
+  &mut self, 
+  mut ir: IR
+) -> IR {
   for _ in 0..2 {
     let (_, occs) = occurrence_analysis(&ir);
     let mut simplifier = Simplifier::new(occs);
@@ -1242,24 +1306,17 @@ fn did_no_work(&self) -> bool {
 }
 ```
 
-This is a helper method that checks if we performed any simplifications to our `ir`.
-If we didn't, we exit our loop early.
+This is a helper method that checks if we performed any simplifications on our `ir`.
+If we didn't, we get to go home early.
 
 We do all this in a loop that runs a hardcoded number of times, 2 at the moment.
-Simplification is a fixpoint operation.
-We do as much as we can in one pass, but we can't do everything.
-For example, if we inline every occurrence of a `Many` variabale, we won't clean up the now dead binding during that pass.
+Two comes to us more as an art than a science.
+In testing the simplifier, I could find terms that still needed work with just one pass.
+But I couldn't find any that didn't settle after two passes.
 
-We could run our simplifier until a true fixpoint by looping infinitely instead of for 2 iterations.
-For our base language, this would be sufficient.
-Base is simple enough that we could have confidence we would reach that fixpoint.
-Later features however will complicate this story, recursion in particular can allow us to construct degenerate cases that do not reach a fixpoint.
-
-In the interest of future proofing, we setup a fixed number of iterations now.
-For reference GHC has a similar setup.
-There simplification can run up to 4 times.
-OCaml's FLambda2 backend does everything in a single pass, which if you think about is really a single iteration loop.
-
+Of course these terms almost certainly exist.
+We have to draw the line somewhere to ensure we don't run our simplifier forever, and today we draw that line at two.
+In the future, after adding more features, we might discover a different number is more appropriate.
 We've come a long way from our first simplification function:
 
 ```rs
@@ -1272,8 +1329,7 @@ fn simplify(
 ```
 
 It's time to enjoy the fruits of our labor.
-Let's take a look at a really convoluted IR:
-
+Let's take a look at a really convoluted IR term:
 
 ```hs
 ((fun [V0]
@@ -1301,3 +1357,11 @@ After simplification, we have:
 
 All the indirection has been cut through leaving only the heart of our program, the value `1`.
 It brings me joy to see our simplifier work, even on such a contrived example.
+
+That completes are basic simplifier.
+We learned about how optimizations are a futile endeavor to guess the future of our code, and how we have to accomodate that fact by employing heuristics where static analysis fails us.
+Even with this reality, our optimizer does quite well at chewing through code and improving its performance.
+We can already see the difference by comparing the input and output `IR`.
+This delta will only grow larger as we proceed down the compiler.
+Eventually when we reach code emission, our simplified IR will produce smaller more efficient code than our initial lowered IR.
+As always the full source code can be found in the [accompanying repo](TODO).

@@ -118,6 +118,26 @@
         </div>
       </div>
     </div>
+    <div class="mal-pass">
+      <div class="mal-header">
+        <h2>Simplify</h2>
+      </div>
+      <div class="mal-content">
+        <p>
+        Simplification optimizes our IR in a type-preserving way. 
+        It produces an IR of the same type with better runtime performance. 
+        A key ingredient in accomplishing this is inlining.
+        </p>
+        <div>
+          <h3>Base</h3>
+          <div style="display: flex; flex-direction: column">
+            {{ with (.GetPage "/posts/simplify-base") }}
+              {{ partial "card.html" . }}
+            {{ end }}
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 </section>
 {{ end }}
