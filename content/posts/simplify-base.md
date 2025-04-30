@@ -1151,7 +1151,7 @@ The size of IR is a loose count of how many nodes are in the tree.
 It's not strictly a node count because it makes accomodations for the runtime and inlining cost of nodes.
 For example if our IR term is a naked variable, we give that a size of zero.
 Type functions and applications do not impact size because they don't impact runtime.
-We won't cover it here, but the full definition of `size()` can be found in the [source code](TODO).
+We won't cover it here, but the full definition of `size()` can be found in the [source code](https://github.com/thunderseethe/making-a-language/tree/main/simplify/base).
 
 Once we have size in hand we determine if it's small enough by comparing it against `inline_size_threshold`.
 This is just a number picked out of a hat.
@@ -1364,4 +1364,4 @@ Even with this reality, our optimizer does quite well at chewing through code an
 We can already see the difference by comparing the input and output `IR`.
 This delta will only grow larger as we proceed down the compiler.
 Eventually when we reach code emission, our simplified IR will produce smaller more efficient code than our initial lowered IR.
-As always the full source code can be found in the [accompanying repo](TODO).
+As always the full source code can be found in the [accompanying repo](https://github.com/thunderseethe/making-a-language/tree/main/simplify/base).
