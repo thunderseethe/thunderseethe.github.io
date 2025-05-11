@@ -9,7 +9,7 @@ description = "Optimizing our base IR via inlining"
 +++
 
 {{< accessory title="Making a Language Series" >}}
-This post is part of the [making a languages series](/series/making-a-language).
+This post is part of the [making a language series](/series/making-a-language).
 A series that teaches you how to implement a programming language using Rust.
 
 Today's post is preceded by the [base lowering pass](/posts/lowering-base-ir/).
