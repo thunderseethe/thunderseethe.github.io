@@ -272,5 +272,6 @@ fn instantiate(
 It's not even using new code!
 The meat of the implementation resides in `subst_ty`, a method we already had lying around from simplification.
 That's really all we have for monomorphization right now.
+Don't believe me? Check the [repo](https://github.com/thunderseethe/making-a-language/tree/main/monomorph/base).
 This will be much more substantial once we introduce items.
 Until then, monomorphization provides a respite along our compilation journey.
