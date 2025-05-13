@@ -1,5 +1,5 @@
 +++
-title = "ClosureConvert[0].Base: Removing Functions From Our Language With Closure Conversion"
+title = "ClosureConvert[0].Base: Closure Conversion Takes The Function Out Of Functional Programming"
 date = "2025-04-30T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "ClosureConvert"]
@@ -9,153 +9,40 @@ description = "Converting our functions into closures for the Base IR."
 draft = true
 +++
 
-* Intro
-  * Explain our functions are lambdas
-    * Explain lambdas?
-  * Like polymorphism, no machine instructions for executing lambdas
-  * Exemplify problem with variable capture when returning closures.
-  * We have to convert them into a form we can execute
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
 
-* Closure Conversion
-  * Closure
-    * Captures in scope variables.
-      * Possibly explained with lambdas above.
-    * A struct containing a field that points to our function body and a field for each of our captured variables
-  * Convert each `Fun` node to a closure
-    * We must also update our `App` to call closures rather than functions.
-  * Our function body will be turned in to a top level item (that captures no environment).
-    * In place of implicit capturing, it will take an explicit parameter to the env.
-    * Each access of a captured variable in the body will be replaced by indexing into the env parameter.
-  * Explain runtime semantics
-    * Functions will now allocate a closure struct with the captured environment.
-    * Applications will grab the function pointer out of a closure struct and pass the env and argument to the function.    
-  * TODO: Do we need to explain more about closures here?
+Today's post is preceded by the [base monomorphization pass](/posts/monomorph-base).
+Like monomorphization, closure conversion does not rely on anything from its prior pass.
+It relies on the `IR` (and accompanying types) introduced in [lowering](/posts/lowering-base-ir).
+We'll review `IR` before the action starts.
+{{</ accessory >}}
 
-* Tangent: Figure out how to incorporate this organically.
-  * Closure conversion is invasive.
-  * Originally wanted to use a different techinque lambda lifting
-  * Explain lambda lifting with an example.
-  * Explain where lambda lifting fails (returning a lambda, partial applications).
-  * Lambda lifting is not a wholistic solution, so we closure convert instead.
-
-* Closure conversion requires a new IR.
-  * Closures are a fundamentally different type from functions because they track their env.
-  * A function type `Type::fun(Type::Int, Type::Int)` turns into one closure type per captured environment.
-    * Part of why we have to update `App`.
-  * Alongside this main change, our new IR introduces some other changes
-    * Top level items
-    * Structs to represent environment parameters.
-    * Note: These are things we will add to our first IR in rows and items, but we need them in base for closure conversion and we need the new IR anyways.
-  * TODO: IR code snippet.
-  * Explain what stays the same
-    * Var, but with a new type
-    * Int
-    * Local
-
-* IR Type
-  * With the changes to our IR we need a new type for our IR
-  * TODO: IR type code snippet.
-  * Explain Closure and ClosureEnv
-    * Why not Struct for both?
-    * Makes our lives easier to remember them as special types during code emission
-
-* Main entry point
-  * `closure_convert`
-  * TODO: Signature code snippet
-  * Takes in lowering::IR spits out `ClosureConvertOutput`.
-  * TODO: ClosurecConvertOutput snippet
-  * A collection of items produced by lifting function bodies to top level items and the final item representing our input IR.
-
-* closure_convert impl
-  * split funs, we don't want to turn top level functions into closures.
-    * explain why
-  * `var_supply` we've seen before, but now it converts lower::Var into Var
-  * `env` tracks mapping from lowering::Var to Var.
-  * Convert parameters and insert them in env
-  * Lower ret_ty, used for convenience in the item we construct at the end.
-
-* lower_ty
- * TODO: Code snippet
- * Int turns into I32
- * Fun turns into Closure
- * TyFun and Var shouldn't appear because this is post monomorphizing
- * Explain why nothing creates a ClosureEnv type? 
-
-* Construct `ClosureConvert`
-* TODO: ClosureConvert snippet
-  * item_supply is like var_supply but for top level items
-  * items holds the top level items we create for closures
-
-* convert
-  * TODO: Signature code snippet.
-  * Takes in lowering::IR and env, spits out our new IR
-  * Case by case 
-    * TODO: Int snippet
-    * Int turns into Int
-
-    * TODO: Var snippet
-    * Var turns into Var by look up in env
-    * Should we talk about why we don't convert it each time?
-    
-    * TODO: Fun snippet
-    * Simple on the surface
-    * Convert to var and call make_closure
-
-* make_closure
-  * lower return type
-  * convert body
-  * determine free vars
-  * remove our parameter from free vars.
-  * create env_var from captured vars.
-  * substitute body to replace captured vars with environment accesses.
-  * construct an item for our closure body
-  * return closure
-
-* Back in `convert`
-  * TODO: `App` snippet
-  * Turn into an `apply`
-  * Should we talk about distinction between apply and app?
-
-  * TODO: `Local` snippet
-  * Nothing noteworthy
-
-  * TyFun and TyApp should not appear
-
-* Clean up in convert
-
-* Caveats
-  * Closures are single parameter rather than multi parameter
-    * Making of a fast curry
-  * Cheating on typing
-    * Proper typing requires existentials, instead we've just special cased the behavior
-
-* Conclusion
-  * Final step before code generation.
-  * Closures are something we can see how to implement in a machine, unlike functions.
-  * Closure conversion provides a wholistic solution, unlike lambda lifting, at the cost of being more complex and passing around allocated closures.
-
-Our [previous pass](/posts/monomorph-base) stripped away polymorphism from our compilation path.
+Our [previous pass](/posts/monomorph-base) stripped polymorphism away from our intermediate representation (IR).
 Today we've come to cut down an even closer confidant, functions.
-This may come as a shock to some, functions are entwined deeply in our language.
+How many friends must we lose on our conquest of compilation.
+This may come as a shock, functions are entwined deeply in our language.
 I mean it's right there in the name, functional programming.
 I don't know what al programming is, and I don't want to.
 
 Without functions, only integers remain.
 It's all ones and zeroes at the end of the day, but I'm not sure how to compute with just integers.
-I'd at least need tape of some fashion.
-
+I'd at least need a possibly infinite tape.
 Allow me to assuage your concerns.
 We're removing functions, but we'll be replacing them with something new.
-Before looking at what replaces functions, let's talk some about why we're replacing functions.
+Before looking at what replaces functions, let's talk about why we're replacing functions.
 
 Unlike polymorphism, you will find instructions on a machine for functions.
-Returning and passing arguments are common instructions you'll find among most machine code flavors, begging the question of why are we removing functions?
+On the contrary, they're hardly exotic. 
+You'll be hard-pressed to find an architecture that lacks instructions for returning and passing function arguments, begging the question "why are we removing functions?".
 The dissonance arises from a distinction in definition of function.
-When we talk about functions in our language, we really mean lambdas.
+The functions used by our language are not the same functions implemented by the hardware.
 
-Lambdas are functions that capture their environment.
-Our hardware functions lack this capability.
-Rust can help us highlight the difference:
+Our language's functions are actually lambdas.
+Lambdas are functions that capture their surrounding lexical scope as an environment.
+Hardware functions lack this capability.
+Some rust code helps us highlight the difference:
 
 ```rs
 // A hardware function
@@ -171,14 +58,16 @@ let y = 10;
 let bar = |x: usize| x * y + a;
 ```
 
-`foo` a hardware function requires no environment we pass it the requisite argument and receive our answer.
-`bar` on the other hand captures the variables `a` and `y` in an environment that is made available every time we call `bar`.
+`foo` a hardware function requires no environment.
+We pass it the requisite argument and receive our answer.
+`bar`, on the other hand, captures the variables `a` and `y` in an environment that is made available every time we call `bar`.
 
 The convenience of variable capture cannot be overstated.
 A myriad of programming patterns can be boiled down to lambdas capturing other lambdas.
 Lambda are worthwhile, but we need to convert them to a more compilable form: the closure.
 
-A closure is a struct with a pointer to our function and a field for each captured value.
+Closures make the implicit capturing of lambdas explicit.
+A closure is a struct with a field for our lambda body and a field for each captured value in our lambda's environment.
 Returning to our `bar` example, `bar` would become the closure:
 
 ```rs
@@ -200,10 +89,10 @@ They now reference our new `env` parameter.
 
 When we create a top level function from our lambda body, we add a new parameter `env`.
 It provides explicit access to our, previously implicitly accessed, captured variables.
-Our `env` parameter is the same type as our closure `Bar`.
-`Bar` has one field per captured variable but also has a field `fun` which holds a reference to our generated top level function.
+Our `env` parameter shares its type, `Bar`, with our closure.
+Because `Bar` has one field per captured variable and also a field `fun`, which holds a reference to our generated top level function, it serves dual duty as both our closure type and our environment type.
 
-The translation from lambda to closure pervades application.
+The translation from lambda to closure permeates into application.
 Our closures are a struct, not a function.
 Accordingly, where previously we would pass an argument to our lambda:
 
@@ -219,11 +108,11 @@ bar.fun(bar, 3)
 
 ## Lambda Lifting
 
-In the abstract, that's closure conversion.
+In the abstract, that's all there is to closure conversion.
 We transmogrify every function and application we encounter, and we're done.
 It's an invasive operation, so invasive in fact, that originally I planned to avoid it entirely.
-My original plan for this pass was to use lambda lifting, an operation that fulfills a similar role but eschews closures.
-Rather than creating a struct to hold our captured variables, lambda lifting lifts each function into a new top level definition and adds a new parameter for each free variable.
+At first, this pass used lambda lifting, an operation that also removes lambdas but eschews closures.
+Rather than creating a struct to hold our captured variables, lambda lifting lifts each `Fun` into a new top level function and adds a new parameter per free variable.
 We can see the distinction by lambda lifting our `bar` example:
 
 ```rs
@@ -237,7 +126,11 @@ bar(3)
 becomes:
 
 ```rs
-fn bar(a: usize, y: usize, x: usize) -> usize {
+fn bar(
+  a: usize, 
+  y: usize, 
+  x: usize
+) -> usize {
   x * y + a
 }
 
@@ -271,17 +164,16 @@ a: usize
 }
 ```
 
-The whole point of our lambda is to save `a` until a later time at which point `b` is available.
+Our lambda exists to save `a` until a later point when `b` is available.
 A closure handles this just fine because it's a struct that can hold onto `a`.
-But there's no valid top level function lambda lifting can provide here.
-A top level function must take all its parameters at once which is incompatible with the delayed application we want to achieve in our example.
+But there's no valid top level function that fulfills this role, precluding the use of lambda lifting.
+A top level function must take all its parameters at once which is incompatible with the delayed application we want to achieve.
 
-Lambda lifting, unlike closure conversion, is not a holistic solution.
+Lambda lifting, unlike closure conversion, only provides a partial solution.
 Not to say it's not worthwhile, avoiding closures is admirable, to the point production compilers perform [selective lambda lifting](https://arxiv.org/abs/1910.11717).
-But for our simple compiler here, we're going with closure conversion as a baseline since it handles all cases.
+But for our simple compiler here, we're utilizing closure conversion, since it handles all cases.
 Our selection, however, comes at a cost.
 
-TODO: Figure out where to put quick refresher
 
 ## New IR
 
@@ -345,6 +237,8 @@ Our new type `ClosureEnv` is the type we'll give to the `env` parameter.
 Any given closure receives a `Closure` type, used to check it's passed the right argument, but also receives a `ClosureEnv` type which is used when we pass the closure to its top level definition as `env`.
 
 ## Implementation
+
+TODO: Figure out where to put quick refresher (I think here)
 
 With that we can start on our implementation.
 We take this one from the top starting with our entry point `closure_convert`:
