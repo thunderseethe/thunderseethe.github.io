@@ -138,6 +138,44 @@
         </div>
       </div>
     </div>
+    <div class="mal-pass">
+      <div class="mal-header">
+        <h2>Monomorph</h2>
+      </div>
+      <div class="mal-content">
+        <p>
+        Monomorphization is responsible for removing polymorphism from our language.
+        This is an important step towards code emission, as we don't know how to emit code to execute polymorphism.
+        </p>
+        <div>
+          <h3>Base</h3>
+          <div style="display: flex; flex-direction: column">
+            {{ with (.GetPage "/posts/monomorph-base") }}
+              {{ partial "card.html" . }}
+            {{ end }}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mal-pass">
+      <div class="mal-header">
+        <h2>ClosureConvert</h2>
+      </div>
+      <div class="mal-content">
+        <p>
+        Closure conversion removes functions from our IR and replaces them with a lower level construct: the closure.
+        Closures make, the previously implicit, variable capature of functions explicit exposing them in a form more amenable to compilation.
+        </p>
+        <div>
+          <h3>Base</h3>
+          <div style="display: flex; flex-direction: column">
+            {{ with (.GetPage "/posts/closure-convert-base") }}
+              {{ partial "card.html" . }}
+            {{ end }}
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 </section>
 {{ end }}
