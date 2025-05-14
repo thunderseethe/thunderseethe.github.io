@@ -1,12 +1,11 @@
 +++
 title = "ClosureConvert[0].Base: Closure Conversion Takes The Function Out Of Functional Programming"
-date = "2025-04-30T00:00:00Z"
+date = "2025-05-14T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "ClosureConvert"]
 series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Functions", "IR", "Compiler", "Runtime", "Closure", "Closure Conversion", "Lambda Lifting"]
-description = "Converting our functions into closures for the Base IR."
-draft = true
+description = "Converting our lambda functions into closures for the Base IR."
 +++
 
 {{< accessory title="Making a Language" >}}
@@ -19,7 +18,7 @@ It relies on the `IR` (and accompanying types) introduced in [lowering](/posts/l
 We'll review `IR` before the action starts.
 {{</ accessory >}}
 
-Our [previous pass](/posts/monomorph-base) stripped polymorphism away from our intermediate representation (IR).
+Our [previous pass](/posts/monomorph-base), monomorphization, stripped polymorphism away from our intermediate representation (IR).
 Today we've come to cut down an even closer confidant, functions.
 How many friends must we lose on our conquest of compilation.
 This may come as a shock, functions are entwined deeply in our language.
@@ -167,7 +166,7 @@ a: usize
 Our lambda exists to save `a` until a later point when `b` is available.
 A closure handles this just fine because it's a struct that can hold onto `a`.
 But there's no valid top level function that fulfills this role, precluding the use of lambda lifting.
-A top level function must take all its parameters at once which is incompatible with the delayed application we want to achieve.
+A top level function must take all its parameters at once which is incompatible with returning a lambda.
 
 Lambda lifting, unlike closure conversion, only provides a partial solution.
 Not to say it's not worthwhile, avoiding closures is admirable, to the point production compilers perform [selective lambda lifting](https://arxiv.org/abs/1910.11717).
@@ -177,7 +176,7 @@ Our selection, however, comes at a cost.
 
 ## New IR
 
-We're going to need a new `IR` for closure conversion.
+The price we pay for closure conversion is a new `IR`
 It will be quite similar to our existing `IR` from [lowering](/posts/lowering-base-ir), but in place of `Fun` we'll find `Closure`.
 The reason for this new `IR` is twofold:
 
@@ -199,7 +198,8 @@ enum IR {
 
 `Fun` has become `Closure` and `App` has become `Apply`.
 We also have an entirely new node `Access`.
-`Access` is how we pull our captured variables out of our `env` parameter.
+`Access` is how we query captured variables out of our `env` parameter.
+Aside from that, the rest of our `IR` remains the same.
 
 While we introduced closures as structs, we find no `Struct` node among our `IR`.
 Make no mistake, closures are structs.
@@ -215,12 +215,12 @@ We'd like to treat the closure types:
 
 Uniformly as `fn(usize) -> usize` when we type check them during application.
 Accommodating this wrinkle is most easily accomplished by introducing a specific node for it, so we know to type check closures differently from normal structs.
-Aside from that the rest of our `IR` remains the same.
 
 Our closure node introduces two other data types we'll need for conversion: `Type` and `ItemId`.
-`ItemId` is similar to `VarId`, but for top level functions rather than local variables.
+`ItemId` mirrors `VarId`, but for top level functions rather than local variables.
 Closures require top level functions, so we add items here despite their absence in the AST and lowering IR.
 When we turn our lambda body into a top level function, our closure will reference that top level function via `ItemId`.
+
 `Type` is our new IR's parallel to lowering's type:
 
 ```rs
@@ -231,16 +231,59 @@ enum Type {
 }
 ```
 
-We've replaced `Fun` types by `Closure`.
-Our new type `ClosureEnv` is the type we'll give to the `env` parameter.
+Just like IR, we've replaced `Fun` types with `Closure` types.
+Our new type, `ClosureEnv`, is the type we'll give to `env` parameters.
 `Closure` and `ClosureEnv` are two types for the same value.
 Any given closure receives a `Closure` type, used to check it's passed the right argument, but also receives a `ClosureEnv` type which is used when we pass the closure to its top level definition as `env`.
 
 ## Implementation
 
-TODO: Figure out where to put quick refresher (I think here)
+{{< accessory title="Quick Refresher" >}}
 
-With that we can start on our implementation.
+Our middleend passes all work on a common `IR`:
+
+```rs
+enum IR {
+  Var(Var),
+  Int(isize),
+  Fun(Var, Box<Self>),
+  App(Box<Self>, Box<Self>),
+  TyFun(Kind, Box<Self>),
+  TyApp(Box<Self>, Type),
+  Local(Var, Box<Self>, Box<Self>),
+}
+```
+
+Our IR is explicitly typed and represents generics using type functions and type applications.
+It also introduces `Locals` which are not strictly required, but we'll see are very useful in simplification.
+Alongside our IR, we have a `Type` (that is lowered from our AST's type):
+
+```rs
+enum Type {
+  Int,
+  Var(TypeVar),
+  Fun(Box<Self>, Box<Self>),
+  TyFun(Kind, Box<Self>),
+}
+```
+
+Our `Type` has a `Kind`, unparalleled in our AST.
+The same way values have types, types have kinds.
+Our base `Kind` is vacuous:
+
+```rs
+enum Kind {
+  Type
+}
+```
+
+A `Type` is of kind `Type`.
+I believe it to be true, but I question if we really need to postulate such a circular statement.
+That's everything we need to know about our IR, back to closure conversion.
+
+{{</ accessory >}}
+
+The start of the implementation is upon us.
 We take this one from the top starting with our entry point `closure_convert`:
 
 ```rs
@@ -252,8 +295,8 @@ fn closure_convert(
 ```
 
 `ir` is the IR we've known till now.
-We have to specify it's `lowering::IR` since closure conversion introduces its own `IR`.
-Our output is a bundle of items:
+We have to specify it's `lowering::IR`, since closure conversion introduces its own `IR`.
+`closure_convert` returns a `ClosureConvertOutput`, which is a bundle of items:
 
 ```rs
 struct ClosureConvertOutput {
@@ -261,9 +304,9 @@ struct ClosureConvertOutput {
   closure_items: BTreeMap<ItemId, Item>,
 }
 ```
-
-`item` is the item produced by converting our input `ir`.
-`closure_items` contains an item per lambda that was converted into a closure.
+We're going to turn our input `ir` into a top level function. 
+That function will be `item` in our output.
+The rest of the items in `closure_items` are created to hold lambda bodies we encounter during conversion.
 An item, as a top level function, is a series of parameters and a body:
 
 ```rs
@@ -288,19 +331,19 @@ fn closure_convert(ir: lowering::IR) -> ClosureConvertOutput {
 }
 ```
 
-`split_funs` we've seen before in [simplification](/posts/simplify-base).
+Our first line makes use of `split_funs`, a function we've seen before in [simplification](/posts/simplify-base).
 It collects contiguous functions nodes at the root of our `IR` and returns a list of their parameters and the body inside those functions nodes.
 If our IR lacks functions at its root, `params` will be an empty list and body will be the IR itself.
 We separate our top level parameters like this to avoid converting them to closures.
 
 When we convert our IR to an item, we don't want its body to be a series of nested closures.
-We only want to start converting functions to closures once we're inside the root function nodes.
+We only want to start converting functions to closures once we're inside all the root functions.
 After that we have some rote supporting structures:
 
 * `var_supply` will provide any `Var`s we need throughout conversion
 * `env` maps `lowering::Var`s to our new `Var`.
 
-With whetted whistles, our next task is determining the parameters and return type of our end item:
+With whetted whistles, our next task is determining the parameters and return type of our final item:
 
 ```rs
 let params = params
@@ -326,7 +369,8 @@ For each value parameter, we create a fresh variable and insert it into `env`.
 As part of creating the new variable we lower the type of our variable.
 We also lower the type of our overall `ir` to produce the return type.
 
-`lower_ty` is straightforward:
+These are both accomplished by `lower_ty`, a method that turns a `lowering::Type` into our new `Type`.
+Its implementation is straightforward:
 
 ```rs
 fn lower_ty(ty: &lowering::Type) -> Type {
@@ -344,9 +388,9 @@ fn lower_ty(ty: &lowering::Type) -> Type {
 }
 ```
 
-We shouldn't see any generics, so we panic if those show up.
 `Fun` becomes `Closure` and `Int` becomes `Int`.
-Back in `closure_convert`, we can begin actual conversion:
+We shouldn't see any generics, so we panic if those show up.
+Returning to `closure_convert`, we can begin actual conversion:
 
 ```rs
 let mut conversion = ClosureConvert {
@@ -367,8 +411,10 @@ struct ClosureConvert {
 }
 ```
 
-`ItemSupply`, same as `VarSupply`, provides fresh `ItemId`s as needed.
-`ClosureConvert` exposes the `convert` method:
+`ItemSupply`, like `VarSupply`, provides fresh `ItemId`s as needed.
+`var_supply` we've seen before, you can find `VarSupply`'s implementation in the [full code](https://github.com/thunderseethe/making-a-language/tree/main/closure_convert/base) if you're curious.
+`items` holds the item we generate for closures, it will eventually become `closure_items` in our output.
+`ClosureConvert` exists to provide the `convert` method:
 
 ```rs
 fn convert(
@@ -382,6 +428,8 @@ fn convert(
 }
 ```
 
+`convert` is where we both convert our `lowering::IR` to our new IR, and convert our lambdas to closures.
+It takes the form of match on our input `ir`.
 We'll cruise through our first few cases.
 They're boilerplate to translate from `lowering::IR` to `IR`:
 
@@ -405,8 +453,8 @@ lowering::IR::Local(var, defn, body) => {
 }
 ```
 
-`Local` has more code than our other cases, but ultimately it's converting each of it's subterms and reconstructing a `local`.
-Unsurprisingly, `Fun` is where we actually start changing things:
+`Local` has more code than our other cases, but ultimately it's converting each of its components and reconstructing a `local`.
+`Fun` is where we actually start changing things:
 
 ```rs
 lowering::IR::Fun(fun_var, body) => {
@@ -433,8 +481,8 @@ fn make_closure(
   todo!()
 }
 ```
-
-Before we can produce a closure from our lambda's body, some analysis is required.
+As is hopefully clear from the name, `make_closure` takes the pieces of a lambda and makes a closure from them.
+Before we can produce a closure from our lambda, some analysis is required.
 We need to:
 
 * Determine the free variables of our body.
@@ -453,9 +501,10 @@ free_vars.remove(&var);
 
 Before we determine the free variables we convert our body to our new IR.
 Converting our `body` consumes it, so before that we save our return type using `type_of`.
-`free_vars` walks our term constructing the set of free variables, you can find its implementation in the [source code](TODO).
+`free_vars` walks our term constructing the set of free variables, you can find its implementation in the [source code](https://github.com/thunderseethe/making-a-language/tree/main/closure_convert/base).
 We'll trust it works as advertised here.
-From the perspective of `body`, the variable bound by our lambda is free, so we remedy that after constructing our free variable set.
+From the perspective of `body`, the variable bound by our lambda is free.
+We happen to know it's immediately bound by aforementioned enclosing lambda, so we go ahead and remove it from the free variable set.
 
 Next we need to migrate our free variables to environment accesses.
 We begin by creating a variable for `env`:
@@ -503,10 +552,17 @@ let subst = free_vars
 body.rename(&subst);
 ```
 
-The order here is important, we need the `i + 1` used to access `env` to sync up with the order we use to construct our closure.
-Fortunately, `free_vars` is a `BTreeSet` which takes cares of keeping a consistent order for us.
+Each of our free variables becomes an `Access` of our env.
+Surprisingly, those accesses are offset by one.
+We need that offset because our `env` is also our closure.
+Its first field is the reference to our top level function.
+Our free variables only start appearing at index one and onwards.
+
+The order of accesses is important. 
+We need the index used to access `env` to sync up with the order of variables we use to construct our closure.
+Fortunately, `free_vars` is a `BTreeSet` which keeps a consistent order for us.
 While creating `subst`, we modify `body` wrapping it in locals during iteration.
-This serves to perform our env accesses once at the start of our body rather than multiple times throughout.
+These locals perform our env accesses once at the start of our body rather than multiple times throughout.
 
 Rather than translating our closure body `x * y + a` into `x * env.y + env.a`, it becomes:
 
@@ -518,7 +574,7 @@ x * t0 + t1
 
 In this contrived example the change seems negligible, maybe even a downgrade.
 For most closures, however, we expect this change to increase sharing and reduce the number of heap accesses performed.
-The downside is we may unnecessarily load a value we otherwise don't use.
+With the caveat, we may unnecessarily load a value we otherwise don't use.
 For example, `if x { env.a } else { env.b }` becomes:
 
 ```rs
@@ -528,14 +584,14 @@ if x { t0 } else { t1 }
 ```
 
 Whoops! All of a sudden we always load both our environment's fields rather than the specific one we need.
-We're willing to make this tradeoff, however.
-Code like this is also unlikely in the wild.
+We're willing to make this tradeoff, for now.
+Code like this is unlikely to appear in the wild.
 We can come back over and use a more sophisticated heuristic if we make it far enough for this to be a problem.
 
 Because of this approach, `subst` is a `HashMap<Var, Var>` rather than a `HashMap<Var, IR>`.
 This allows us to use `rename` on body.
 `rename` traverses our term and updates any variables that appear in `subst`.
-We'll only look at an excerpt here:
+An excerpt suffices to show its functionality:
 
 ```rs
 fn rename(&mut self, subst: &HashMap<Var, Var>) {
@@ -545,12 +601,11 @@ fn rename(&mut self, subst: &HashMap<Var, Var>) {
         *var = new_var.clone();
       }
     }
-    // the rest of cases are banal
+    // the rest of our cases are standard
   }
 }
 ```
 
-If a variable appears in `subst`, we swap it.
 Our final task in `make_closure` is to create our item:
 
 ```rs
@@ -568,7 +623,7 @@ IR::Closure(closure_ty, item, vars)
 ```
 
 Our item consists of our two parameters env and the variable provided by our lambda, the return type, and our refurbished lambda body.
-We add this to `items` as one of our closures top level functions.
+We save this in `items` as one of our closures top level functions.
 The resulting closure is constructed from our type, item, and free variables.
 
 We take our knowledge of closure construction back to `convert` to handle our final case:
@@ -584,6 +639,16 @@ lowering::IR::App(fun, arg) => {
 Oh uh...huh.
 I kind of expected more fanfare after the build up for `Fun`.
 We kind of just recursively call `convert` and construct an `Apply`.
+
+{{< accessory title="Why do we even need Apply?" >}}
+`Apply` looks like it could just be `App`.
+And that's true, we could avoid the rename.
+
+The reason we rename it is to highlight its usage with closures.
+Eventually we will have top level items, and when we do those can use `App` normally to pass arguments.
+Then our distinction will becomes meaningful: `Apply` unpacks and calls a closure and `App` calls a top level item.
+{{< / accessory >}}
+
 Okay well maybe that's all our cases for `convert`, but surely there's still some work left in `closure_convert`:
 
 ```rs
@@ -602,9 +667,10 @@ fn closure_convert(ir: lowering::IR) -> ClosureConvertOutput {
 ```
 
 Hm, not a lot going on here either.
-Once we've converted `ir` we build our output and return it.
+Once we've converted `ir` we build our output and return it immediately.
 
-I was expecting worse, our changes were really localized to `Fun`.
+I was expecting worse. 
+Our biggest changes are really localized to `Fun`.
 Now seems like a prime opportunity to talk about what we didn't do!
 Our closure conversion makes some simplifying assumptions.
 The largest of which is that each of our closures takes a single parameter.
@@ -619,7 +685,7 @@ IR::fun(...,
 
 Each `Fun` get its own struct and top level function.
 But that's a bit of waste, isn't it?
-Our first two functions immediately return lambdas.
+Our first two functions immediately return closures.
 The action doesn't start until we reach `<body>`.
 
 It'd be nice if we could produce one struct and one top level function for the "real work" of our function.
@@ -628,12 +694,12 @@ Of course, this is how production closure conversion implementations handle chai
 It's hard to deny the benefits.
 You pay for it in implementation complexity, however.
 
-Details can be found in [Making a Fast Curry](https://simonmar.github.io/bib/papers/eval-apply.pdf), an accessible rundown on closures and their required runtime support.
+The details can be found in [Making a Fast Curry](https://simonmar.github.io/bib/papers/eval-apply.pdf), an accessible rundown on closures and their required runtime support.
 Multi argument closures require arity tracking to determine when applications should save an argument vs calling a top level function.
 This answer is obvious when all our closures have a single argument.
-We're willing to lose out on the potential performance to make our lives easier, for now.
-But it's worth knowing what alternatives are out there.
+We're willing to lose out on the potential performance to make our lives easier, but it's worth knowing alternatives are out there.
 
 Closure conversion removes one of the last remaining obstacles to code emission: variable capture.
-Our IR now contains integers, "structs" (we don't have general structs but closures count here), and top level functions.
-All constructs that are close enough to the hardware that we can see how they map onto the machine.
+Our IR now contains integers, "structs" (we don't have general structs but closures count), and top level functions.
+All constructs that are close enough to the hardware, we can see how they map onto the machine.
+As always you can find all the details in the [making a language repository](https://github.com/thunderseethe/making-a-language/tree/main/closure_convert/base).
