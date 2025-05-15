@@ -699,6 +699,89 @@ Multi argument closures require arity tracking to determine when applications sh
 This answer is obvious when all our closures have a single argument.
 We're willing to lose out on the potential performance to make our lives easier, but it's worth knowing alternatives are out there.
 
+## Working an Example
+
+Let's walk through an example to see how our previous IR turns into our closure conversion IR.
+Because our IR terms are going to be large, we'll show them using the pretty printing format.
+The format omits types for brevity, but the types are still present in the underlying IR.
+I'll use human legible names for this example, but feel free to imagine them as `v0`, `v1`, etc. as they would be in the real IR.
+We'll start with the lowering IR:
+
+```lisp
+(fun [add]
+  (let [
+    (b 3)
+    (f (fun [x] (add x 1)))
+    (g (fun [a] (add (f a) (f b))))
+    (id (fun [t] t))
+  ] (id (g 2))))
+```
+
+We have three prime candidates for closure conversion (recall that our top level function is not converted): `f`, `g`, and `id`.
+Our first lambda, `f`, contains one free variable `add`.
+We create a fresh item to hold it's body and replace `add` by an access of the `env` parameter we create:
+
+```lisp
+(defn f_clos [env, x]
+  (let 
+    [(t0 env[1])]
+    (apply (apply t0 x) 1)))
+```
+
+During item creation, we convert `f`'s body, turning our `App` nodes into the new `Apply` node.
+We also let bound our env access and rename `add` to its new name `t0`.
+The zeroth element of env is a reference to `item0` itself
+`g` undergoes a similar transformation:
+
+```lisp
+(defn g_clos [env, a]
+  (let [
+    (t0 env[1])
+    (t1 env[2])
+    (t2 env[3])
+  ] (apply (apply t0 (apply t1 a)) (apply t1 t2))))
+```
+
+This time we have more free variables to let bind.
+`g` captures `add`, `f`, and `b`, becoming `t0`, `t1`, and `t2` respectively.
+It really becomes clear with the shift to `apply` how often we're unpacking closures.
+The final lambda, `id`, doesn't actually capture any variables, but still we closure convert it, when all you have is a hammer:
+
+```lisp
+(defn id_clos [env, t] t)
+```
+
+Our lack of captured variables keeps our `id` item short, but we still introduce an `env` parameter even though it's devoid of captures.
+Putting it all together our final IR is a set of four items:
+
+```lisp
+(defn f_clos [env, x]
+  (let 
+    [(t0 env[1])]
+    (apply (apply t0 x) 1)))
+
+(defn g_clos [env, a]
+  (let [
+    (t0 env[1])
+    (t1 env[2])
+    (t2 env[3])
+  ] (apply (apply t0 (apply t1 a)) (apply t1 t2))))
+
+(defn id_clos [env, t] t)
+
+(defn main [add] 
+  (let [
+    (b 3)
+    (f (closure f_clos [add]))
+    (g (closure g_clos [add, f, b]))
+    (id (closure id_clos []))
+  ] (apply id (apply g 2))))
+```
+
+We can see our three `fun`s have been replaced by closures.
+Our closures reference the top level function we generated for them, and also track the variables captured explicitly.
+We use this list of captures to construct the struct that will act as our closure.
+
 Closure conversion removes one of the last remaining obstacles to code emission: variable capture.
 Our IR now contains integers, "structs" (we don't have general structs but closures count), and top level functions.
 All constructs that are close enough to the hardware, we can see how they map onto the machine.
