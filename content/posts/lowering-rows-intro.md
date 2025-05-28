@@ -1,5 +1,5 @@
 +++
-title = "Lowering[1].Rows[0]: Lowering Row Types, Evidently"
+title = "Lowering Row Types, Evidently"
 date = "2025-02-11T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
@@ -7,6 +7,14 @@ series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "Evidence Passing", "Witness", "Row Types", "Abstracting Extensible Datatypes"]
 description = "Explaining how we'll lower row types into our IR"
 +++
+
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+This post undertakes lowering rows building on our [previous pass](/posts/row-types) that inferred row types.
+It extends the [lowering](/posts/lowering-base-ir) we did for the base language.
+{{</ accessory >}}
 
 [Last time](/posts/lowering-base-ir), we lowered [types/base](https://github.com/thunderseethe/making-a-language/tree/main/types/base) into our IR.
 That was exciting, but I professed some anxieties that all we had really done is swap an `Ast::` prefix for an `IR::` prefix.

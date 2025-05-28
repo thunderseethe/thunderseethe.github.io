@@ -1,5 +1,5 @@
 +++
-title = "Types[1].Rows: Rowing Afloat Datatype Boats"
+title = "Rowing Afloat Datatype Boats"
 date = "2023-10-21T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
@@ -8,6 +8,14 @@ keywords = ["Programming Languages", "Compiler", "Type Inference", "Bidirectiona
 description = "Row, row, row your types"
 +++
 
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+This post covers type inference for row types, a method for adding data types to our language.
+It extends the base language with support for row types and their constructs.
+{{</ accessory >}}
+
 [Last episode](/posts/unification) we assembled a simple type inference engine end to end.
 Powerful enough to check both functions _and_ integers, without any annotations at all.
 Perfect as it is, our type inference (and language) lacks one teensy feature.
@@ -15,11 +23,14 @@ It doesn't have any data types.
 We'll rectify that on today's episode by adding support for row types.
 
 A row type is a mapping from labels to types, for example:
+
 ```
 ( x : Int, y : Int )
 ```
+
 This is a row with two labels `x` and `y` both mapped to type `Int`.
 Rows are used in two ways:
+
 * As a product type where it will be a struct with two fields `x` and `y`.
 * As a sum type where it will be an enum with two variants `x` and `y`.
 

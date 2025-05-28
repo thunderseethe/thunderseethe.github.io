@@ -1,5 +1,5 @@
 +++
-title = "Lowering[2].Items: Lowering Top Level Items"
+title = "Lowering Top Level Items"
 date = "2025-03-04T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
@@ -7,6 +7,14 @@ series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "System F", "Item", "Instantiation", "Generalization", "Recursion"]
 description = "Lowering top level items into our IR. A more elaborate affair than anticipated."
 +++
+
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+This post lowers top level functions from our [prior pass](/posts/check-top-level-items).
+It extends the row language with support for items (top level functions) in our IR.
+{{</ accessory >}}
 
 [Last time](/posts/lowering-rows-intro) saw us endeavoring upon a trilogy to bring rows crashing down from their high-flying AST nodes into the realities of our lowly IR.
 Our goals this time are less highfalutin. 

@@ -1,5 +1,5 @@
 +++
-title = "Types[0].Base[1]: Turning Our AST Into Type Constraints"
+title = "Turning Our AST Into Type Constraints"
 date = "2023-06-24T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
@@ -7,6 +7,14 @@ series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Type Inference", "Bidirectional Typechecking", "Constraint Generation", "Polymorphism"]
 description = "Generate Type Constraints with a Bidirectional Type System"
 +++
+
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+Today's post builds on the previous [type inference post](/posts/type-inference/) for the base language.
+{{</ accessory >}}
+
 [Last time](/posts/type-inference/), we laid out the AST and Type for the language we are building. We also got a bird's-eye view of our type inference algorithm: constraint generation, constraint solving, substitute our solved types. This time we're implementing the constraint generation portion of our type inference algorithm.
 
 Our passes will need to share some state between each other. We introduce a `TypeInference` struct to hold this shared state and implement our passes as methods on that struct:

@@ -1,5 +1,5 @@
 +++
-title = "Monomorph[0].Base: Casting Out Polymorphism with Monomorphization"
+title = "Casting Out Polymorphism with Monomorphization"
 date = "2025-05-11T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Monomorph"]
@@ -195,7 +195,7 @@ Our middleend passes all work on a common `IR`:
 ```rs
 enum IR {
   Var(Var),
-  Int(isize),
+  Int(i32),
   Fun(Var, Box<Self>),
   App(Box<Self>, Box<Self>),
   TyFun(Kind, Box<Self>),

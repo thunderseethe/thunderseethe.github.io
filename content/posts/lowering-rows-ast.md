@@ -1,5 +1,5 @@
 +++
-title = "Lowering[1].Rows[2]: The Heart of Lowered Rows"
+title = "The Heart of Lowered Rows"
 date = "2025-02-26T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
@@ -7,6 +7,13 @@ series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "Evidence Passing", "Witness", "Row Types", "Abstracting Extensible Datatypes"]
 description = "Lowering row asts by generating evidence terms"
 +++
+
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+This post continues lowering rows from our [previous post](/posts/lowering-rows-ty).
+{{</ accessory >}}
 
 [Last time](/posts/lowering-rows-ty) we upgraded `lower_ty_scheme` to support rows and saw how we'd use it's evidence to inform `lower_ast`.
 We're getting to the heart of lowering rows this time: generating and applying our evidence terms.

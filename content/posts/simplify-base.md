@@ -1,5 +1,5 @@
 +++
-title = "Simplify[0].Base: Back to basics by simplifying our IR"
+title = "Back to basics by simplifying our IR"
 date = "2025-04-30T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Simplify"]
@@ -44,7 +44,7 @@ In lowering, we turned our `Ast` into our `IR`:
 ```rs
 enum IR {
   Var(Var),
-  Int(isize),
+  Int(i32),
   Fun(Var, Box<Self>),
   App(Box<Self>, Box<Self>),
   TyFun(Kind, Box<Self>),
