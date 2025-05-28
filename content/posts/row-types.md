@@ -113,7 +113,7 @@ enum Ast<V> {
 ```
 
 `Concat` combines two product types into a bigger product type.  
-`Project` maps a product into a smaller product made from a subset of its fields.  
+`Project` maps a product type into a smaller product type made from a subset of its fields.  
 Our next pair is sum types:
 
 ```rs
@@ -121,7 +121,7 @@ Our next pair is sum types:
   Branch(NodeId, Box<Self>, Box<Self>),
 ```
 
-`Inject` maps a small sum into a bigger sum containing the smaller sum's cases.  
+`Inject` maps a small sum type into a bigger sum type containing the smaller sum's cases.  
 `Branch` combines two destructors for sum types into a big destructor for the combination of the two sum types.  
 This is our row-ified version of a match statement.
 We won't cover what that looks like in practice, but [THE paper](https://dl.acm.org/doi/10.1145/3290325) has a section devoted to it if you're interested.
@@ -176,12 +176,11 @@ Ast::unlabel(
 ```
 Label is used twice here to create two singleton rows `x : Int` and `y : Int`.
 These are concatenated to form one product row: `{ x : Int, y : Int }`.
-That product row is projected out into a new product row: `{ x : Int }`,
-which is finally unlabeled to give us back our int: `4`.
+That product row is projected out into a new product row: `{ x : Int }`, which is finally unlabeled to give us back our int: `4`.
 
 # Row Types
 
-We can use our new AST nodes to inform what new types we need just like our original type inference.
+We can use our new AST nodes to inform what new types we need, just like our base type inference.
 Each new constructor that produces a value requires a type:
 
   * `Concat` - `Product` types
