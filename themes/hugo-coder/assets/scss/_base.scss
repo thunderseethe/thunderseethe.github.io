@@ -315,3 +315,12 @@ figure {
 .fas {
   font-weight: 900;
 }
+
+.blogroll {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  align-content: space-around;
+  gap: 1rem;
+}
