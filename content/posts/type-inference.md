@@ -1,5 +1,5 @@
 +++
-title = "Types[0].Base[0]: Typechecking a Language without a Parser"
+title = "Typechecking a Language without a Parser"
 date = "2023-06-17T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
@@ -8,7 +8,13 @@ keywords = ["Programming Languages", "Compiler", "Type Inference", "Bidirectiona
 description = "Designing a language, types first"
 +++
 
-## Intro
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+This is the first post in the series, talking about type inference for a simple functional language.
+{{</ accessory >}}
+
 I'd like to design a language, more specifically implement a compiler for a programming language I've made up.
 This is not the first time I've wanted to do this. 
 In fact, I've had the [itch](https://github.com/thunderseethe/waht) [quite a](https://github.com/thunderseethe/panera) [few](https://github.com/thunderseethe/brainfuck_interpreter) [times](https://github.com/thunderseethe/false_interpreter) [before](https://github.com/thunderseethe/tiger).
@@ -85,7 +91,7 @@ enum Ast<V> {
   /// A local variable
   Var(NodeId, V),
   /// An integer literal
-  Int(NodeId, isize),
+  Int(NodeId, i32),
   /// A function literal 
   /// (lambda, closure, etc.)
   Fun(NodeId, V, Box<Self>),
@@ -102,6 +108,9 @@ Each of our nodes gets a `NodeId`.
 ```rs
 struct NodeId(u32);
 ```
+
+We'll use `NodeId` to maintain extra metadata about our AST.
+If we wanted to save the type of each AST node, for example, we could do so with a `HashMap<NodeId, Type>`.
 
 We parameterize our AST by a type parameter `V`.
 `V` will be the variable of our AST used in `Var` and `Fun`.

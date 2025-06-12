@@ -1,5 +1,5 @@
 +++
-title = "Lowering[1].Rows[1]: The Types of Lowered Rows"
+title = "The Types of Lowered Rows"
 date = "2025-02-18T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
@@ -7,6 +7,13 @@ series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "Evidence Passing", "Witness", "Row Types", "Abstracting Extensible Datatypes"]
 description = "Lowering row evidence from our type scheme"
 +++
+
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+This post continues lowering rows from our [previous post](/posts/lowering-rows-intro).
+{{</ accessory >}}
 
 [Last time](/posts/lowering-rows-intro) we learned how we're going to lower row types and made some row addendums for `IR` and `Type`.
 Today, we'll update `lower_ty_scheme`, using those addendums, to generate types for `Evidence`.

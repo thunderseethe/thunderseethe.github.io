@@ -321,3 +321,12 @@ figure {
   flex-direction: row;
   justify-content: center;
 }
+
+.blogroll {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  align-content: space-around;
+  gap: 1rem;
+}

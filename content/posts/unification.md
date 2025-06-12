@@ -1,5 +1,5 @@
 +++
-title = "Types[0].Base[2]: Tying up Type Inference"
+title = "Tying up Type Inference"
 date = "2023-07-01T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
@@ -7,7 +7,16 @@ series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Type Inference", "Bidirectional Typechecking", "Constraint Generation", "Polymorphism"]
 description = "Solve Type Constraints via Unification"
 +++
+
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+This is the capstone of type inference we built towards with [constraint generation](/posts/bidirectional-constraint-generation).
+{{</ accessory >}}
+
 ## Constraint Solving
+
 [On last week's episode](/posts/bidirectional-constraint-generation) we generated a set of constraints with our bidirectional type system.
 Now that we've got our set of constraints, we can attempt to solve them.
 So what does it mean to solve a constraint? A constraint is something that has to be true about our types.

@@ -1,5 +1,5 @@
 +++
-title = "ClosureConvert[0].Base: Closure Conversion Takes The Function Out Of Functional Programming"
+title = "Closure Conversion Takes The Function Out Of Functional Programming"
 date = "2025-05-14T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "ClosureConvert"]
@@ -245,7 +245,7 @@ Our middleend passes all work on a common `IR`:
 ```rs
 enum IR {
   Var(Var),
-  Int(isize),
+  Int(i32),
   Fun(Var, Box<Self>),
   App(Box<Self>, Box<Self>),
   TyFun(Kind, Box<Self>),

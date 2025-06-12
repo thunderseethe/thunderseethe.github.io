@@ -1,5 +1,5 @@
 +++
-title = "Lowering[0].Base[0]: Lowering Our AST to Escape the Typechecker"
+title = "Lowering Our AST to Escape the Typechecker"
 date = "2025-01-28T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
@@ -7,6 +7,14 @@ series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "System F", "DeBruijn Index"]
 description = "Lowering our typed base AST into a System-F based IR"
 +++
+
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+This post covers turning our typed AST into our intermediate representation for our base language.
+It builds on the outputs of the [previous pass](/posts/type-inference) where we inferred types for the base language.
+{{</ accessory >}}
 
 We've been in [type checking](/posts/check-top-level-items) so long it's becoming a tar pit deep enough to rival picking a parser.
 Our only hope of escape is to delve deeper, lest we find ourselves fretting over the endlessly enticing type checker features available to adjoin.
@@ -64,7 +72,7 @@ fn lower(
 ```rs
 enum IR {
   Var(Var),
-  Int(isize),
+  Int(i32),
   Fun(Var, Box<Self>),
   App(Box<Self>, Box<Self>),
   TyFun(Kind, Box<Self>),

@@ -1,5 +1,5 @@
 +++
-title = "Lowering[0].Base[1]: Escaping the Typechecker, an Implementation"
+title = "Escaping the Typechecker, an Implementation"
 date = "2025-02-04T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Lowering"]
@@ -7,6 +7,14 @@ series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Lowering", "Elaboration", "IR", "System F", "DeBruijn Index", "Implementation"]
 description = "Implementation of our lowering function"
 +++
+
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+This post builds on the [previous lowering post](/posts/lowering-base-ir).
+Now that we have some more theory about lowering we undertake Implementation this time around.
+{{</ accessory >}}
 
 Armed with the knowledge of `IR` and `Type` from [last time](/posts/lowering-base-ir), we can finally write some code:
 
@@ -35,7 +43,7 @@ enum Ast<V> {
   /// A local variable
   Var(NodeId, V),
   /// An integer literal
-  Int(NodeId, isize),
+  Int(NodeId, i32),
   /// A function literal 
   /// (lambda, closure, etc.)
   Fun(NodeId, V, Box<Self>),

@@ -1,5 +1,5 @@
 +++
-title = "Types[2].Items: TypeChecking Top Level Functions"
+title = "Checking Types of Top Level Functions"
 date = "2024-07-05T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
@@ -8,6 +8,13 @@ keywords = ["Programming Languages", "Compiler", "Type Inference", "Bidirectiona
 description = "Adding support for annotated top level items to our type checker"
 +++
 
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+This post covers type checking for top level functions.
+It extends the row language with top level functions and type checking.
+{{</ accessory >}}
 
 [Last season](/posts/row-types), boy how time flies, we added support for algebraic datatypes using row types.
 With **both** product and sum types, our type inference must be near completion.

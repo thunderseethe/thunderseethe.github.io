@@ -1,7 +1,6 @@
 <div class="post" stlye="display:flex; flex-shrink: 1;">
   <a class="title" href="{{ .Params.externalLink | default .RelPermalink }}">
-    {{ $title := .Title }}
-    {{ index (split $title ":") 1 }}
+    {{ .Title }}
   </a>
   <div>
     <span class="date">{{ .Date | time.Format (.Site.Params.dateFormat | default "January 2, 2006" ) }}</span>

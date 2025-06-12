@@ -1,5 +1,5 @@
 +++
-title = "Types[1].Rows: Rowing Afloat Datatype Boats"
+title = "Rowing Afloat Datatype Boats"
 date = "2023-10-21T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
@@ -8,6 +8,14 @@ keywords = ["Programming Languages", "Compiler", "Type Inference", "Bidirectiona
 description = "Row, row, row your types"
 +++
 
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+This post covers type inference for row types, a method for adding data types to our language.
+It extends the base language with support for row types and their constructs.
+{{</ accessory >}}
+
 [Last episode](/posts/unification) we assembled a simple type inference engine end to end.
 Powerful enough to check both functions _and_ integers, without any annotations at all.
 Perfect as it is, our type inference (and language) lacks one teensy feature.
@@ -15,11 +23,14 @@ It doesn't have any data types.
 We'll rectify that on today's episode by adding support for row types.
 
 A row type is a mapping from labels to types, for example:
+
 ```
 ( x : Int, y : Int )
 ```
+
 This is a row with two labels `x` and `y` both mapped to type `Int`.
 Rows are used in two ways:
+
 * As a product type where it will be a struct with two fields `x` and `y`.
 * As a sum type where it will be an enum with two variants `x` and `y`.
 
@@ -102,7 +113,7 @@ enum Ast<V> {
 ```
 
 `Concat` combines two product types into a bigger product type.  
-`Project` maps a product into a smaller product made from a subset of its fields.  
+`Project` maps a product type into a smaller product type made from a subset of its fields.  
 Our next pair is sum types:
 
 ```rs
@@ -110,7 +121,7 @@ Our next pair is sum types:
   Branch(NodeId, Box<Self>, Box<Self>),
 ```
 
-`Inject` maps a small sum into a bigger sum containing the smaller sum's cases.  
+`Inject` maps a small sum type into a bigger sum type containing the smaller sum's cases.  
 `Branch` combines two destructors for sum types into a big destructor for the combination of the two sum types.  
 This is our row-ified version of a match statement.
 We won't cover what that looks like in practice, but [THE paper](https://dl.acm.org/doi/10.1145/3290325) has a section devoted to it if you're interested.
@@ -165,12 +176,11 @@ Ast::unlabel(
 ```
 Label is used twice here to create two singleton rows `x : Int` and `y : Int`.
 These are concatenated to form one product row: `{ x : Int, y : Int }`.
-That product row is projected out into a new product row: `{ x : Int }`,
-which is finally unlabeled to give us back our int: `4`.
+That product row is projected out into a new product row: `{ x : Int }`, which is finally unlabeled to give us back our int: `4`.
 
 # Row Types
 
-We can use our new AST nodes to inform what new types we need just like our original type inference.
+We can use our new AST nodes to inform what new types we need, just like our base type inference.
 Each new constructor that produces a value requires a type:
 
   * `Concat` - `Product` types
