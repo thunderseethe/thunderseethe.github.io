@@ -176,6 +176,25 @@
         </div>
       </div>
     </div>
+    <div class="mal-pass">
+      <div class="mal-header">
+        <h2>Emit</h2>
+      </div>
+      <div class="mal-content">
+        <p>
+        Code emission, or code generation, turns our closure converted items into executable code by targeting WebAssembly (Wasm).
+        This involves flattening our tree-structured IR into a list of Wasm operations and converting our closures into Wasm structs.
+        </p>
+        <div>
+          <h3>Base</h3>
+          <div style="display: flex; flex-direction: column">
+            {{ with (.GetPage "/posts/emit-base") }}
+              {{ partial "card.html" . }}
+            {{ end }}
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 </section>
 {{ end }}

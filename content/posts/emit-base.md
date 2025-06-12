@@ -8,6 +8,14 @@ keywords = ["Programming Languages", "Compiler", "Functions", "IR", "Compiler", 
 description = "Turning our Base IR into executable WebAssembly"
 +++
 
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+Today's post is preceded by the [base closure conversion pass](/posts/closure-convert-base).
+Code emission turns our closure conversion IR into our executable target: WebAssembly.
+{{</ accessory >}}
+
 Today is a great day.
 We stand together on the precipice of execution.
 All the work we've done till now culminates in our final compilation pass: Code Generation.
@@ -26,7 +34,7 @@ It allows us to eschew lower level backend passes such as:
 * [Liveness Analysis](https://en.wikipedia.org/wiki/Live-variable_analysis)
 * [Instruction Selection](https://en.wikipedia.org/wiki/Instruction_selection)
 
-## Bytecode (WIP Name)
+## Bytecode
 
 Wasm is able to skip over these passes because it's a [bytecode](https://en.wikipedia.org/wiki/Bytecode) format, despite the implications of the name WebAssembly.
 Bytecode is not executed directly by a CPU, but is executed by a Virtual Machine (VM) that translates the bytecode into assembly and executes it.
