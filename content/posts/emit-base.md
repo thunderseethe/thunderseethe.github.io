@@ -528,7 +528,7 @@ We'll refer to that closure by three different types throughout code generation:
 * `(struct (field (ref $fun)))` - a struct with a single field for the function of our closure
 * `(struct (field (ref $fun)) (field i32))` - the full struct type containing both the function and the environment.
 
-We'll refer to the latter two as the abstract type and environment type of the closure.
+We'll refer to the latter two as the abstract type and concrete type of the closure respectively.
 
 `EmitTypes` is not the final form of our types.
 Accordingly, `PartialTy` represents the subset of a type we care about during emission:
@@ -625,7 +625,7 @@ We can be confident this won't happen, however, because our `IR` is type checked
 
 Alright, so we don't necessarily have to worry about passing the wrong `struct`.
 But why use the `struct` type and risk it?
-We can't use the precise closure environment type, we only know that type within our closure's body.
+We can't use the precise closure concrete type, we only know that type within our closure's body.
 When passing the closure to itself as the environment parameter, we only know the closures function type.
 Wouldn't that be an improvement at least?
 It would prevent treating unit structs as environments.
@@ -638,7 +638,7 @@ We've found ourselves typing in circles.
 Wasm actually has support for [recursive types](https://webassembly.github.io/gc/core/syntax/types.html#recursive-types).
 We _could_ track these recursive groups for each closure and emit them.
 But the extra complexity this would incur buys us little in terms of extra safety or performance.
-Within our closure body, we'd still have to cast from our closure's abstract type to the closure's environment type.
+Within our closure body, we'd still have to cast from our closure's abstract type to the closure's concrete type.
 We opt to cheat our types a little and save ourselves the trouble.
 
 Back in `emit_closure_index` we have another unseen function: `emit_ref_ty`.
@@ -691,7 +691,7 @@ impl AsValTy for u32 {
 Turning our type index into a value type is a simple matter of treating it as a reference type.
 We construct a `Ref` value type with an instance of `RefType` pointing at our type index. 
 Wasm supports nullable references, but our language lacks them, so we mark all our reference types non-nullable.
-Back in `emit_closure_index`, for one final time, all that remains is to construct our output:
+Back in `emit_closure_index`, third time's the charm, all that remains is to construct our output:
 
 ```rs
 ClosureTypeIndex {
@@ -752,16 +752,13 @@ That polishes off `EmitTypes` for now, there are still some helpers left, but we
 
 ## Emitting Instructions
 
-We'll use our newfound knowledge of type emission to convert types we come across as we acheive our main goal: emitting wasm instructions.
+We'll use our newfound knowledge of type emission to convert types we come across as we achieve our main goal: emitting Wasm instructions.
 It's all been building to this.
-Types are cool, but instructions are where we actually execute code.
-
-We have our work cut out for us on that front.
-Before actually emitting instructions, we're going to need some more setup.
+Types are cool, I suppose, but instructions are where all the juice lies.
 First on our list is `EmitWasm`, it will track the state we need between emitting individual functions:
 
 ```rs
-struct EmitWasm { 
+struct EmitWasm {
   types: EmitType,
   functions: HashMap<ItemId, u32>,
 }
@@ -771,7 +768,6 @@ struct EmitWasm {
 It's how we'll emit types as we go.
 `functions` is prepopulated with a function index per `ItemId` we'll encounter.
 We use it to map our items to their corresponding Wasm functions.
-
 The sole entrypoint into `EmitWasm` is `emit_item`:
 
 ```rs
@@ -810,9 +806,9 @@ impl Function {
 ```
 Regardless of which we pick, we're going to need an iterator of `ValType`s.
 These are the types of the local variables predeclared by our function.
-Locals, like everything in Wasm, are referenced by their index, so we don't have to name our locals just provide their types in order.
+Locals, like everything in Wasm, are referenced by their index, so we only have to provide their types, not name them.
 
-Unfortunately, we have not precomputed the locals used by our `IR`.
+Unfortunately, we have not precomputed the locals incorporated by our `IR`.
 This is only a minor setback, however.
 Rather than immediately create our function, we delay creation until after emitting our function's instructions:
 
@@ -833,10 +829,10 @@ We can then construct our `Function` and stuff it with our list of instructions.
 All our functions end the same way, `return` and `end`, so we include those regardless of what our list says.
 
 
-`return` returns the top value of our stack, and clobbers anything else left on the stack.
+`return` returns the top value of our stack from a function call, and clobbers anything else left on the stack.
 `end` ends the current scope.
 It's normally used for Wasm's structured control flow: `if`, `loop`, etc.
-Functions technically introduce a new scope as well, so it must be ended.
+Functions introduce a new scope as well, however, so it must be ended.
 I believe this is to help with streaming, but don't quote me on that.
 Let's look at how we turn our body into instructions:
 
@@ -856,12 +852,8 @@ fn emit_body(
 }
 ```
 
-Technically `emit_body` is cheating.
-We don't just take the body of our IR.
-We also take its parameters.
-It's for a good reason though.
-
-Function parameters in Wasm are accessed just as locals.
+`emit_body` takes the parameters of our items alongside the body.
+Function parameters in Wasm are accessed just as locals, meaning we have to know how many parameters we have to correctly assign indices to locals.
 If we have a function of two parameters, locals zero and one will refer to those parameters, and the actual local variables start at two.
 Parameters, however, don't have to be declared as locals in the function body.
 Their type can already be found from the function signature.
@@ -877,66 +869,40 @@ struct EmitLocals {
 }
 ```
 
-The most prominent task fulfilled by `EmitLocals` is tracking how many locals we use.
-Second to that is tracking the type of those locals
-It serves a final function, maintaining a mapping from variables to locals.
+The most prominent task fulfilled by `EmitLocals` is tracking how many locals we use in `next_local`.
+Second to that is tracking the type of those locals in `local_tys`.
+It serves a final function, maintaining a mapping from variables to locals in `locals`.
 It accomplishes these goals through three methods:
 
-* `param_for`
-* `local_for`
-* `anon_local`
-
-They all do variations on the same thing, so we'll run through them quickly:
-
 ```rs
-fn param_for(
-  &mut self, 
-  id: VarId
-) -> u32 {
-  let local = self.next_local;
-  self.next_local += 1;
-  self.locals.insert(id, local);
-  local
+impl EmitLocals {
+  fn param_for(
+    &mut self, 
+    id: VarId
+  ) -> u32;
+
+  fn anon_local(
+    &mut self
+  ) -> u32;
+
+  fn local_for(
+    &mut self,
+    id: VarId
+  ) -> u32;
 }
 ```
+
+They all do variations on the same thing, generate a local. 
+Their implementation is routine and reminiscent of `VarSupply`, so we won't cover them here.
+The full code can be found in the [repo](TODO).
 
 `param_for` returns the local for a parameter.
 Because we know it's a parameter, we don't track it in `local_tys`.
-We only map its variable to the local we generate.
-
-```rs
-fn anon_local(
-  &mut self, 
-  ty: ValType
-) -> u32 {
-  let local = self.next_local;
-  self.next_local += 1;
-  self.local_tys.push(ty);
-  local
-}
-```
-
 `anon_local` creates a local with no corresponding variable.
 Our variables and locals are not in a 1:1 mapping, so we use this when we need a local that doesn't appear in the `IR`.
 It's the opposite of `param_for`, we don't map a variable to our local and only track our locals type.
-
-```rs
-fn local_for(
-  &mut self, 
-  id: VarId, 
-  ty: ValType
-) -> u32 {
-  let local = self.next_local;
-  self.next_local += 1;
-  self.local_tys.push(ty);
-  self.locals.insert(id, local);
-  local
-}
-```
-
-`local_for`, our most common case, both tracks our local's type and maps a variable to our generated local.
-We will use this for all the variables we encounter that are not a parameter (i.e. most of them).
-Back in `emit_body`, we have a more immediate need for `param_for`:
+`local_for`, our most common case, both tracks our local's type and maps a variable to our local.
+Back in `emit_body`, we have an immediate need for `param_for`:
 
 ```rs
 for param in params {
@@ -950,8 +916,10 @@ After pre-seeding our locals with our parameters we handle the case where our bo
 let mut inss: Vec<Instruction> = vec![];
 
 if let Type::ClosureEnv(closure, env) = &params[0].ty {
-  let closure_env_index = self.types.emit_closure_env_index(closure, env);
-  let casted_env_local = locals.anon_local(closure_env_index.as_val_ty());
+  let closure_env_index = 
+    self.types.emit_closure_env_index(closure, env);
+  let casted_env_local = 
+    locals.anon_local(closure_env_index.as_val_ty());
   inss.extend([
     Instruction::LocalGet(locals[&params[0].id]),
     Instruction::RefCastNonNull(HeapType::Concrete(closure_env_index)),
@@ -966,8 +934,8 @@ if let Type::ClosureEnv(closure, env) = &params[0].ty {
 ```
 
 We know we're dealing with a closure body if our first parameter has a `ClosureEnv` type.
-When that happens, we need to cast our closure's abstract type to our closure's environment type.
-We can see this cast is performed by our first taste of emitting Wasm instructions:
+When that happens, we need to cast our closure's abstract type to our closure's concrete type.
+We can see this cast performed by our first taste of emitting Wasm instructions:
 
 ```rs
 Instruction::LocalGet(locals[&params[0].id]),
@@ -975,14 +943,13 @@ Instruction::RefCastNonNull(HeapType::Concrete(closure_env_index)),
 Instruction::LocalSet(casted_env_local),
 ```
 
-Our first instruction gets the value of the local associated with our first parameter.
-We trust this will always be a struct reference.
-The struct reference is cast to our closure's environment type, represented by the type index `closure_env_index`
-Finally we store our cast struct reference in a new anonymous local `casted_env_local`.
+Our first instruction gets the value of the local associated with our first parameter, our environment.
+The environment, a struct reference, is cast to our closure's concrete type, represented by the type index `closure_env_index`
+Finally, we store our cast struct reference in a new anonymous local `casted_env_local`.
 
 We need a new local for our `env` because its type has changed.
 For the remainder of the body, however, we only want to reference our cast environment.
-We have no need of the abstract closure our parameter provides.
+We no longer need the abstract `struct` our parameter provides.
 We surreptitiously swap the local associated with our first parameter to return our `casted_env_local`.
 Now whenever our body references its env parameter, it will use `casted_env_local` rather than `params[0]`.
 
@@ -1000,7 +967,7 @@ impl EmiTypes {
 }
 ```
 
-Given the components of a closure environment, `closure` and `env`, we'll produce a Wasm struct type containing a field for each type and intern it to produce a type index.
+Given the components of a closure environment, `closure` and `env`, we'll emit a Wasm struct type containing a field for each type.
 Our first step is turning our `closure` into its function type index:
 
 ```rs
@@ -1009,7 +976,7 @@ else {
   panic!("ICE: Non-closure type appeared in ClosureEnv type");
 };
 
-let closure_indices = 
+let closure_indices =
   self.emit_closure_index(arg, ret);
 ```
 
@@ -1036,17 +1003,18 @@ let fields = std::iter::once(code_field)
   .collect();
 ```
 
-Before constructing our struct type, we first emit a struct for our closure's abstract type:
+As we emit our closure's concrete type, we also emit our closure's abstract type.
+We need our closure's abstract type index to track the supertype relationship between our abstract and concrete types:
 
 ```rs
-let super_indx = self.emit_ref_ty(PartialTy::Struct(vec![code_field], false));
-let struct_idx = self.emit_ref_ty(PartialTy::Struct(fields, true));
-self.supertypes.insert(struct_idx, super_indx);
-struct_idx
+let abstract_indx = 
+  self.emit_ref_ty(PartialTy::Struct(vec![code_field], false));
+let concrete_indx = 
+  self.emit_ref_ty(PartialTy::Struct(fields, true));
+self.supertypes.insert(concrete_indx, abstract_indx);
+concrete_indx
 ```
-
-Our closure's abstract type index acts as the supertype of our full closure environment type.
-It's critical we track this supertype relationship whenever we produce a closure environment type.
+Upon getting our affairs in order, we return `concrete_indx` 
 We have one final stop in `emit_body`:
 
 ```rs 
@@ -1080,10 +1048,8 @@ If our match makes any recursive calls, I'll cry tears of joy.
 
 `emit_ir` has a humble goal: turn an `IR` into a list of instructions.
 We're going to take it case by case, but before that there's an important invariant we rely upon.
-TODO: Make sure we've explained Wasm is a stack machine by now.
-For any given expression in our `IR`, it must produce one value on the stack.
+For any given expression in our `IR`, it must produce one (and only one) value on the stack.
 The expression is free to do whatever in the list of instructions it emits, but by the end of those instructions it must have one value remaining.
-
 Our first case, `Var`, makes this easy to uphold:
 
 ```rs
@@ -1091,8 +1057,9 @@ IR::Var(var) =>
   inss.push(Instruction::LocalGet(locals[&var.id])),
 ```
 
-Whatever bound this variable created a local for it.
-All that's left for us to do is get the value out of the assigned local.
+Whenever this variable was bound, we created a local for it.
+All that's left for us to do is get the value out of that assigned local.
+Locals can only hold a single value, so our invariant is maintained.
 A similarly self-evident solution presents itself for `Int`:
 
 ```rs
@@ -1101,8 +1068,8 @@ IR::Int(i) =>
 ```
 
 When we encounter an integer literal, we immediately place it on the stack with `i32.const`.
-For `Closure`s we'll actually need multiple instructions.
-First we have to get our indices in order:
+For `Closure`s, we'll actually need multiple instructions.
+We begin by getting our indices in order:
 
 ```rs
 IR::Closure(ty, item_id, vars) => {
@@ -1118,10 +1085,14 @@ IR::Closure(ty, item_id, vars) => {
 ```
 
 We start by looking up the function index associated with our closure's `item_id`.
-Next we emit the type index for our closure's environment type.
-Even though closures are passed around as a single field struct, we need the full environment type here.
+This will be used to construct a reference to the closure's function.
+Next we emit the type index for our closure's concrete type.
+Even though closures are passed around as their abstract type, we need the concrete type here to construct our struct.
 It is required to construct our closure's struct, which contains both the function and the captured environment.
-We'll still need our closure's external type, so we also emit our closure's type and unwrap it to get at `heap_type`.
+
+We'll still need our closure's abstract type to cast our struct. 
+It's safe to assume `ty` is a `Closure` type, so we emit it as a value type and unwrap that type to retrieve our closure's abstract type as `heap_type`.
+A Wasm `HeapType` is a wrapper around a type index, in this case that type index points at the struct for our closure's abstract type.
 Our preparation lets us blitz out our instructions with little fanfare:
 
 ```rs
@@ -1134,15 +1105,39 @@ inss.extend(
 inss.push(Instruction::StructNew(struct_index));
 inss.push(Instruction::RefCastNonNull(heap_type));
 ```
-TODO: Explain what the stack looks like at struct new
-`RefFunc` creates a reference to a function from that functions index.
-For us, that will be the function that implements our closure.
-Our captured variables are variables, so we get the value of their local and load it onto the stack.
-All of this is fed into `StructNew` which uses our closure's environment type.
-Finally, we cast our newly created struct to `heap_type`, a struct type with a single field for our closure function.
+`RefFunc` creates a reference to a function from our function index.
+`LocalGet` loads our variables onto the stack.
+Before running `StructNew` our stack will contain:
 
-`Apply` has us unpacking closures and feeding them to themselves as environments.
-First again we have to gather indices:
+```goat {height="18rem" width="11rem"}
+ +----------+
+ |  var 2   |
+ +----------+
+ |  var 1   |
+ +----------+
+ |  var 0   |
+ +----------+
+ | func ref |
+ +----------+
+--------------
+    stack
+```
+
+All of this is fed into `StructNew` which uses our closure's concrete type, leaving a single struct ref on the stack:
+
+```goat {height="9rem" width="12rem"}
+ +------------+
+ | struct ref |
+ +------------+
+----------------
+     stack
+```
+
+Finally, we cast our newly created struct to `heap_type`, our closure's abstract type.
+This forgets the captured variables in the struct, leaving only the function reference field.
+
+Our next case, `Apply`, has us unpacking closures and feeding them to themselves as environments.
+We begin again by gathering indices (this is going to be a common theme):
 
 ```rs
 IR::Apply(fun, arg) => {
@@ -1158,7 +1153,11 @@ IR::Apply(fun, arg) => {
 ```
 
 We assume our `fun` has a closure type and produce its indices.
-Those are all the indices we need so we can start emitting instructions:
+Note only the index of the closure's abstract type and the index of its function type are needed, not the concrete type.
+This is what allows us to treat closures of different environments as if they were functions of the same type.
+We actually couldn't figure out the closure's concrete type if we wanted to here.
+We lack the type information.
+Those are all the indices we need, so we can start emitting instructions:
 
 ```rs
 self.emit_ir(*fun, locals, inss);
@@ -1171,10 +1170,11 @@ self.emit_ir(*arg, locals, inss);
 Look at those recursive calls.
 It brings a tear to one's eye.
 After emitting the instructions for `fun`, we expect the stack to contain one value, a reference to our closure.
-We rely on our invariant to ensure that's the case.
-We need to use our closure reference multiple times, so we create a local to hold it.
-`LocalTee` is a shorthand for a `LocalSet` followed by a `LocalGet`.
-It allows us to store our reference in a local while keeping it on top of the stack.
+We rely on our invariant to ensure that's the case, and there aren't a bunch of unrelated values lying on the stack.
+
+We need to use our closure reference multiple times, so we create an anonymous local to hold it.
+This is where our local mapping diverges from our variable mapping.
+We use `LocalTee` to set our local while leaving a copy on the stack.
 
 Emitting the instructions for our argument requires nothing more from us than the recursive call.
 Our stack is now our argument's value followed by our closure's reference from top to bottom.
@@ -1195,25 +1195,26 @@ We make use of our local to retrieve our closure reference.
 Rather than leave it on top of the stack, we get the first field from that reference which will be a function reference.
 Our stack heading into `CallRef` is:
 
-```goat
-+--------------+
-|  func ref    |                                                            
-+--------------+                                                                 
-|  arg value   |
-+--------------+                                                                 
-|  struct ref  |
-+--------------+
+```goat {height="15rem" width="14rem"}
+ +--------------+
+ |   func ref   |                                                            
+ +--------------+                                                                 
+ |     arg      |
+ +--------------+                                                                 
+ |  struct ref  |
+ +--------------+
+------------------
+      stack
 ````
 
 `CallRef` expects the top of our stack to be the function being called.
-After that should follow N values where N is the number of arguments the function takes.
-Importantly, these arguments are bottom to top, so the first argument of our function will be N entries from the top of the stack.
-Our closure functions always expect two arguments, the environment and one real argument.
-These are our `struct ref` and `arg value` on the stack.
+After that should follow N values where N is the number of arguments the function takes, in our case this will always be two.
+Every closure function expects two arguments, the environment and one real argument.
+Importantly, these arguments are bottom to top, so the first argument of our function will be two entries from the top of the stack.
 `CallRef` will consume these three stack entries and leave behind the result of calling our function.
 
-IR Local, not to be confused with our shiny new Wasm locals, are up next.
-Local doesn't really require any indices, so we jump straight into emission:
+`Local`, not to be confused with our shiny new Wasm locals, is up next.
+Local doesn't require any indices, so we jump straight into emission:
 
 ```rs
 self.emit_ir(*defn, locals, inss);
@@ -1224,20 +1225,14 @@ self.emit_ir(*body, locals, inss);
 ```
 
 We start by emitting our definition.
-After creating a Wasm local for our variable, we store our definition's value within the local.
+We store our definition's value within a freshly generated local.
 Notice this again relies on our invariant that each expression must produce exactly one value.
 If our definition produced 2 (or even worse 0) values, `LocalSet` would not behave correctly here.
 We finish up by emitting instructions for body.
 
-Unlike our previous run-ins with locals, we have essentially no scope management here.
-Our `local` is only set once we execute `LocalSet`, but nothing is stopping us from referencing it anywhere in our line of instructions. 
-We rely on our previous passes to ensure that our local is only referenced after it's set in our sea of Wasm code.
-
 Our last case, `Access`, retrieves a capture value from a closure environment.
-If we had structs, it would also retrieve values from structs.
-Struct abstinence saves us from the consequences of those complications.
-What we're left with repeats a pattern we've seen in our other nodes.
-First we generate some indices:
+This is where we'd retrieve struct fields, if we had any.
+The input to `Access` must be a `ClosureEnv`, so we unwrap it and generate indices:
 
 ```rs
 let ty = strukt.type_of();
@@ -1248,7 +1243,6 @@ let struct_type_index =
   self.types.emit_closure_env_index(&closure, &env);
 ```
 
-We assume our `strukt` has type `ClosureEnv` and use that to emit a type index for our Wasm struct type.
 Using that type index, we can access our struct:
 
 ```rs
@@ -1259,14 +1253,14 @@ inss.push(Instruction::StructGet {
 });
 ```
 
-Emitting instructions for `strukt` leaves a struct reference on the stack, which we immediately consume to get the `field` of referenced struct.
+Emitting instructions for `strukt` leaves a struct reference on the stack, which we immediately consume to get the `field` of our referenced struct.
 Our conversion `.try_into().unwrap()` takes us from a `usize` to a `u32`, so if our closure captures 4 million or more variables we'll crash.
-But honestly, I suspect the crash will come before this conversion.
-With that we've assembled everything we need to emit wasm from our IR.
+But honestly, in that situation, I suspect the crash will come before this conversion.
+With that we've assembled everything we need to emit Wasm from our IR.
 
 ## Finishing our Wasm Module
 
-We glue everything together in `emit_wasm`, our main function for this pass:
+We glue everything together in `emit_wasm`, our main top-level function for this pass:
 
 ```rs
 fn emit_wasm(
@@ -1280,11 +1274,9 @@ We take a list of items as our input.
 Our language only produces one "item" at the moment, since we lack top level functions right now.
 But recall that each closure receives its own item in closure conversion, so we may very well have multiple items at this point in our compiler.
 From these items we produce a `Vec<u8>`, a somewhat surprising choice.
-It doesn't appear to have anything to do with Wasm.
-Our byte vector is the binary encoding of the Wasm module we will generate.
+It doesn't appear to have anything to do with Wasm, but our byte vector is actually the binary encoding of our Wasm module.
 
-TODO: Make sure we've explained wasm modules prior to this
-A module is just a bunch of sections, so let's get some sections ready:
+A module is just a bunch of sections, so we prepare by creating some sections:
 
 ```rs
 let mut types = EmitType::default();
@@ -1310,10 +1302,10 @@ let functions: HashMap<ItemId, u32> = items
   .collect();
 ```
 
-As we build up our `func` and `export` sections with each item, we also emit each item type and build a map from item id to function index.
-This does mean we're exporting every item we emit, making it publicly available.
+As we build up our `func` and `export` sections with each item, we also emit each item type and build a map from item ID to function index.
+We're exporting every item we emit, making it publicly available.
 We'll worry about encapsulation once our language supports more than a single expression.
-`functions` is used to build `EmitWasm` which we immediately use to emit code:
+`functions` is used to build `EmitWasm` which we immediately use to build our code section:
 
 ```rs
 let mut emitter = EmitWasm {
@@ -1347,7 +1339,8 @@ module.finish()
 
 Order is important here, again.
 Nobody tells you this, but if you get the section order wrong here your Wasm module will silently break (and fail to validate).
-Let's take a peek into `into_type_section`:
+If we want to add more sections in the future, we have to make sure we place them in the right order in this code.
+Let's take a peek at how `into_type_section` turns `EmitTypes` into a type section:
 
 ```rs
 impl EmitTypes {
@@ -1387,24 +1380,8 @@ let (inner, is_final) = match ty {
 ```
 
 `CompositeInnerType` isn't particularly important here.
-It's just a helper type `wasm_encoder` provides to help us encode types.
-It provides cases for all the Wasm types:
-
-```rs
-enum CompositeInnerType {
-  /// The type is for a function.
-  Func(FuncType),
-  /// The type is for an array.
-  Array(ArrayType),
-  /// The type is for a struct.
-  Struct(StructType),
-  /// The type is for a continuation.
-  Cont(ContType),
-}
-```
-
-But we only need the function and struct case, since those are the only composite types we have.
-We also determine `is_final` for our type.
+It's just a helper type `wasm_encoder` provides to encode types.
+Our second tuple member determines finality for our type.
 For functions this is easy, they're never a subtype, so `is_final` is always true.
 Structs can be subtypes of each other, but fortunately we've kept track of which structs can be subtyped and which cannot.
 All we have to do here is pass along `is_final` from our partial type.
@@ -1473,12 +1450,7 @@ fn encode_subtype(&mut self, ty: &SubType) {
 
 We only do extra stuff when `ty.supertype_idx` is `Some` or `ty.is_final` is false.
 Both things we know will never be true for our function types, in which case we fall down to call `self.encode_function` the same as we would when emitting a non subtype.
-So for functions, emitting a subtype saves us a little bit of branching and ultimately doesn't impact our encoding.
-For structs, our subtype is crucial to our code executing correctly.
-
-Recall that our closures hinge on casting to their specific environment type within the closure's function body.
-This only works because we emit each environment type as a subtype of their closure's general type.
-If we, naively, emitting all our structs without subtypes, these casts would fail at runtime.
+Always emitting a subtype saves us a little bit of branching and ultimately doesn't impact our encoding.
 And that's all for creating our type section we turn each of our `PartialTy`s into a full Wasm subtype and return the section containing all of them. 
 
 That's also everything in emitting Wasm period.
@@ -1486,7 +1458,7 @@ We finished our module with the aptly named `module.finish()` which produced our
 
 ## Watching the magic unfold
 
-Our work up til now culminates in the ability to take an AST and turn it into executable code, truly the essence of compilation.
+Our work up til now culminates in the ability to take an AST and turn it into executable Wasm, truly the essence of compilation.
 Let's take a victory lap and try out emitting code for a simple AST:
 
 ```rs
@@ -1509,22 +1481,31 @@ Ast::fun(add,
 
 I'll omit the `NodeId`s, so the example is easier to read, feel free to insert them in your head.
 Our AST takes in a mysterious `add` function, partially applies it to 1 in `f`, and then uses it to add together two calls to `f` with `400` and `1234` as arguments respectively.
+In Haskell (I pick Haskell because it has currying), we would write this more succinctly as:
+
+```hs
+\add ->
+  let f = add 1
+   in add (f 400) (f 1234)
+```
+
 You might have noticed, our language lacks primitive numeric operations such as addition. 
 But we can fake it by taking a function conveniently named `add`. 
-If you look at the emit tests in the [repo](TODO), they actually do this to give us something tangible to check as our execution result.
+We can check for such a function when we execute our Wasm and provide a hard-coded implementation.
+If you look at the tests in the [repo](TODO), they actually do this to give us something tangible to check as our execution result.
 
-Running that modest AST through all the passes we've lovingly jammed together gives us some Wasm.
-I'll include it in text format, the binary format is much harder to read (feel free to convert it by hand to check it's the same!):
+Running that modest AST through all the passes we've lovingly jammed together gives us **some Wasm**.
+I'll include it in text format as the binary format can be hard to read:
 
 ```lisp
 (module
-  (type (;0;) (func (param (ref struct) i32) (result i32)))
-  (type (;1;) (sub (struct (field (ref 0)))))
-  (type (;2;) (func (param (ref struct) i32) (result (ref 1))))
-  (type (;3;) (sub (struct (field (ref 2)))))
-  (type (;4;) (func (param (ref 3)) (result i32)))
+  (type (func (param (ref struct) i32) (result i32)))
+  (type (sub (struct (field (ref 0)))))
+  (type (func (param (ref struct) i32) (result (ref 1))))
+  (type (sub (struct (field (ref 2)))))
+  (type (func (param (ref 3)) (result i32)))
   (export "func0" (func 0))
-  (func (;0;) (type 4) (param (ref 3)) (result i32)
+  (func (type 4) (param (ref 3)) (result i32)
     (local (ref 3) (ref 1) (ref 3) (ref 1) (ref 1) (ref 1))
     (local.set 2
       (call_ref 2
@@ -1557,10 +1538,9 @@ I'll include it in text format, the binary format is much harder to read (feel f
           (local.get 5))))))
 ```
 
-Now this might look like a lot of code for what amounts to calculating `(400 + 1) + (1234 + 1)`.
-And it is, but that's because we haven't optimized it yet.
+Now this might look like a lot of code for what amounts to calculating `(400 + 1) + (1234 + 1)`, and it is, but that's because we haven't optimized it yet.
 Part of the appeal of Wasm is it comes equipped with a lot of tooling we'd otherwise have to build ourselves.
-After running our Wasm through `wasm-opt` we'll get a more optimal version:
+After running our Wasm through `wasm-opt`, a CLI that optimizes Wasm, we'll get a more optimal version:
 
 ```lisp
 (module
@@ -1601,8 +1581,7 @@ After running our Wasm through `wasm-opt` we'll get a more optimal version:
     (local.get $4)))))
 ```
 
-Okay well...it does use fewer locals, so that's an improvement, certainly.
-Hard to say this is a lot better though.
+Okay well...it does use fewer locals, so that's better, but not a lot better.
 It's a far cry from what we might expect to see:
 
 ```lisp
@@ -1615,35 +1594,34 @@ It's a far cry from what we might expect to see:
     (i32.const 1)))
 ```
 
-We're working exclusively in constants, a truly optimized output would be simple:
+But I mean c'mon, we're working exclusively in constants, a truly optimized output would be:
 
 ```lisp
 (i32.const 1636)
 ```
 
-Our code is, ignoring the module stuff, way more instructions than either of these.
+Our code, even ignoring the module parts, is way more instructions than either of these.
 This is the result of two factors:
 
-* We pass in our `add` function.
+* We pass in our `add` function as a black box.
 * All functions in our language are implicitly single argument closures.
 
 Because `add` is passed in as a parameter, its source is not available for simplification.
-It's a black box.
 Compounding this problem, our add isn't a simple function of two integers that returns an integer.
 It's a closure that takes one int and returns a new closure.
 That closure takes another int and then finally returns an integer.
 
 The vast majority of our Wasm output isn't spent adding integers.
-Instead, we spend our instructions constructing and destructing closures.
-Which is all to say, we still have a lot of low-hanging fruit in the optimization garden.
-Despite that, this code works!
+Instead, we spend our instructions constructing and applying closures.
+We still have a lot of low-hanging fruit in the optimization garden.
+Despite that glaring downside, this code works!
 
 You can run this code and see our function returns `1636`, and in fact if you look at `test_example` in the [repo](TODO) we do just that.
 It took decades for people to figure out how to generate optimized code from functional languages.
-It'd be crazy to think we could rival that in a couple years of blog posts.
+It'd be crazy to think we could rival that in a couple of years of blog posts.
 But we don't have to.
 Our codegen is correct, even if suboptimal, and that's all we need to get started.
-We can iterate on this and improve it in blog posts to come.
+We can iterate on this and improve it in posts to come.
 
 With that we've done it.
 We've built a compiler.
