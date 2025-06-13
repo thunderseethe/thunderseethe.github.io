@@ -1,6 +1,6 @@
 +++
 title = "Skipping the Backend by Emitting Wasm"
-date = "2025-05-17T00:00:00Z"
+date = "2025-06-13T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Emit"]
 series = ["Making a Language"]
@@ -902,7 +902,7 @@ impl EmitLocals {
 
 They all do variations on the same thing, generate a local. 
 Their implementation is routine and reminiscent of `VarSupply`, so we won't cover them here.
-The full code can be found in the [repo](TODO).
+The full code can be found in the [repo](https://github.com/thunderseethe/making-a-language/tree/main/emit/base).
 
 `param_for` returns the local for a parameter.
 Because we know it's a parameter, we don't track it in `local_tys`.
@@ -1500,7 +1500,7 @@ In Haskell (I pick Haskell because it has currying), we would write this more su
 You might have noticed, our language lacks primitive numeric operations such as addition. 
 But we can fake it by taking a function conveniently named `add`. 
 We can check for such a function when we execute our Wasm and provide a hard-coded implementation.
-If you look at the tests in the [repo](TODO), they actually do this to give us something tangible to check as our execution result.
+If you look at the tests in the [repo](https://github.com/thunderseethe/making-a-language/tree/main/emit/base), they actually do this to give us something tangible to check as our execution result.
 
 Running that modest AST through all the passes we've lovingly jammed together gives us **some Wasm**.
 I'll include it in text format as the binary format can be hard to read:
@@ -1624,7 +1624,7 @@ Instead, we spend our instructions constructing and applying closures.
 We still have a lot of low-hanging fruit in the optimization garden.
 Despite that glaring downside, this code works!
 
-You can run this code and see our function returns `1636`, and in fact if you look at `test_example` in the [repo](TODO) we do just that.
+You can run this code and see our function returns `1636`, and in fact if you look at `test_example` in the [repo](https://github.com/thunderseethe/making-a-language/tree/main/emit/base) we do just that.
 It took decades for people to figure out how to generate optimized code from functional languages.
 It'd be crazy to think we could rival that in a couple of years of blog posts.
 But we don't have to.
