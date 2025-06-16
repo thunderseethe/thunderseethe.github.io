@@ -227,7 +227,7 @@ It would not be a valid subtype, because we swapped the order of the fields, eve
 Putting it all together our final type section would look like:
 
 ```lisp
-(type (func (param (ref 0)) (result i32)))
+(type (func (param i32 i32) (result i32)))
 (type (func (param (ref 0)) (result i32)))
 (type (sub 
   (struct 
