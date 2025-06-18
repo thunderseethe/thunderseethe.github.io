@@ -6,6 +6,7 @@ tags = ["Programming Languages", "Wasm"]
 series = []
 keywords = ["Programming Languages", "Compiler", "Functions", "IR", "Compiler", "Emission", "Code Generation", "WebAssembly", "Wasm"]
 description = "A case for why Wasm is neither Web nor Assembly"
+draft = true
 +++
 
 * Outrageous claim
