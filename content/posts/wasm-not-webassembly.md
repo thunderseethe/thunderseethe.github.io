@@ -6,7 +6,6 @@ tags = ["Programming Languages", "Wasm"]
 series = []
 keywords = ["Programming Languages", "Compiler", "Functions", "IR", "Compiler", "Emission", "Code Generation", "WebAssembly", "Wasm"]
 description = "A case for why Wasm is neither Web nor Assembly"
-draft = true
 +++
 
 "Wasm does not stand for WebAssembly" might sound like an outrageous claim.
@@ -27,7 +26,7 @@ Understandable mishaps, given the name, but they cause folks unfamiliar with Was
 This is a shame because Wasm has a lot to offer none of which is a web technology or an assembly language.
 I'd like to clear up these misunderstandings and convince you of Wasm's potency as a compilation target.
 
-If you pull the WebAssembly mask from Wasm's face, you'll find it's actually portable [bytecode](https://en.wikipedia.org/wiki/Bytecode).
+If you pull the WebAssembly mask from Wasm's face, you'll find it's actually [bytecode](https://en.wikipedia.org/wiki/Bytecode).
 Rather than an assembly language such as x86-64 or Arm, Wasm has more in common with JVM or .NET bytecode.
 Wasm, being bytecode, is run on a [virtual machine](https://en.wikipedia.org/wiki/Virtual_machine#Process_virtual_machines) (VM), not a real CPU.
 This virtual machine lacks any browser specific functionality, as of writing this article Wasm lacks a way to interact with the DOM at all.
