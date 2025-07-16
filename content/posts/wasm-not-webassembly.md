@@ -104,7 +104,7 @@ This is a necessary evil for existing languages.
 
 As a compiler author conceiving a new language, however, you can emit Wasm directly without winding workarounds.
 This is an undersold advantage of Wasm, especially with the [garbage collection](https://github.com/WebAssembly/gc) proposal becoming standardized.
-Wasm lets you [skip the backend](posts/emit-base) turning a very high level IR into Wasm that can be executed immediately.
+Wasm lets you [skip the backend](/posts/emit-base) turning a very high level IR into Wasm that can be executed immediately.
 If you're invested in writing the backend of a compiler for love of the game, great, follow your heart.
 No one is writing a compiler for the money anymore.
 
