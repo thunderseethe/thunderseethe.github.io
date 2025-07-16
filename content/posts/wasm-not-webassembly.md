@@ -35,7 +35,7 @@ You could write a virtual machine for Wasm that runs on the [server](https://git
 
 How can they be sure a surreptitious font won't execute malicious code that steals all my data or even worse signs me up for their newsletter?
 The secret lies in the execution model of Wasm.
-Any VM that wants to call themselves a Wasm Runtime must conform to the [Wasm specification](TODO).
+Any VM that wants to call themselves a Wasm Runtime must conform to the [Wasm specification](https://webassembly.github.io/spec/core/).
 A large part of this spec is dedicated to ensuring that execution of Wasm is sandboxed from the host.
 If the host doesn't explicitly expose the ability to interact with the filesystem, talk to the network, etc. Wasm can't do it by default.
 Harfbuzz doesn't expose anything to the Wasm embedded in a font, so it can trust that Wasm won't do anything malicious.
