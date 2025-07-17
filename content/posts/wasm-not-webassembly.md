@@ -23,13 +23,14 @@ Whilst standing on my soapbox, I encounter two common misunderstandings about Wa
 * Wasm is an assembly language
 
 Understandable mishaps, given the name, but they cause folks unfamiliar with Wasm to write it off and never delve deeper.
-This is a shame because Wasm has a lot to offer none of which is a web technology or an assembly language.
+This is a shame because Wasm has a lot to offer; none of which is a web technology or an assembly language.
 I'd like to clear up these misunderstandings and convince you of Wasm's potency as a compilation target.
 
 If you pull the WebAssembly mask from Wasm's face, you'll find it's actually [bytecode](https://en.wikipedia.org/wiki/Bytecode).
 Rather than an assembly language such as x86-64 or Arm, Wasm has more in common with JVM or .NET bytecode.
 Wasm, being bytecode, is run on a [virtual machine](https://en.wikipedia.org/wiki/Virtual_machine#Process_virtual_machines) (VM), not a real CPU.
-This virtual machine lacks any browser specific functionality, as of writing this article Wasm lacks a way to interact with the DOM at all.
+This virtual machine lacks any browser specific functionality.
+As of writing this article Wasm lacks a way to interact with the DOM at all.
 You could write a virtual machine for Wasm that runs on the [server](https://github.com/bytecodealliance/wasmtime), or on an [embedded device](https://embedded-wasm.github.io/book/02-getting-started).
 [Harfbuzz](https://github.com/harfbuzz/harfbuzz), a prominent font shaping engine, lets you include [Wasm in a font](https://github.com/harfbuzz/harfbuzz/blob/main/docs/wasm-shaper.md) to perform custom shaping, a use case that both allures and alarms me.
 
@@ -41,18 +42,17 @@ If the host doesn't explicitly expose the ability to interact with the filesyste
 Harfbuzz doesn't expose anything to the Wasm embedded in a font, so it can trust that Wasm won't do anything malicious.
 
 The security offered by this sandboxing is one of the major selling points of Wasm.
-It can offer value where-ever folks want to allow arbitrary execution, but don't want to get pwned.
-Turns out that is many places in and outside the web.
+It can offer value wherever folks want to allow arbitrary execution, but don't want to get pwned.
+It turns out that is many places, in and outside the web.
 
 ## THE WEB ASSEMBLY IN NAME ONLY, FOR IT IS NEITHER
 
 So what's going on here?
 If Wasm isn't assembly, and isn't particularly web, why the name?
 We can find the answer in Wasm's origin story.
-Circa 2015, software engineering found itself in a conundrum.
-Programmers desperately wanted to not write Javascript, but simultaneously desperately wanted to run their apps in the browser.
+Circa 2015, programmers desperately wanted to not write Javascript, but simultaneously desperately wanted to run their apps in the browser.
 
-[Attempts](https://dart.dev/) were made to add a new "better" language to the browser, but these had failed, adding a new surface language could only ever kick the can down the road.
+[Attempts](https://dart.dev/) were made to add a new "better" language to the browser, but these had failed, adding a new surface language only staves off the problem temporarily.
 Eventually, folks will pine to avoid the new language alongside Javascript.
 A new language also does nothing to help folks with existing codebases that want to bring them to the web.
 They're still faced with the equally unsavory task of rewriting their app in the new language, rather than Javascript.
@@ -74,7 +74,7 @@ Wouldn't it be nice if instead of talking to Javascript, we could talk directly 
 Browsers, however, don't provide a single VM, each browser provides its own VM (V8 might be in 90% of browsers, but it still technically has alternatives) with accompanying API differences that change how we target them.
 Javascript provides a unified interface, but as we already noted it's not ideal for our purposes
 
-Wasm answered the call to save us from our conundrum.
+Wasm answered the call to save us from targeting Javascript.
 It provides a new unified interface to browser execution that is far more amenable to compiled languages.
 Thus, we start to see how the name WebAssembly arose.
 Building on the work of asm.js, Wasm provides a new low level interface to the browser.
