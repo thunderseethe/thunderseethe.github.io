@@ -786,3 +786,4 @@ Closure conversion removes one of the last remaining obstacles to code emission:
 Our IR now contains integers, "structs" (we don't have general structs but closures count), and top level functions.
 All constructs that are close enough to the hardware, we can see how they map onto the machine.
 As always you can find all the details in the [making a language repository](https://github.com/thunderseethe/making-a-language/tree/main/closure_convert/base).
+Our next pass is an exciting one, [emitting code](/posts/emit-base).

@@ -674,3 +674,4 @@ We return the instantiated constraints and types as the `InferOut` for our item.
 That polishes off everything we needed to support items.
 We added support for checking against user annotations, dealt with the consequences of that, added support for in scope items to `TypeInference`, and finally inferred calls to items with our new `Item`.
 A modest extension to our type inference engine but an important one.
+Next up is [lowering items](/posts/lowering-items).

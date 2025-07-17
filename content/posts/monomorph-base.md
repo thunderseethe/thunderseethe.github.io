@@ -275,3 +275,4 @@ That's really all we have for monomorphization right now.
 Don't believe me? Check the [repo](https://github.com/thunderseethe/making-a-language/tree/main/monomorph/base).
 This will be much more substantial once we introduce items.
 Until then, monomorphization provides a respite along our compilation journey.
+If you're champing at the bit, our next pass, [closure conversion](/posts/closure-convert-base/), provides plenty to chew on.

@@ -388,3 +388,5 @@ Two passes we'll visit before completing our simple compiler.
 Our `lower` function now translates our implicitly typed AST into our explicitly typed IR.
 Lowering may look ceremonial here, but rest assured it will get more interesting as we add more features from our [fancier type checkers](/posts/row-types).
 Even without fancy features, we've taken another step towards completing our compiler.
+Our journey forks here. 
+We can [lower rows](/posts/lowering-rows-intro) or move on to [simplification](/posts/simplify-base/).
