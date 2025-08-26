@@ -42,9 +42,14 @@
               <i class="fa fa-clock-o" aria-hidden="true"></i>
               {{ i18n "reading_time" .ReadingTime }}
             </span>
+            <span class="word-count">
+              <i class="fa fa-feather-pointed" aria-hidden="true"></i>
+              {{ .WordCount }} words
+            </span>
           </div>
           {{ with .GetTerms "authors" }}{{ partial "taxonomy/authors.html" . }}{{ end }}
           {{ with .GetTerms "categories" }}{{ partial "taxonomy/categories.html" . }}{{ end }}
+          {{ with .GetTerms "series" }} {{ partial "taxonomy/series.html" . }}{{ end }}
           {{ with .GetTerms "tags" }}{{ partial "taxonomy/tags.html" . }}{{ end }}
         </div>
       </header>

@@ -1,7 +1,7 @@
 @mixin content_dark {
   .content {
     .post {
-      .tags {
+      .tags, .series {
         .tag {
           background-color: $alt-bg-color-dark;
 
