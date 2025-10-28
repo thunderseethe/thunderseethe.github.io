@@ -8,13 +8,11 @@ keywords = ["Programming Languages", "Compiler", "Parsing", "Recursive Descent",
 description = "Parsing syntax for our base language with error recovery"
 +++
 
-# Current outline
-
 I must profess a certain disdain for the parsing tutorial.
 I won't insult you by pretending it's fair or rationale.
-This may not come as a surprise, given the making a language series has covered [every](/posts/emit-base) part of the compiler it can before parsing.
+This may not come as a surprise, given the making a language series has covered [every](/posts/types-base) [part](/posts/lowering-base-ir) [of the](/posts/simplify-base) [compiler](/posts/closure-convert-base) [it can](/posts/emit-base) before parsing.
 Parsing tutorials just feel so feckless, sharing an unflattering kinship with the monad tutorial.
-Thousands of tomes written about parsing, and yet PL projects still die bikeshedding syntax.
+Thousands of tutorials written about parsing, and yet PL projects still die bikeshedding syntax.
 
 Ultimately, parsing performs two roles in a compiler:
 
@@ -24,7 +22,7 @@ Ultimately, parsing performs two roles in a compiler:
 
 In theory, a simple task.
 Pick some syntax, hopefully that's easy to parse.
-Walk your input string and check each character is valid syntax, build a tree out of it, and maybe report an error when it's invalid.
+Walk your input string and check each character is your selected syntax, build a tree out of it, and maybe report an error or two.
 How hard could it be?
 
 Perhaps that's part of my scorn.
@@ -52,9 +50,8 @@ We can hardly say we've made a language if users have to hand assemble bits into
 Our language needs an interface end users can write and provide us, and that's syntax in a source file.
 Despite my misgivings, we need a parser.
 And so I place my parsing platitudes upon the pile.
-Text must turn to trees.
 
-## We gotta parse somehow
+## Text Must Turn To Trees
 
 Parse we must, but that doesn't help us navigate the many choices that remain in doing the parsing.
 Our goal here is humble, get in, get a parser, get out.
@@ -116,50 +113,10 @@ Once it runs out of digits, we try to parse our `String` into an `isize`.
 Regardless of our parses result, we return the remaining input.
 This lets the next parser pick up where we left off.
 
-We can then use our `int` function to build more complicated parsers.
-For example, we can parse a binary expression using:
-
-```rs
-struct BinExpr {
-  left: isize,
-  op: char,
-  right: isize
-}
-
-fn bin_expr(input: &str) -> (Result<BinExpr, ParseError>, &str) {
-  let (left, input) = int(input);
-  let left = left.map_error(|err| (Err(err.into()), input))?;
-  let mut input = skip_whitespace(input);
-
-  let op = if input[0] == '+' || input[0] == '-' {
-    let op = input[0];
-    input = input[1..];
-    op
-  } else {
-    return (Err(ParseError::Unexpect(input[0])), input);
-  };
-
-  let input = skip_whitespace(input);
-  let (right, input) = int(input)
-  let right = right.map_error(|err| (Err(err.into()), input))?;
-
-  (Ok(BinExpr {
-    left,
-    op,
-    right
-  }), input)
-}
-```
-
-A little bit longer, but we can still loosely follow the structure.
-A binary expression is an integer, an operator, and another integer.
-An operator is either `+` or `-`.
-In between each of those we parse any optional whitespace that might be present.
-
 That's a quick taste of recursive descent.
 But our example was neither resilient nor full fidelity.
-`bin_expr` stops at the first error it encounters, and it throws away whitespace.
-Fortunately, because recursive descent is just functions we just have to write the functions better to fix that.
+`int` stops at the first error it encounters, and it doesn't handle whitespace at all.
+Fortunately, because recursive descent is just functions, we just have to write the functions better to fix that.
 
 ## Writing the Functions Better
 
@@ -439,7 +396,7 @@ This behaves exactly the same way, but I'd much rather write the `let`.
 That covers all our syntax. 
 We're finally ready to start parsing.
 
-## Parsing
+## Setting the Stage
 
 We'll want to share some mutable state between our functions.
 A pattern we've seen before in our type checker.
@@ -540,7 +497,7 @@ Given a `token`, if we're at that `token`, advance the input.
 If we're not at the right token, we simply return `None`.
 Error handling is under the purview of the `Parser` as how we handle it depends on what we're parsing.
 
-## Back to Parsing
+## The Parsing Play Must Go On
 
 Now that we're familiar with all our parsing state, we can begin the actual work of parsing.
 Despite our parser working top down, descending into recursive calls, we'll explain it bottom up.
@@ -935,6 +892,8 @@ We also modify our anchor set.
 Previously we've threaded through our anchor set unmodified, but that changes now.
 When we're within a parenthesized expression, and only then, we want to allow recovery to a following `)`.
 
+## Let Them Parse Let Expressions
+
 With that we've parsed atoms and applications.
 We're halfway to parsing full on expressions.
 Our other half is `let_` which parses let bindings:
@@ -998,7 +957,8 @@ Now that you mention that you mention it, we don't have to stop at deriving firs
 We could derive an entire `parse` function from our structs.
 All we need is a `Parse` trait with _a few_ associated types for each Synt-
 
-Dagnabit the tarpit got me again.
+## Dagnabit The Tarpit Got Me Again.
+
 Pretty soon we'll find ourselves writing a parsing library (or heaven forbid a parser generator) but **not** a parser.
 Our code is repetitive and rote, but it is also done.
 We best move along before the tarpit encroaches further.
