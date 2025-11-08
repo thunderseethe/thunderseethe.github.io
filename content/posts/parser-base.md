@@ -22,12 +22,12 @@ Ultimately, parsing performs two roles in a compiler:
 
 In theory, a simple task.
 Pick some syntax, hopefully that's easy to parse.
-Walk your input string and check each character is your selected syntax, build a tree out of it, and maybe report an error or two.
+Walk your input string and check each character fits the mold, build a tree out of it, and maybe report an error or two.
 How hard could it be?
 
 Perhaps that's part of my scorn.
 I feel like everything that can be said about parsing has been said.
-At the same time parsing feels like a labyrinth of endless choices deterring any headway.
+Yet, at the same time parsing feels like a labyrinth of endless choices deterring any headway.
 There's the first order choices about syntax:
 
   * Should I be whitespace sensitive or not?
@@ -46,10 +46,10 @@ Not just what should you parse, but how:
 Each of these comes with their own tradeoffs and will make it easier or harder to parse certain syntaxes.
 There's a lot to decide, and I don't have the answers.
 Yet, we need a parser.
-We can hardly say we've made a language if users have to hand assemble bits into our AST and feed that into our running compiler.
-Our language needs an interface end users can write and provide us, and that's syntax in a source file.
+We can hardly say we've made a language if users have to hand assemble bits into our AST and feed that into our compiler.
+Our language needs an interface end users can write, and that's syntax in a source file.
 Despite my misgivings, we need a parser.
-And so I place my parsing platitudes upon the pile.
+And so here I am, placing my parsing platitudes upon the pile.
 
 ## Text Must Turn To Trees
 
@@ -62,13 +62,13 @@ Doable and passable define our methodology today.
 To that end, we'll gather some constraints to help us pick our preferred parsing platform.
 First and foremost, is that our parser is handwritten.
 There are a bajillion parser generators and libraries that will take some kind of grammar or config file and spit out a parser.
-But my experience with these tools is you have to spend quite a bit of time learning the tool and can never quite tune the knobs to do what you want.
-They can be a boon, but they can also be a time sink.
+But my experience with these tools is you spend a bundle of time learning the tool and not enough time writing the dang parser.
+They can be a boon, but I haven't found the tradeoff worth it.
 We won't need them, and we can save time by avoiding them off the bat.
 
-After handwritten, we have two more constraints that are informed by the goal of our language.
+After handwritten, we have two more constraints informed by the goal of our language.
 In the modern era, languages (and their compilers) are expected to be more interactive than the bygone days of batch compilation.
-It's now table stakes for any new language on the block to support IDE like features, usually via the [Language Sever Protocol](TODO).
+It's now table stakes for any new language on the block to support IDE like features, usually via the [Language Sever Protocol (LSP)](https://microsoft.github.io/language-server-protocol/).
 As a modern language ourselves, we need to support these fancy features.
 
 For the parser that takes the shape of two requirements:
@@ -82,17 +82,16 @@ Once our language is interactive it will often see source code while the user is
 If our parser stops at the first error, anytime our user modifies a function we become unable to parse the entire file.
 Rather than stop at the first error, we want to confine that first error and parse as much valid syntax as possible.
 
-Our second constraint, full fidelity, is related to our ability to do this.
-Full fidelity means our parser is going to represent every character of source text in the tree it constructs.
-Often this is called a concrete syntax tree (CST) as opposed to an abstract syntax tree (AST).
-Our CST will help us with error recovery as it allows our tree to represent invalid syntax.
+Our second constraint, full fidelity, means our parser is going to represent every character of source text in the tree it constructs.
+Often this is called a [concrete syntax tree (CST)](https://en.wikipedia.org/wiki/Parse_tree) as opposed to an abstract syntax tree (AST).
+Our CST will help us with error recovery, allowing our tree to represent invalid syntax.
 It also helps us with the LSP functionality we want to support.
-A lot of LSP operations take the shape of give me the semantic information for the whatever my cursor is pointing at, and CSTs make that easier by bridging between position in the source file and position in the AST we're going to construct.
+A lot of LSP operations take the shape of give me the semantic information for whatever my cursor is pointing at, and CSTs make that easier by bridging between position in the source file and position in the AST.
 
 With those constraints in mind our parsing strategy will be [Recursive Descent](https://en.wikipedia.org/wiki/Recursive_descent_parser).
-A recursive descent parser is a set of functions that call each other to parse our input.
+A recursive descent parser is a set of functions that call each other, recursively if you can believe it, to parse our input.
 By virtue of just being functions, it is straightforward to handwrite.
-Each function looks at the next input and decides how to proceed.
+Each function looks at the remaining input and decides how to proceed.
 If we want to parse an integer, we'd write an `int` function:
 
 ```rs
@@ -121,11 +120,11 @@ Fortunately, because recursive descent is just functions, we just have to write 
 ## Writing the Functions Better
 
 Our actual parser will produce a full fidelity tree.
-We'll need a way to store a full fidelity tree to do that.
+To do that, we'll need a way to store a full fidelity tree.
 Unlike our AST, we won't store our CST in an enum.
 We're going to farm out to a library for storing our CST.
-We could write our own, but much like the union-find, we're interested in parsing not the particulars of efficiently storing our CST.
-Leaning on a library lets us get back to parsing quickly while providing a robust solution.
+We could write our own, but much like the union-find, we're interested in parsing not the particulars of efficiently storing a CST.
+Leaning on a library lets us get back to parsing quickly, while providing a robust solution.
 
 Our library of choice is [rowan](https://crates.io/crates/rowan).
 Rowan is used by rust-analyzer, so I trust it to do its job well.
@@ -174,10 +173,10 @@ When the user gives us an operator we don't recognize, it'll happily let us repr
 
 Much like dynamic typing, this freedom comes at a cost.
 The CST will let us put anything in the tree, but that means it will let us put _anything_ in the tree.
-Our CST allows us to represent invalid trees, which is critical to handling erroneous input gracefully, but it also handles any bugs we introduce the same way.
+Our CST allows us to represent invalid trees, which is critical to handling erroneous input gracefully.
+But it also represents any bugs we introduce the same way.
 This is a tradeoff.
-Swift generates a node for each CST with typed fields.
-But then it has [gargantuan nodes](https://swiftpackageindex.com/swiftlang/swift-syntax/601.0.1/documentation/swiftsyntax/functiondeclsyntax/init(leadingtrivia:_:attributes:_:modifiers:_:funckeyword:_:name:_:genericparameterclause:_:signature:_:genericwhereclause:_:body:_:trailingtrivia:)) to represent all the possible failures states.
+Swift generates nodes with typed fields for their CST, but then it needs [gargantuan nodes](https://swiftpackageindex.com/swiftlang/swift-syntax/601.0.1/documentation/swiftsyntax/functiondeclsyntax/init(leadingtrivia:_:attributes:_:modifiers:_:funckeyword:_:name:_:genericparameterclause:_:signature:_:genericwhereclause:_:body:_:trailingtrivia:)) to represent all the possible failures states.
 
 ## Guess we need some syntax
 
@@ -185,7 +184,7 @@ Rowan will let us parse things in full fidelity, resiliently.
 All we've got to figure out now is what to parse.
 This is a dangerous game.
 Picking syntax is literally the worst case of [Wadler's Law](https://wiki.haskell.org/Wadler's_Law).
-Thankfully, we won't have comments, yet.
+We don't have comments yet, thankfully.
 
 Our previous passes provide guard rails to keep us on track.
 Whatever syntax we pick, it must turn into our AST:
@@ -208,32 +207,30 @@ enum Ast<V> {
 We're going to need syntax for each of these nodes.
 Conversely, any syntax that doesn't map onto one of these nodes will be treated with great skepticism.
 First on our list will be variables, represented by identifiers.
-Our identifiers will be series of alphanumeric characters that aren't keywords.
+For us, an identifier comprises a series of alphanumeric characters that isn't a keyword.
 
 An integer will be a series of digits (where a digit is `0-9` here).
 We aren't going crazy with the numeric literals, yet.
-These are straight forward to parse because they contain one, nebulously defined, "thing" unlike `Fun` and `App` which contain multiple "thing"s.
-
-Thing resides in quotes because we have yet to define what that means for our language.
-At minimum, our smallest unit is a character.
-Each thing could be a character, but this is too fine-grained and onerous in practice.
-Rather than consider each thing individually, we'll group characters together to make them easier to work with.
+Earlier, we saw we can parse an integer by eating characters out of the input until we stop seeing digits.
+In practice, this proves more work than is worth it.
+Rather than consider each character individually, we'll group characters together to make them easier to work with.
 Grouping is accomplished by an initial pass over our input string called lexing.
 
 ## Lexing
 
-The goal of lexing is to take our input string and do a fast pass over it to group characters into tokens.
+The goal of lexing is to take our input string and do a quick pass over it to group characters into tokens.
 For example, lexing recognizes the string `"let"` is the keyword `let` or the string `"1234"` is a number literal.
-Our parser can then consume these tokens, making its job easier.
+Our parser then consumes these higher level tokens, making it's job easier.
+Rather than checking if the next character is any digit or any alphanumeric character, we just have to check if the next token is an integer or an identifier.
 
 Lexing is not mandatory.
 Our parser could work directly on characters, such a technique is called [scannerless parsing](https://en.wikipedia.org/wiki/Scannerless_parsing).
-To that end, we're happy to employ a lexing library to make life easy.
+Because it's not strictly necessary, we're happy to employ a lexing library to make life easy.
 Anything to stay out of the tarpit.
 
 Our lexing library of choice is [`logos`](https://logos.maciej.codes/).
 Under the hood it does a lot of gnarly work to make lexing fast, but we get to ignore all that and use its pleasant API.
-Our tokens will reuse our `Syntax` enum from rowan:
+We annotate `Syntax` with a `Logos` procedural macro that produces a lexer:
 
 ```rs
 #[derive(Logos)]
@@ -262,14 +259,13 @@ enum Syntax {
 }
 ```
 
-`logos` works through a macro we invoke with `#[derive(Logos)]`.
-It lets us annotate variants with the `token` and `regex` directives to define how they are lexed.
+`Logos` lets us annotate variants with the `token` and `regex` directives to define how they are lexed.
 `token` takes a string literal and uses it to recognize our token in our input stream.
 This suffices for all of our punctuation and keywords because their content is static.
 
-For identifiers, we'll need `#[regex]` because identifiers are an infinite set of valid strings.
-regex takes a regex and will treat anything that matches that regex as the corresponding token.
-An identifier is an alphabetic character or `"_"` followed by any characters in the word class `\w`.
+Identifiers need `#[regex]` because they have an infinite set of valid strings.
+`regex` takes a [regular expression (regex)](https://en.wikipedia.org/wiki/Regular_expression) and will treat anything that matches that regex as the corresponding token.
+For an identifier, that means an alphabetic character or `"_"` followed by any number of characters in the word class `\w`.
 You might expect our leading character to be `[a-zA-Z_]`.
 We use the odder looking `\p{alpha}` because it supports Unicode.
 
@@ -291,11 +287,11 @@ We'll use it to make sure our program parses the entire source file.
 
 You may have noticed that our tokens don't cover the entire Unicode range, only a small subset.
 Users of our language, however, are free to put whatever they want in their source files.
-They could even put something nefarious in their like "+" or "{", and we have no valid tokens to assign to such text.
+They could even put something nefarious in their like "+" or "{", and we have no valid tokens to assign such text.
 
-Even though these characters aren't valid syntax we still need to handle them.
+Even though these characters aren't valid syntax, we still need to handle them.
 If we're stumped by unknown characters, we'll never achieve error resilience.
-To this end, we add another variant to `Syntax`:
+We add another variant to `Syntax` to solve our problems:
 
 ```rs
 enum Syntax {
@@ -307,31 +303,30 @@ enum Syntax {
 
 `Error` serves dual duty as both invalid tokens and invalid nodes:
 
-  * In our lexer, text we don't recognize we'll produce an `Error` token.
+  * In our lexer, text we don't recognize will produce an `Error` token.
   * In our parser, a tree that's not valid syntax gets wrapped in an `Error` node.
 
-With lexing out of the way we can now better design our syntax.
+With lexing out of the way, we can design our syntax.
 
 ## Finish Up Syntax
 
-We now have a better grasp on what we mean when we say a variable is a "thing".
-It's a token, specifically an `Identifier`.
 All `Var`s are identifiers, but not all identifiers are `Var`s.
 A function contains an identifier for its parameter, but it's not a `Var` node.
 How will we know when we see an identifier whether it's a `Var` or a `Fun`?
 
 The answer involves an important property of our syntax.
-We should be able to tell what we're parsing from the next token of input at all times.
+We should, at all times, be able to tell what we're parsing from the next token of input.
+Anything that requires looking ahead two or more tokens won't satisfy our syntax.
 This doesn't mean we have to treat each token the same way when we see it.
 Functions and variables use identifiers differently.
-But we need enough syntax to distinguish those two uses by looking at the next token.
+But we need enough syntax to distinguish those two uses by looking at one token.
 
-We'll introduce extra syntax to inform the parser what it's seeing is a function and not a variable:
+We'll introduce extra syntax to inform the parser when it's seeing a function and not a variable:
 
   * If we see a bare identifier, we'll always treat that as a variable.
-  * If we instead see a `|` (VerticalBar), we know we're parsing a function and the following identifier is a function parameter.
+  * If we first see a `|` (VerticalBar), we know we're parsing a function and the following identifier is a function parameter.
 
-This works because we know an identifier must always follow a `|`.
+We can enforce that an identifier must always follow a `|`, treating anything else as invalid syntax.
 We'll similarly note the switch from function parameters to function body with another `|` giving us our full function syntax:
 
 ```rs
@@ -342,21 +337,21 @@ We'll ignore any similarities that might evoke to other function syntax.
 This is our own unique language and it's very special!
 Our token stream `VerticalBar Identifier VerticalBar Identifier` gives me pause.
 How do we know that last `Identifier` is a `Var` despite it being preceded by a `VerticalBar`?
-Our parser is allowed to rely on token it's already consumed.
+It's because our parser is allowed to rely on token it's already consumed.
 
-Once we see the first `VerticalBar`, we know we're going to parse `VerticalBar Identifier VerticalBar`.
+Once we see the first `VerticalBar`, we know we're always going to parse `VerticalBar Identifier VerticalBar`.
 We only need to consider the next token of input at an inflection point where we might pick one of a few possible parses.
 Function bodies are one such position.
-If our function was instead `|x| |y| x`, after parsing `|x|` the following `|` would tell us we're starting another function.
+If our function was `|x| |y| x` instead of `|x| x`, after parsing `|x|` the following `|` would tell us we're starting another function.
 
-Our last node, `App`, needs syntax still.
+Our last node, `App`, still lacks syntax.
 As a functional language, we expect to apply functions _a lot_.
-Accordingly, we're going to give application a relatively terse syntax.
-Any two things juxtaposed will be considered an application: `f x`, `x 1`, etc.
+Accordingly, we're going to give application a relatively light syntax.
+Any two things juxtaposed by whitespace will be considered an application: `f x`, `x 1`, etc.
 
 That covers all our `AST` nodes.
-That's not quite enough syntax to be a usable language in practice.
-We have some more syntax we'll _need_ to get the job done, and then we'll have some syntax that's just cute, and we like having around.
+But that's not quite enough syntax to be a usable language in practice.
+We have some more syntax we'll _need_ to get the job done, and then some syntax that's just cute, and we like having around.
 
 A remaining issue with our syntax is how to tell when one expression stops and another starts.
 Consider the string `|f||x| f x g`.
@@ -369,15 +364,15 @@ Our alternate interpretation uses parenthesis to bound the function `(|f||x| f x
 Parenthesis will also serve to disambiguate nested applications.
 `x z y z` is read "`x` applied to 3 arguments", and `x z (y z)` is "`x` applied to `z` and a nested application `y z`".
 
-Last we have some syntax we're throwing in because it makes the language nicer.
-Such syntax is called syntax sugar because it exists solely syntactically.
-A desugaring pass turns syntax sugar into our existing `Ast` nodes, effectively erasing it.
+Last, we have some syntax we're throwing in because it makes the language nicer.
+This syntax still has to map onto our `Ast`, all things must be the `Ast` in due time, but it won't map 1:1 like our syntax so far.
+We'll have a desugaring pass that turns this syntax into `Ast` nodes, effectively erasing it.
+Such syntax is called syntax sugar because it only exists in the parser and surface syntax.
 
 We risk entering the tarpit here.
 Syntax sugar is by design not necessary and has no `Ast` nodes to ground it.
 I think it's worth covering, however, as you'll be hard-pressed to find a language in production with zero syntax sugar.
-It's important to cover how it is implemented and supported by IDE-like features.
-We'll have to tread carefully.
+It's important to cover how it is implemented and supported by an LSP, but we'll have to tread carefully.
 
 Our syntax sugar is the let expression.
 As you might have guessed from our sole keyword: `let`.
@@ -391,16 +386,16 @@ let four = add two two;
 add two four
 ```
 
-Let is syntax sugar because where-ever it appears we could instead write an applied function: `(|two| add two two) (add 1 1)`.
+Let is syntax sugar because where ever it appears we could instead write an applied function: `(|two| add two two) (add 1 1)`.
 This behaves exactly the same way, but I'd much rather write the `let`.
 That covers all our syntax. 
 We're finally ready to start parsing.
 
 ## Setting the Stage
 
-We'll want to share some mutable state between our functions.
-A pattern we've seen before in our type checker.
-We'll solve it the same way, by introducing a `Parser` struct and making each function a method of `Parser`:
+With our syntax settled, we can start building our parser.
+We'll want to share some mutable state between our parsing functions.
+We'll solve it the same way as type inference, by introducing a `Parser` struct and making each function a method:
 
 ```rs
 struct Parser<'a> {
@@ -412,7 +407,7 @@ struct Parser<'a> {
 ```
 
 `errors` and `in_error` handle error reporting.
-`errors` accumulates all the errors we report.
+`errors` accumulates all the errors we find.
 `in_error` prevents us from reporting multiple errors for the same span of text.
 Once we start reporting one error, we don't want to report a new error until we've finished the first one.
 
@@ -457,7 +452,8 @@ fn peek(&mut self) {
 Logos does a lot of the heavy lifting here to produce `tok` which is a `Result`.
 If that result is an `Err` we produce an `Error` token.
 If our overall iterator returned `None`, we're out of source text and we return `EndOfFile`.
-It's very common we'll want to check if we're at a particular token, so we add a helper `at` for that as well:
+It's very common we'll want to check if we're at a particular token.
+We create a helper `at` to check:
 
 ```rs
 fn at(&mut self, token: Syntax) -> bool {
@@ -465,8 +461,8 @@ fn at(&mut self, token: Syntax) -> bool {
 }
 ```
 
-Importantly, neither of these methods actually move us forward in our input.
-We're free to peek at the next token as many times as we want.
+Neither of these methods actually move us forward in our input.
+We're free to peek at the next token as many times as we want, but only the next token.
 Progressing forward is accomplished by `advance`:
 
 ```rs
@@ -478,8 +474,8 @@ fn advance(&mut self) -> Option<Range<usize>> {
 
 `advance` returns the span of the token we just passed.
 `advance`, perhaps surprisingly, does not return the actual token we just passed, only it's span.
-Calls to `advance` are almost always preceded by calls to `at`, so we already know what token we're _at_.
-In fact at followed by advance is so common, it gets its own helper `eat`:
+Calls to `advance` are always preceded by calls to `at`, so we already know what token we're _at_.
+In fact, at followed by advance is so common, it gets its own helper `eat`:
 
 ```rs
 fn eat(&mut self, token: Syntax) -> Option<&str> {
@@ -495,14 +491,12 @@ fn eat(&mut self, token: Syntax) -> Option<&str> {
 Given a `token`, if we're at that `token`, advance the input.
 `eat` knows what to do on the happy path, but it says nothing about what to do when a `token` is missing.
 If we're not at the right token, we simply return `None`.
-Error handling is under the purview of the `Parser` as how we handle it depends on what we're parsing.
+Error handling is under the purview of the `Parser`.
 
 ## The Parsing Play Must Go On
 
-Now that we're familiar with all our parsing state, we can begin the actual work of parsing.
-Despite our parser working top down, descending into recursive calls, we'll explain it bottom up.
+Now that we're familiar with all our parsing state, lets actual parse something.
 We'll start with our leaf parsing functions and culminate in our top level `program` parser.
-
 The backbone of our parser is the `expect` function:
 
 ```rs
@@ -517,7 +511,7 @@ impl Parser<'_> {
 
 `expect` _expects_ a particular `token` to be the current token in our input.
 There are some notable similarities to `Input`'s `eat`.
-But `expect` takes an `anchor_set`.
+Except, `expect` takes an `anchor_set`.
 We'll see it is used for error recovery.
 Our happy path is straightforward:
 
@@ -531,7 +525,7 @@ fn expect(&mut self, token: Syntax, mut anchor_set: HashSet<Syntax>) {
 }
 ```
 
-`ate` maintains our state for us when we do see the expected token:
+`ate` maintains our state when we see the expected token:
 
 ```rs
 fn ate(&mut self, token: Syntax) -> ControlFlow<()> {
@@ -576,14 +570,14 @@ fn expect(&mut self, token: Syntax, mut anchor_set: HashSet<Syntax>) {
 
 Our error recovery strategy discards tokens until we reach a token in our `anchor_set`.
 It's pertinent to ask "what's in the anchor set"?
-The anchor set is the set of syntax we know how to reset parsing at.
-The syntax within the anchor set is contextual based on what we're parsing.
+The anchor set is the set of syntax we know how to restart parsing at.
+Accordingly, the set is contextual based on what we're parsing.
 
-* When we're parsing a program, the only syntax in the set is `EndOfFile` because that's the only point we know how to reset for an entire program.
-* When we're parsing a let expression, our anchor set will include the keyword `let` (and `EndOfFile`).
+* When parsing a program, the only syntax in the set is `EndOfFile` because that's the only point we know how to restart for an entire program.
+* When parsing a let expression, our anchor set will include, among other syntax, the keyword `let`.
 
 One let can always be followed by another let.
-If we encounter an error within a let we can restart parsing safely at the next `let` keyword by completing our current let expression with an error and starting a new let expression.
+If we encounter an error within a let, we can restart parsing safely at the next `let` keyword by completing our current let expression with an error.
 Any tokens between our current unexpected token and one of the recovery tokens in our anchor set is discarded:
 
 ```rs
@@ -614,10 +608,11 @@ let █= foo 1; 2
 ```
 
 Our subsequent expect `=` call would fail. The current input is whitespace not `=`
-Our missing identifier cascades into the rest of our let expression and our parse tree ends up being `LetKw` followed by all erroneous syntax.
+Our missing identifier cascades into the rest of our let expression and our parse tree ends up being one big error.
 
-But that's because we didn't consume any input, what if we skipped over one token on error to make sure we're always making progress?
-Simply removing the whitespace from our first example shows us where that fails: `let = foo 1; 2`.
+But that's because we didn't consume any input.
+What if we skipped over one token on error to make sure we're always making progress?
+Removing the whitespace from our first example shows us where that fails: `let = foo 1; 2`.
 Now when we expect our missing identifier, we skip over `=` as an error:
 
 ```rs
@@ -627,19 +622,19 @@ let =█foo 1; 2
 But oh no, that means our expect call to `=` now sees whitespace (or `foo`).
 It will error, and we're back to a cascade of errors.
 
-We need a Goldilock skip to cover just the right amount of input to get us back on track.
+We need a goldilock skip to cover just the right amount of input to get us back on track.
 Skipping a static number of tokens won't achieve good error recovery.
 Hence, the anchor set.
 It informs us what tokens are safe to skip to and prevents the cascade of errors.
 With the anchor set when we encounter the missing identifier of `let  = foo 1; 2`, we see `=` is in our anchor set and mark everything until `=` an error.
 
-Our let parser would then be correctly synchronized.
+Our let parser is then correctly synchronized for the next expect call.
 We produce a parse tree of a mostly valid let but with a prominent lack of an identifier.
 Luckily, lacking an identifier isn't the Parser's problem.
 That's an issue for name resolution.
 This synchronization is the secret to our resilience.
 
-With a better understanding of why we're throwing away tokens, let's look at how we actually go about emitting errors:
+With a better understanding of why we're throwing away tokens, let's look at how we emit errors:
 
 ```rs
 fn recover_until(&mut self, anchor: HashSet<Syntax>, expected: Vec<Syntax>) {
@@ -669,9 +664,9 @@ fn recover_until(&mut self, anchor: HashSet<Syntax>, expected: Vec<Syntax>) {
 }
 ```
 
-If we didn't actually discard tokens, and we're not already in an error, we still want to emit an error to let the user know expected syntax was missing.
+If we didn't discard tokens, and we're not already in an error, we still want to emit an error to let the user know expected syntax was missing.
 Our error lists the tokens we expected (for `expect` this will always be one token) and a span to show the diagnostic.
-Since our error is a missing token, which happens to also be missing a span, we'll put our error on the next token in our input.
+Since our error is a missing token, which coincidentally will always be missing a span, we'll put our error on the next token in our input.
 If we did discard tokens, our reporting is more interesting:
 
 ```rs
@@ -699,14 +694,14 @@ fn recover_until(&mut self, anchor: HashSet<Syntax>, expected: Vec<Syntax>) {
 ```
 
 {{< notice info >}}
-`with` is a straightforward function to make constructing CST nodes easy. It just wraps our closure in calls to `builder.start_node` and `builder.finish_node` so we can't forget to keep them synced up.
+`with` is a helper to make constructing CST nodes easy. It wraps our closure in calls to [`builder.start_node`](https://docs.rs/rowan/0.16.1/rowan/struct.GreenNodeBuilder.html#method.start_node) and [`builder.finish_node`](https://docs.rs/rowan/0.16.1/rowan/struct.GreenNodeBuilder.html#method.finish_node) so we can't forget to keep them synced up.
 {{< /notice >}}
 
 We create a span that covers all our discarded tokens.
 As we do this, we also add an `Error` node to our tree containing all the tokens we discarded.
 If we're not already in an error, we emit the span as an error.
 We mark our nodes in the tree as an error regardless, but we only emit the error to the user if we're not already emitting an error.
-One final remnant remains in `expect`: 
+One final remnant remains in `expect`:
 
 ```rs
 fn expect(&mut self, token: Syntax, mut anchor: HashSet<Syntax>) {
@@ -719,22 +714,21 @@ fn expect(&mut self, token: Syntax, mut anchor: HashSet<Syntax>) {
 ```
 
 We end `expect` with another call to `ate` that we do not check.
-Our expected token is always added to our anchor set, so error recovery might have left us at the token we expected.
-In which case, we want to go ahead and consume it in this call, otherwise subsequent expect calls will error.
-Returning to our bountiful let example, imagine if it looked like this `"let x | = foo 1; 2"`.
+Error recovery might have left us at the token we expected.
+In which case, we want to consume it in this call, otherwise subsequent expect calls will error.
+Returning to our bountiful let example, imagine if it was `"let x | = foo 1; 2"`.
 We have a valid let in their, but with an extra `|` lurking.
 Our expect `=` call will see the `|`, discard it as erroneous, and successfully recover to the `=`.
 At this point, however, if we do not check for `=` again, we would move on with our parsing leaving `=` as our current input.
 
 ## Parsing Applications Atomically
 
-That completes `expect`.
-We can now employ it to begin assembling our parsing ensemble.
+We can now employ `expect` to begin assembling our parsing ensemble.
 Our end goal is to parse a program, which for us means an expression.
 We'll start building towards parsing an expression by parsing function application.
 A naive application parser might be structured as:
 
-```rs   
+```rs
 fn application(&mut self) -> {
   self.with(Syntax::App, |this| {
     this.expr();
@@ -743,7 +737,9 @@ fn application(&mut self) -> {
 }
 ```
 
-This looks lovely. It mirrors the application node in our AST directly and does exactly what we need it to do.
+Where `expr()` is our to be written expression parser.
+This looks lovely.
+It mirrors the application node in our AST directly and does exactly what we need it to do.
 The problem is it will never return.
 The recursive in recursive descent rears its ugly head here.
 As we said early to parse an expression we have to parse an application, but as we can see here to parse an application we have to parse an expression.
@@ -752,18 +748,17 @@ This kind of mutual recursion is the namesake of recursive descent.
 But here we have _bare_ recursion.
 At no point in the call chain does our parser consume input.
 It's perfectly valid for our parser to call `expr() -> application() -> expr() -> application() -> ...` forever.
-Our parser needs to consume input somewhere in that call chain to make sure it will terminate.
-
-Avoiding this is a matter of being more precise in what we want to parse and ensuring that any recursive call to `expr` is only made after consuming input.
-Rather than an application being two expressions, an application will be any number of atoms.
+Avoiding this is a matter of ensuring that any recursive call to `expr` is only made after consuming input.
 
 {{< notice note >}}
 Parsing theory calls this [removing left recursion](https://en.wikipedia.org/wiki/Left_recursion#Removing_left_recursion), if you'd like to read up on it.
 {{< /notice >}}
 
+Rather than an application being two expressions, an application will be two atoms.
 An atom is basically any expression that isn't an application.
 For us, that means variables, integers, functions, and parenthesized expressions.
-Rather than our naive initial `application`, our actual `app` parses any number of atoms:
+Because an atom can't be an application it can't recurse infinitely.
+Revising our naive initial `application`, our actual `app` parses any number of atoms:
 
 ```rs
 fn app(&mut self, anchor: HashSet<Syntax>) {
@@ -789,12 +784,12 @@ fn app(&mut self, anchor: HashSet<Syntax>) {
 }
 ```
 
-Parsing one or more `atom`s is another tactic to avoid diverging.
+Parsing one or more `atom`s is another tactic to avoid left recursion.
 We want to parse a series of applications `x y z w` as nested applications `(((x y) z) w)`.
 When we parse `x`, however, we don't know how many applications it will be nested within until we parse them.
-We remedy this by parsing all our atoms in a list and then nesting the applications after we've parsed everything.
+We parse all our atoms in a loop, avoiding recursion, nesting applications as we go.
 
-`app` starts by ensuring we have at least one `atom` (we'll pretend that's an expression for now).
+`app` starts by ensuring we have at least one `atom`.
 Next we check for a second atom, if we only have a single atom we return it as is.
 We'll use `app` to parse a single expression alongside any number of applications.
 Once we have two atoms we make use of the checkpoint we create at the top of our `app`.
@@ -805,9 +800,9 @@ But once we know we want the `App` node, we want it to encompass the two atoms w
 
 We still need to figure out how to parse atoms.
 `atom` has to parse four different cases, unlike our other parsers all of them are optional.
-If `atom` sees a token of input it doesn't know how to handle it'll return `Break` without consuming it.
-This allows `app` to parse any number of atoms but stop once we run out.
-Our `atom` starts matching on the current input token:
+If `atom` sees a token of input it doesn't know how to handle, it'll return without consuming it.
+This allows `app` to parse any number of atoms but stop once our application is complete.
+`atom` starts by matching on the current input token:
 
 ```rs
 fn atom(&mut self, anchor: HashSet<Syntax>) -> ControlFlow<()> {
@@ -830,7 +825,6 @@ fn atom(&mut self, anchor: HashSet<Syntax>) -> ControlFlow<()> {
 }
 ```
 
-We'll focus in on our function and parens cases in a moment.
 Our first two cases are straightforward:
 
 * A leading `Identifier` is a variable.
@@ -884,10 +878,8 @@ fn atom(&mut self, anchor: HashSet<Syntax>) -> ControlFlow<()> {
 
 A parenthesized expression kind of says it all on the tin.
 It's an expression surrounded by parentheses.
-It exists to help distinguish how applications are grouped.
-If we have four atoms `"f 1 g 2"`, we can use parentheses to express they're grouped as nested applications `"f 1 (g 2)"` and not f applied to 3 arguments.
-
 Because our expression is guarded by the `(`, we're safe to recurse here without fear of infinity.
+
 We also modify our anchor set.
 Previously we've threaded through our anchor set unmodified, but that changes now.
 When we're within a parenthesized expression, and only then, we want to allow recovery to a following `)`.
@@ -921,12 +913,12 @@ fn let_(&mut self, anchor: HashSet<Syntax>) {
 }
 ```
 
-Our let parser doesn't parse the full let binding: `let <identifier> = <expr>; <expr>`.
-It only parses `let <identifier> = <expr>;` with no trailing body expression.
-Similar to `app` and `atom`, an expression can have zero or more let bindings.
-Rather than recursively call a `let_expr` function to handle this, we parse any number of let bindings in a loop and then fix up our tree to scope the let bindings correctly.
+Well, not quite let bindings. A full let is: `let <identifier> = <expr>; <expr>`.
+But we only parse `let <identifier> = <expr>;` with no trailing expression.
+An expression can have zero or more let bindings.
+Similar to `app`, rather than recursively call `_let` to handle this, we parse any number of let bindings in a loop and then fix up our tree to scope the let bindings correctly.
 
-Let parsing also makes heavier use of our anchor set, modifying it extensively.
+Let parsing makes heavier use of our anchor set, modifying it extensively.
 At each expected token, we want our anchor set to include the remaining synchronization points in our let binding.
 
 * For LetKw, this is an Identifier, Equal, or Semicolon because the remainder of our let binding after the keyword is `<identifier> = <expr> ;`.
@@ -940,10 +932,11 @@ If we encounter a missing `=`, we'll treat all of `<expr>` as an error and reset
 This is a tradeoff and more art than science.
 In practice, I've found this to give pretty reasonable errors for not a lot of effort, but one could absolutely try to do something more sophisticated to recover here.
 
-Honestly all this anchor set management is repetitive and rote.
+Honestly, all this anchor set management is repetitive and rote.
 I bet we could abstract a lot of this out pretty easily.
 At each token we want our anchor set to contain the tokens following itself.
-We can automatically calculate that from our syntax because it knows what tokens will follow in each of our parsing functions.
+We can automatically calculate that.
+Our syntax knows what tokens will follow in each of our parsing functions.
 For each of our parsing functions, we could create a simple struct like:
 
 ```rs
@@ -953,11 +946,11 @@ struct Let(Vec<Syntax>);
 We could configure our vector to be `vec![Syntax::LetKw, Syntax::Identifier, Syntax::Equal, Syntax::Expr, Syntax::Semicolon]` and use that to determine what should be in the anchor set "for free".
 Now that you mention it, we could also use that vector to determine the first token of each our parsed items.
 `atom` wouldn't have to manually maintain a `match` it could just check if `peek` was in the first of it's four cases!
-Now that you mention that you mention it, we don't have to stop at deriving first token of each parser.
+Now that you mention that you mention it, we don't have to stop at deriving the first token of each parser.
 We could derive an entire `parse` function from our structs.
 All we need is a `Parse` trait with _a few_ associated types for each Synt-
 
-## Dagnabit The Tarpit Got Me Again.
+## Dagnabit The Tarpit Got Me Again
 
 Pretty soon we'll find ourselves writing a parsing library (or heaven forbid a parser generator) but **not** a parser.
 Our code is repetitive and rote, but it is also done.
@@ -975,11 +968,10 @@ fn expr(&mut self, anchor: HashSet<Syntax>) {
 }
 ```
 
+An expression is any number of let bindings followed by a singular `app` (recall that `app` might be a single atom).
 For all our trials and tribulations in `app` and `let_`, `expr` is pleasingly direct.
 Too direct in fact.
 Are we sure this thing really works?
-
-An expression is any number of let bindings followed by a singular `app` (recall that `app` might be a single atom).
 If we see an expression such as:
 
 ```rs
@@ -1004,8 +996,9 @@ We'll parse that as the tree:
 
 I've omitted some details, but you get the idea.
 The body of our let is implied by whatever follows in our expression, and our expression is a flat sequence of lets ending in an application.
-It's important for scoping and name resolution that we remember of let is within each other, but for the parse tree it suffices and simplifies to have them laid out flat.
+For scoping and name resolution, we must remember the lets are within each other, but for the parse tree it suffices to have them laid out flat.
 It is important that our sequence is terminated by the app.
+It ensures all our let bindings have a body.
 For example, this would be invalid syntax:
 
 ```rs
@@ -1014,10 +1007,9 @@ add one one
 let add = |m||n||s||z| m s (n s z);
 ```
 
-Ending in `app` ensures all our let bindings have a body.
 Possible parses produced by expression don't stop there, however.
-It parses this sequence of lets well, but it's just as happy to parse `3`.
-Lacking a `let` keyword we don't parse any let bindings, and if `app` sees a single atom it returns it as is.
+`expr` is happy to parse `3`.
+Lacking a `let` keyword we don't parse any let bindings, and `app`, seeing a single atom, returns it as is.
 `3` turns into the tree:
 
 * Expr
@@ -1043,17 +1035,19 @@ fn program(&mut self) {
 }
 ```
 
-Maybe not as straightforward as we thought.
+Okay, maybe not as straightforward as we thought.
 Why isn't it just a lone call to `expr()`?
 
 Recall that each call to expect eats up trailing whitespace when it consumes a token.
 But there's nothing to eat up any leading whitespace before we've called expect.
 We don't need to eat up leading whitespace for every expression, most expression are preceded by _something_.
-`program` by definition is preceded by nothing, however, so it must handle leading whitespace.
+`program`, however, is preceded by nothing by definition, so it must handle leading whitespace.
 Otherwise, our parser would be totally stumped by `"\n 3"`.
 
-After calling `expr()` we have some program-specific error handling.
-If we have any trailing tokens (i.e. we're not at `EndOfFile`), treat that as an error.
+Program is on the hook for consuming our entire input string.
+But `expr` only consumes a singular valid expression.
+Any leftovers after that are program's problem.
+Fortunately the answer is easy, treat them as an error.
 This handles a previous invalid example of ours:
 
 ```
@@ -1063,7 +1057,7 @@ let add = |m||n||s||z| m s (n s z);
 ```
 
 We parse the valid expression `let one = |s||z| s z; add one one`, but then discover we're at LetKw and not end of file.
-Our call to `recover_until` consumes the rest of our input and mark it as an error.
+Our call to `recover_until` consumes the rest of our input as an error.
 
 `program` is our top level parser, but it's still a method on our `Parser` struct.
 Our entry point to parsing is a top level `parse` function that takes in a string and returns our CST and any errors that ocurred:
