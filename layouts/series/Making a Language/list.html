@@ -54,6 +54,9 @@
               {{ with (.GetPage "/posts/unification") }}
                 {{ partial "card.html" . }}
               {{ end }}
+              {{ with (.GetPage "/posts/types-base") }}
+                {{ partial "card.html" . }}
+              {{ end }}
             </div>
           </div>
           <div>
