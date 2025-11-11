@@ -117,32 +117,32 @@ fn infer(
   ast: Ast<Var>
 ) -> (GenOut, Type) {
   match ast {
-    Ast::Int(id, i) => todo!(),
-    Ast::Var(id, v) => todo!(),
-    Ast::Fun(id, arg, body) => todo!(),
-    Ast::App(id, fun, arg) => todo!(),
+    Ast::Int(i) => todo!(),
+    Ast::Var(v) => todo!(),
+    Ast::Fun(arg, body) => todo!(),
+    Ast::App(fun, arg) => todo!(),
   }
 }
 ```
 We'll talk about each case individually, let's start with an easy one to get our feet wet:
 ```rs
-Ast::Int(id, i) => (
+Ast::Int(i) => (
   GenOut::new(
     vec![],
-    Ast::Int(id, i)
+    Ast::Int(i)
   ), 
   Type::Int
 ),
 ```
 When we see an integer literal, we know immediately that its type is `Int`. We don't need any constraints to be true for this to hold, so we return an empty `Vec`. One step up in complexity over integers is our variable case:
 ```rs
-Ast::Var(id, v) => {
+Ast::Var(v) => {
   let ty = &env[&v];
   (
     GenOut::new(
       vec![], 
       // Return a `TypedVar` instead of `Var`
-      Ast::Var(id, TypedVar(v, ty.clone())
+      Ast::Var(TypedVar(v, ty.clone())
     ),
     ty.clone(),
   )
@@ -150,7 +150,7 @@ Ast::Var(id, v) => {
 ```
 When we encounter a variable, we look up its type in our `env` and return its type. Our env lookup might fail though. What happens if we ask for a variable we don't have an entry for? That means we have an undefined variable, and we'll `panic!`. That's fine for our purposes; we expect to have done some form of name resolution prior to type inference. If we encounter an undefined variable, we should've already exited with an error during name resolution. Past that, our `Var` case looks very similar to our `Int` case. We have no constraints to generate and immediately return the type we look up. Next we take a look at our `Fun` case:
 ```rs
-Ast::Fun(id, arg, body) => {
+Ast::Fun(arg, body) => {
   // Create a type variable for our unknown type variable
   let arg_ty_var = self.fresh_ty_var();
   // Add our agrument to our environment with it's type
@@ -162,7 +162,6 @@ Ast::Fun(id, arg, body) => {
       // body constraints are propagated
       body_out.constraints,
       Ast::fun(
-        id,
         // Our `Fun` holds a `TypedVar` now
         TypedVar(arg, Type::Var(arg_ty_var)),
         body_out.typed_ast,
@@ -174,7 +173,7 @@ Ast::Fun(id, arg, body) => {
 ```
 `Fun` is where we actually start doing some nontrivial inference. We create a fresh type variable and record it as the type of `arg` in our `env`. With our fresh type variable in scope, we infer a type for `body`. We then use our inferred body type and generated argument type to construct a function type for our `Fun` node.  While `Fun` itself doesn't produce any constraints, it does pass on any constraints that `body` generated. Now that we know how to type a function, let's learn how to type a function application:
 ```rs
-Ast::App(id, fun, arg) => {
+Ast::App(fun, arg) => {
   let (arg_out, arg_ty) = self.infer(env.clone(), *arg);
 
   let ret_ty = Type::Var(self.fresh_ty_var());
@@ -192,7 +191,7 @@ Ast::App(id, fun, arg) => {
         .into_iter()
         .chain(fun_out.constraints.into_iter())
         .collect(),
-      Ast::app(id, fun_out.typed_ast, arg_out.typed_ast),
+      Ast::app(fun_out.typed_ast, arg_out.typed_ast),
     ),
     ret_ty,
   )
@@ -207,7 +206,7 @@ let arg_ty = self.fresh_ty_var();
 let ret_ty = self.fresh_ty_var();
 
 let fun_ty = Type::fun(arg_ty.clone(), ret_ty.clone());
-let fun_constr = Constraint::TypeEqual(id, infer_fun_ty, fun_ty);
+let fun_constr = Constraint::TypeEqual(infer_fun_ty, fun_ty);
 
 let arg_out = self.check(env, *arg, arg_ty);
 // ...
@@ -229,19 +228,19 @@ fn check(
 ```
 Notice we match on both our AST and type at once, so we can select just the cases we care about. Let's look at our cases:
 ```rs
-(Ast::Int(id, i), Type::Int) => 
+(Ast::Int(i), Type::Int) => 
   GenOut::new(
     vec![], 
-    Ast::Int(id, i)
+    Ast::Int(i)
   ),
 ```
 An integer literal trivially checks against the integer type. This case might appear superfluous; couldn't we just let it be caught by the bucket case? Of course, we could, but this explicit case allows us to avoid type variables and avoid constraints. Our other explicit check case is for `Fun`:
 ```rs
-(Ast::Fun(id, arg, body), Type::Fun(arg_ty, ret_ty)) => {
+(Ast::Fun(arg, body), Type::Fun(arg_ty, ret_ty)) => {
   let env = env.update(arg, *arg_ty.clone());
   let body_out = self.check(env, *body, *ret_ty);
   GenOut {
-    typed_ast: Ast::fun(id, TypeVar(arg, *arg_ty), body_out.typed_ast),
+    typed_ast: Ast::fun(TypeVar(arg, *arg_ty), body_out.typed_ast),
     ..body_out
   }
 }
@@ -249,10 +248,9 @@ An integer literal trivially checks against the integer type. This case might ap
 Our `Fun` case is also straightforward. We decompose our `Type::Fun` into it's argument and return type. Record our `arg` has `arg_ty` in our `env`, and then check that `body` has `ret_ty` in our updated `env`. It almost mirrors our `infer`'s `Fun` case, but instead of bubbling a type up, we're pushing a type down. Those are our only two explicit check cases. Everything else is handled by our bucket case:
 ```rs
 (ast, expected_ty) => {
-  let id = ast.id();
   let (mut out, actual_ty) = self.infer(ast);
   out.constraints
-    .push(Constraint::TypeEqual(id, expected_ty, actual_ty));
+    .push(Constraint::TypeEqual(expected_ty, actual_ty));
   out
 }
 ```

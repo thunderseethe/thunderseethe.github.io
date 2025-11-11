@@ -89,28 +89,19 @@ Initially, our AST will have just 4 nodes: variables, integer literals, function
 ```rs
 enum Ast<V> {
   /// A local variable
-  Var(NodeId, V),
+  Var(V),
   /// An integer literal
-  Int(NodeId, i32),
+  Int(i32),
   /// A function literal 
   /// (lambda, closure, etc.)
-  Fun(NodeId, V, Box<Self>),
+  Fun(V, Box<Self>),
   /// Function application
-  App(NodeId, Box<Self>, Box<Self>), 
+  App(Box<Self>, Box<Self>), 
 }
 ```
 It doesn't get much simpler than this.
 This isn't really enough for a usable language, although it is Turing complete.
 For our purposes, it's plenty to get a minimal type inference system set up.
-Each of our nodes gets a `NodeId`.
-`NodeId` uniquely identifies each node:
-
-```rs
-struct NodeId(u32);
-```
-
-We'll use `NodeId` to maintain extra metadata about our AST.
-If we wanted to save the type of each AST node, for example, we could do so with a `HashMap<NodeId, Type>`.
 
 We parameterize our AST by a type parameter `V`.
 `V` will be the variable of our AST used in `Var` and `Fun`.
@@ -133,23 +124,19 @@ Boxing values will make our code samples pretty noisy, let's define some helper 
 ```rs
 impl<V> Ast<V> {
   fn fun(
-    node_id: NodeId,
     arg: V, 
     body: Self
   ) -> Self {
     Self::Fun(
-      node_id,
       arg, 
       Box::new(body))
   }
 
   fn app(
-    node_id: NodeId,
     fun: Self, 
     arg: Self
   ) -> Self {
     Self::App(
-      node_id,
       Box::new(fun), 
       Box::new(arg))
   }

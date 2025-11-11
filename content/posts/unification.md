@@ -272,6 +272,5 @@ We can infer types for our simple language now.
 There's a ton we can do to make this more performant or infer more powerful types, but all of that can wait for another day.
 This article is already woefully long for how much we've had to skim over the details.
 We've created a great MVP that we can start playing around with. 
-From here we have two paths forward: either continue typechecking by adding [row types](/posts/row-types), or dive deeper with our next pass [lowering](/posts/lowering-base-ir).
-Whatever we chose, we didn't get stuck endlessly fiddling with our parser.
-Type driven design has allowed us to escape the orbital decay of parser bike-shedding.
+We didn't get stuck endlessly fiddling with our parser.
+Next we're going to make our type inference resilient by [pushing past the first error](/posts/types-base).
