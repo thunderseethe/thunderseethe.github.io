@@ -1,12 +1,20 @@
 +++
 title = "Reproachfully Presenting Resilient Recursive Descent Parsing"
-date = "2025-09-10T00:00:00Z"
+date = "2025-11-11T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Parsing"]
 series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Parsing", "Recursive Descent", "LL(1)", "Lexing", "Concrete Syntax Tree", "Error Recovery"]
 description = "Parsing syntax for our base language with error recovery"
 +++
+
+{{< accessory title="Making a Language" >}}
+This post is part of the [making a language series](/series/making-a-language).
+A series that teaches you how to implement a programming language using Rust.
+
+This post covers parsing.
+Parsing is the first pass of the compiler, so it doesn't depend on anything from the previous posts.
+{{</ accessory >}}
 
 I must profess a certain disdain for the parsing tutorial.
 I won't insult you by pretending it's fair or rational.
@@ -40,7 +48,7 @@ I'm already getting dizzy, but then you have the second order choices.
 Not just what should you parse, but how:
 
   * Should I use a parser generator?
-  * What about Earley parsing? Handrolled or generated?
+  * What about Earley parsing? Hand rolled or generated?
   * Or a parser combinator library?
   * I hear PEG is in vogue
 
@@ -157,7 +165,7 @@ Our CST is perfectly happy to represent a binary expression as:
   * Whitespace @ " "
   * Operator @ "+"
   * Whitespace @ " "
-  * Integer @ "1234
+  * Integer @ "1234"
 
 But it's equally happy to represent it as:
 
@@ -220,7 +228,7 @@ Grouping is accomplished by an initial pass over our input string called lexing.
 
 The goal of lexing is to take our input string and do a quick pass over it to group characters into tokens.
 For example, lexing recognizes the string `"let"` is the keyword `let` or the string `"1234"` is a number literal.
-Our parser then consumes these higher level tokens, making it's job easier.
+Our parser then consumes these higher level tokens, making its job easier.
 Rather than checking if the next character is any digit or any alphanumeric character, we just have to check if the next token is an integer or an identifier.
 
 Lexing is not mandatory.
@@ -432,7 +440,7 @@ A span is a range of offsets into our source text represented by `Range<usize>`.
 {{< /notice >}}
 
 We call `.peekable` on that iterator to get our full `lexer` type.
-Peeking allows us our one lookahead token.
+Peeking allows us our one look ahead token.
 `Input` provides methods to help us navigate our source text.
 First is `peek` which lets us see the next token:
 
@@ -622,7 +630,7 @@ let =█foo 1; 2
 But oh no, that means our expect call to `=` now sees whitespace (or `foo`).
 It will error, and we're back to a cascade of errors.
 
-We need a goldilock skip to cover just the right amount of input to get us back on track.
+We need a goldilocks skip to cover just the right amount of input to get us back on track.
 Skipping a static number of tokens won't achieve good error recovery.
 Hence, the anchor set.
 It informs us what tokens are safe to skip to and prevents the cascade of errors.
@@ -1060,7 +1068,7 @@ We parse the valid expression `let one = |s||z| s z; add one one`, but then disc
 Our call to `recover_until` consumes the rest of our input as an error.
 
 `program` is our top level parser, but it's still a method on our `Parser` struct.
-Our entry point to parsing is a top level `parse` function that takes in a string and returns our CST and any errors that ocurred:
+Our entry point to parsing is a top level `parse` function that takes in a string and returns our CST and any errors that occurred:
 
 ```rs
 fn parse(input: &str) -> (GreenNode, Vec<ParseError>) {
