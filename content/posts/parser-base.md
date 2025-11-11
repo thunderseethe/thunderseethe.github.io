@@ -9,20 +9,21 @@ description = "Parsing syntax for our base language with error recovery"
 +++
 
 I must profess a certain disdain for the parsing tutorial.
-I won't insult you by pretending it's fair or rationale.
-This may not come as a surprise, given the making a language series has covered [every](/posts/types-base) [part](/posts/lowering-base-ir) [of the](/posts/simplify-base) [compiler](/posts/closure-convert-base) [it can](/posts/emit-base) before parsing.
-Parsing tutorials just feel so feckless, sharing an unflattering kinship with the monad tutorial.
+I won't insult you by pretending it's fair or rational.
+This may not come as a surprise, given that the Making a Language series has covered [every](/posts/types-base) [part](/posts/lowering-base-ir) [of the](/posts/simplify-base) [compiler](/posts/closure-convert-base) [it can](/posts/emit-base) before parsing.
+Parsing tutorials just feel so futile.
 Thousands of tutorials written about parsing, and yet PL projects still die bikeshedding syntax.
+What are the chances tutorial 1001 changes that?
 
 Ultimately, parsing performs two roles in a compiler:
 
-  * Check a source file contains syntax the compiler recognizes
-  * Create an in memory representation that's easier to work with than a big string
-    * We're doing compilers, so you _know_ this will be a tree
+  1. Check a source file contains syntax the compiler recognizes
+  2. Create an in memory representation that's easier to work with than a big string
+     * We're doing compilers, so you _know_ this will be a tree
 
 In theory, a simple task.
-Pick some syntax, hopefully that's easy to parse.
-Walk your input string and check each character fits the mold, build a tree out of it, and maybe report an error or two.
+You pick some syntax, hopefully that's easy to parse.
+Next, you walk your input string and check each character fits the mold, build a tree out of it, and maybe report an error or two.
 How hard could it be?
 
 Perhaps that's part of my scorn.
@@ -54,11 +55,11 @@ And so here I am, placing my parsing platitudes upon the pile.
 ## Text Must Turn To Trees
 
 Parse we must, but that doesn't help us navigate the many choices that remain in doing the parsing.
-Our goal here is humble, get in, get a parser, get out.
+Our goal here is humble: get in, get a parser, get out.
 Do not get caught in the tarpit.
 We're not here to design the best syntax, or the optimal parsing strategy.
 
-Doable and passable define our methodology today.
+Doable and passable describe our efforts today.
 To that end, we'll gather some constraints to help us pick our preferred parsing platform.
 First and foremost, is that our parser is handwritten.
 There are a bajillion parser generators and libraries that will take some kind of grammar or config file and spit out a parser.
@@ -66,7 +67,7 @@ But my experience with these tools is you spend a bundle of time learning the to
 They can be a boon, but I haven't found the tradeoff worth it.
 We won't need them, and we can save time by avoiding them off the bat.
 
-After handwritten, we have two more constraints informed by the goal of our language.
+We have two more constraints informed by the goal of our language.
 In the modern era, languages (and their compilers) are expected to be more interactive than the bygone days of batch compilation.
 It's now table stakes for any new language on the block to support IDE like features, usually via the [Language Sever Protocol (LSP)](https://microsoft.github.io/language-server-protocol/).
 As a modern language ourselves, we need to support these fancy features.
@@ -77,7 +78,6 @@ For the parser that takes the shape of two requirements:
 * Full Fidelity
 
 Resilience means our parser does not stop at the first error.
-This might sound a bit javascript-y at first, but stay with me.
 Once our language is interactive it will often see source code while the user is editing it.
 If our parser stops at the first error, anytime our user modifies a function we become unable to parse the entire file.
 Rather than stop at the first error, we want to confine that first error and parse as much valid syntax as possible.
@@ -126,14 +126,13 @@ We're going to farm out to a library for storing our CST.
 We could write our own, but much like the union-find, we're interested in parsing not the particulars of efficiently storing a CST.
 Leaning on a library lets us get back to parsing quickly, while providing a robust solution.
 
-Our library of choice is [rowan](https://crates.io/crates/rowan).
-Rowan is used by rust-analyzer, so I trust it to do its job well.
-Under the hood rowan uses a [Red-Green Tree](https://willspeak.me/2021/11/24/red-green-syntax-trees-an-overview.html).
-This is a common choice for CSTs (Swift, C#, and Kotlin also use this kind of tree).
+Our library of choice is [`rowan`](https://crates.io/crates/rowan).
+`rowan` is used by rust-analyzer, so I trust it to do its job well.
+Under the hood `rowan` uses a [Red-Green Tree](https://willspeak.me/2021/11/24/red-green-syntax-trees-an-overview.html), which is a common choice for CSTs (Swift, C#, and Kotlin also use this kind of tree).
 If you're interested, you can find details in the [rust-analyzer book](https://rust-analyzer.github.io/book/contributing/syntax.html).
 
-Our purposes are suited just fine by using the fruits of rowan's labor.
-What we need to know about rowan is that it stores a homogenous n-ary tree.
+`rowan` more than suffices our purposes.
+All we need to know about `rowan` is that it stores a homogenous n-ary tree.
 Each node of our tree holds a tag and any number of children.
 We'll define an enum to represent our tag, named `Syntax`:
 
@@ -148,7 +147,7 @@ enum Syntax {
 
 Our enum lacks associated data, unlike our AST.
 Each node contains the same data, an arbitrary number of children, regardless of this tag.
-Under the hood rowan turns `Syntax` into a `u16`, so we can't attach data even if we wanted to.
+Under the hood `rowan` turns `Syntax` into a `u16`, so we can't attach data even if we wanted to.
 
 This flexibility is what allows for our resilience.
 Our CST is perfectly happy to represent a binary expression as:
@@ -173,21 +172,21 @@ When the user gives us an operator we don't recognize, it'll happily let us repr
 
 Much like dynamic typing, this freedom comes at a cost.
 The CST will let us put anything in the tree, but that means it will let us put _anything_ in the tree.
-Our CST allows us to represent invalid trees, which is critical to handling erroneous input gracefully.
-But it also represents any bugs we introduce the same way.
-This is a tradeoff.
-Swift generates nodes with typed fields for their CST, but then it needs [gargantuan nodes](https://swiftpackageindex.com/swiftlang/swift-syntax/601.0.1/documentation/swiftsyntax/functiondeclsyntax/init(leadingtrivia:_:attributes:_:modifiers:_:funckeyword:_:name:_:genericparameterclause:_:signature:_:genericwhereclause:_:body:_:trailingtrivia:)) to represent all the possible failures states.
+Our CST allows us to represent invalid trees, which is critical to handling erroneous input gracefully, but it also represents any bugs we introduce the same way.
+There's a tradeoff here.
+Our CST could instead provide typed nodes.
+Swift takes this approach, but it requires [code generation](https://github.com/swiftlang/swift-syntax/tree/main/CodeGeneration) and [gargantuan nodes](https://swiftpackageindex.com/swiftlang/swift-syntax/601.0.1/documentation/swiftsyntax/functiondeclsyntax/init(leadingtrivia:_:attributes:_:modifiers:_:funckeyword:_:name:_:genericparameterclause:_:signature:_:genericwhereclause:_:body:_:trailingtrivia:)) to represent all the possible failures states.
 
 ## Guess we need some syntax
 
-Rowan will let us parse things in full fidelity, resiliently.
+`rowan` lets us parse things in full fidelity, resiliently.
 All we've got to figure out now is what to parse.
 This is a dangerous game.
-Picking syntax is literally the worst case of [Wadler's Law](https://wiki.haskell.org/Wadler's_Law).
+Picking syntax is like the worst case of [Wadler's Law](https://wiki.haskell.org/Wadler's_Law).
 We don't have comments yet, thankfully.
 
 Our previous passes provide guard rails to keep us on track.
-Whatever syntax we pick, it must turn into our AST:
+Whatever syntax we pick must map onto our AST:
 
 ```rs
 enum Ast<V> {
@@ -205,7 +204,8 @@ enum Ast<V> {
 ```
 
 We're going to need syntax for each of these nodes.
-Conversely, any syntax that doesn't map onto one of these nodes will be treated with great skepticism.
+Conversely, any syntax that doesn't map onto one of these nodes, we'll treat with great skepticism.
+It risks sinking us into the tarpit.
 First on our list will be variables, represented by identifiers.
 For us, an identifier comprises a series of alphanumeric characters that isn't a keyword.
 
@@ -495,8 +495,8 @@ Error handling is under the purview of the `Parser`.
 
 ## The Parsing Play Must Go On
 
-Now that we're familiar with all our parsing state, lets actual parse something.
-We'll start with our leaf parsing functions and culminate in our top level `program` parser.
+Now that we're familiar with all our parsing state, let's actually parse something.
+We'll start with our leaf parsing functions and end with our top level `program` parser.
 The backbone of our parser is the `expect` function:
 
 ```rs
@@ -717,7 +717,7 @@ We end `expect` with another call to `ate` that we do not check.
 Error recovery might have left us at the token we expected.
 In which case, we want to consume it in this call, otherwise subsequent expect calls will error.
 Returning to our bountiful let example, imagine if it was `"let x | = foo 1; 2"`.
-We have a valid let in their, but with an extra `|` lurking.
+We have a valid expression in their, but with an extra `|` lurking.
 Our expect `=` call will see the `|`, discard it as erroneous, and successfully recover to the `=`.
 At this point, however, if we do not check for `=` again, we would move on with our parsing leaving `=` as our current input.
 
