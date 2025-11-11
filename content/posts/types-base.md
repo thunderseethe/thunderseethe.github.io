@@ -502,4 +502,4 @@ We call this property of error tolerance resilience.
 In the interest of interactivity, we'll want all our frontend passes to be resilient.
 That's a problem for our future posts though.
 For now, we've achieved resilient type inference.
-From here we can either continue on to [lower our typed ast](TODO), or continue type inference with [row types](TODO)
+From here we can either continue on to [lower our typed ast](/posts/lowering-base-ir), or continue type inference with [row types](/posts/row-types)
