@@ -18,7 +18,7 @@ Parsing is the first pass of the compiler, so it doesn't depend on anything from
 
 I must profess a certain disdain for the parsing tutorial.
 I won't insult you by pretending it's fair or rational.
-This may not come as a surprise, given that the Making a Language series has covered [every](/posts/types-base) [part](/posts/lowering-base-ir) [of the](/posts/simplify-base) [compiler](/posts/closure-convert-base) [it can](/posts/emit-base) before parsing.
+This may not come as a surprise, given that the [Making a Language](/series/making-a-language) series has covered [every](/posts/types-base) [part](/posts/lowering-base-ir) [of the](/posts/simplify-base) [compiler](/posts/closure-convert-base) [it can](/posts/emit-base) before parsing.
 Parsing tutorials just feel so futile.
 Thousands of tutorials written about parsing, and yet PL projects still die bikeshedding syntax.
 What are the chances tutorial 1001 changes that?
@@ -27,7 +27,7 @@ Ultimately, parsing performs two roles in a compiler:
 
   1. Check a source file contains syntax the compiler recognizes
   2. Create an in memory representation that's easier to work with than a big string
-     * We're doing compilers, so you _know_ this will be a tree
+     * We're building compilers, so you _know_ this will be a tree
 
 In theory, a simple task.
 You pick some syntax, hopefully that's easy to parse.
