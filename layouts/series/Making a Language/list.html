@@ -198,6 +198,24 @@
         </div>
       </div>
     </div>
+    <div class="mal-pass">
+      <div class="mal-header">
+        <h2>Parsing</h2>
+      </div>
+      <div class="mal-content">
+        <p>
+        Parsing checks a source file contains valid syntax, and constructs a Concrete Syntax Tree representing the syntax of our language.
+        </p>
+        <div>
+          <h3>Base</h3>
+          <div style="display: flex; flex-direction: column">
+            {{ with (.GetPage "/posts/parser-base") }}
+              {{ partial "card.html" . }}
+            {{ end }}
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 </section>
 {{ end }}
