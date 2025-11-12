@@ -1642,4 +1642,4 @@ In my exuberance at executing code, I fear I've made a grave mistake.
 We've left a gaping parser-shaped hole in the frontend of our compiler.
 Can we truly call ourselves compilersmiths if we force our users to feed us hand rolled ASTs?
 No.
-We'll have to traverse the greatest tarpit known to compilation: The Parser.
+We'll have to traverse the greatest tarpit known to compilation: [The Parser](/posts/parser-base).

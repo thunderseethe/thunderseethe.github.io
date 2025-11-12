@@ -1,6 +1,6 @@
 +++
 title = "Reproachfully Presenting Resilient Recursive Descent Parsing"
-date = "2025-11-11T00:00:00Z"
+date = "2025-11-12T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Parsing"]
 series = ["Making a Language"]
