@@ -525,9 +525,10 @@ Our happy path is straightforward:
 
 ```rs
 fn expect(&mut self, token: Syntax, mut anchor_set: HashSet<Syntax>) {
-  let ControlFlow::Continue(_) = self.ate(token) else {
+  if let ControlFlow::Break(_) = self.ate(token) {
+    // If `ate` returns break, it consumed the expected token and we are done.
     return;
-  };
+  }
 
   // We didn't see the token we expected
 }
