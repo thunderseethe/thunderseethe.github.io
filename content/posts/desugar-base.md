@@ -90,7 +90,7 @@ This is why we wrapped notable `Identifier` tokens in nodes during parsing.
 ## Setting Up For Success
  
 Like our other passes, desugar is a set of recursive methods walking a tree.
-With all the trees we're traversing, we'll have covered a whole forest by the time we're done with this compiler.
+With all the trees we're traversing, we'll have covered a whole forest by the time we're done compiling.
 Also like our other passes, we share state between those recursive methods in a `Desugar` struct:
 
 ```rs
@@ -104,24 +104,25 @@ struct Desugar {
 
 Desugar is where we're on the hook to uniquely identify our `Ast` nodes.
 `node_id` tracks the next available ID as we construct AST nodes.
-Like `VarSupply` from deeper in our compiler, we increment this counter every time we create a node.
+Like `VarSupply` from lowering, we increment this counter every time we create a node.
 
-`root` is the root of our CST from parsing.
-This is the same CST desugar is in the middle of traversing.
-A `GreenNode` is cheap to clone, so we don't need to worry about holding a copy here.
+`root` is the root node of our CST from parsing.
+The very same CST desugaring is in the middle of traversing.
+A `GreenNode` is cheap to clone, so we don't need to worry about having two copies floating about.
 
 `ast_to_cst` maps our `Ast` nodes back onto the CST nodes that spawned them.
 This mapping will be central to error reporting, taking errors on our AST nodes and turning them into spans in our source file.
-We might be surprised to see it stores something called a `SyntaxNodeHandle`, rather than a `SyntaxNode`.
+We might be surprised to see it stores something called a `SyntaxNodeHandle`, not `SyntaxNode`.
 
 A `SyntaxNode` is a pointer under the hood.
-This is good for performance, but not great for long term storage.
-Instead of trying to figure out how to store a pointer safely, we store a reference to the root of our tree and an index that will let us return to the position in our tree our `SyntaxNode` pointed at.
+This is great for performance, but not great for long term storage.
+Instead of trying to figure out how to store a pointer safely, we store an index that will let us return to the position in our tree our `SyntaxNode` pointed at.
 
 {{< notice note >}}
 As the name might imply, what we're describing here is the [handle pattern](https://floooh.github.io/2018/06/17/handles-vs-pointers.html).
 {{</ notice >}}
 
+We can think of this as storing a `(Vec<T>, usize)` instead of a `&T`.
 We can see this if we pop open `SyntaxNodeHandle`:
 
 ```rs
@@ -132,7 +133,7 @@ struct SyntaxNodeHandle {
 ```
 
 `SyntaxNodePtr` comes from `rowan`.
-Despite the name, a look at its definition reveals an absence of pointers:
+Despite the name, a glance at its definition reveals an absence of pointers:
 
 ```rs
 struct SyntaxNodePtr<L: Language> {
@@ -143,16 +144,16 @@ struct SyntaxNodePtr<L: Language> {
 }
 ```
 
-From the span and kind of our node, we can find it within `root` and produce a `SyntaxNode` when we need one.
+From the span and kind of our node, we can find it within `root` and produce a `SyntaxNode` whenever we need one.
 We work with `SyntaxNode` while traversing because it's fast, but once we want to store a node we convert it to `SyntaxNodeHandle`.
-When we want to traverse again, we convert our handle back into a `SyntaxNode` and pick up where we left off.
+When it's time to traverse again, we convert our handle back into a `SyntaxNode` and pick up where we left off.
 
 `error` also needs to store a `SyntaxNode` to point at where errors occurred.
 We're less concerned with restarting traversal for our errors, so it suffices to store a `SyntaxNodePtr`.
 
 ## Taking the Icing Off the Cake
 
-With our state squared away, we can take a look at our entry point `desugar`:
+With our state squared away, we move onto our entry point `desugar`:
 
 ```rs
 fn desugar(root: GreenNode) -> DesugarOut {
@@ -186,7 +187,8 @@ fn desugar(root: GreenNode) -> DesugarOut {
 }
 ```
 
-We construct `Desugar`, desugar our program's AST, and then assemble our outputs.
+We construct `Desugar`, desugar our program's `Ast`, and then assemble our outputs.
+Hard to ask for something simpler than that.
 
 ## From the Top With Programs
 
@@ -206,8 +208,8 @@ fn desugar_program(&mut self, cst: SyntaxNode<Lang>) -> Ast<String> {
 
 We find the first `Expr` node in our CST.
 There should only ever be at most one, so the first is always correct.
-Failing to find an expression, we assume our program is invalid and return a `hole` for our program.
-`hole` constructs an `Hole` AST node and maps it to our CST node:
+Failing to find an expression, we assume our program is invalid and return a `hole`.
+`hole` constructs a `Hole` AST node and maps it to its CST node:
 
 ```rs
 fn hole(&mut self, node: &SyntaxNode<Lang>, kind: DesugarError) -> Ast<String> {
@@ -222,33 +224,21 @@ fn hole(&mut self, node: &SyntaxNode<Lang>, kind: DesugarError) -> Ast<String> {
 
 `Hole` is part of our resilience strategy, previously seen in [type inference](/posts/types-base/#holy-ast-batman).
 Rather than failing at the first invalid AST, we treat it as a Hole and try to recover as much of our AST as possible.
-Hard to see the value in that when our whole program is hole, but I promise it'll be handy later.
-
 Whenever we create a hole we attach an error to let us know what went awry.
-Down the road we can use these to report diagnostics to the user.
 
 ## Expressive Desugaring
 
 When we find our `Expr`, we pass it along to `desugar_expr`:
-The first thing we do in `desugar_expr` is check we are looking at an expression.
 
 ```rs
-fn desugar_expr(&mut self, expr: SyntaxNode<Lang>) -> Ast<String> {
-  if expr.kind() != Syntax::Expr {
-    return self.hole(&expr, DesugarError::MissingSyntax(Syntax::Expr));
-  }
-
+fn desugar_expr(
+  &mut self, 
+  expr: SyntaxNode<Lang>
+) -> Ast<String> {
   todo!()
 }
 ```
 
-We just checked for a `Expr` node in `desugar_program`.
-Why are we checking again?
-We'll call `desugar_expr` all over the place, and we won't always know it's an expression ahead of time.
-We check to make sure that's the case in `desugar_expr`.
-If it's not, we treat our entire expression as a `hole`.
-
-Empowered by the knowledge we're looking at an expression, we being the process of desugaring let bindings.
 Recall our expression syntax is any number of let bindings followed by an application:
 
 * Expr
@@ -260,7 +250,7 @@ Recall our expression syntax is any number of let bindings followed by an applic
     * ...
 
 In a perfect world, we'd consume this layout and be on our merry way.
-Alas, we have to contend that the expression we're looking at isn't actually valid.
+Alas, we have to contend with the possibility that the expression we're looking at is invalid.
 We maintain a list of bindings and walk the children `SyntaxNode`s of our expression:
 
 ```rs
@@ -283,31 +273,38 @@ for child in expr.children() {
 }
 ```
 
-`children` only walks over syntax nodes, not tokens, so we don't have to worry about child being a `Whitespace` or other minutia.
-If our child is a `Let`, we try to desugar a let binding and add it to our list of bindings.
-Our let bindings might be an error.
-In which case we treat the entire child as a hole, emit an error, and call `build_locals` using our hole.
+Our loop ends in one of three ways:
 
-We're ignoring the rest of our children when this happens.
-Once we encounter an erroneous binding, we assume the rest of our expression is invalid as well.
-Otherwise, our error would have been localized within the let binding rather than the entire binding itself.
-There's no point in translating the remainder of our expression as an error.
-It won't provide better analysis in later passes, so we save ourselves the effort.
+1. We encounter an error from `desugar_let`
+2. We see a non `Let` child
+3. We run out of children
 
-If all goes well, eventually we'll hit something that isn't a `Let`.
-In that case, we assume it's the body of our expression and pass it to `desugar_app`.
-Whatever comes out of that, hole or otherwise, we pass to `build_locals`.
+Our first exit means we had an invalid let binding, and we treat the remainder of our expression as a hole.
+We still might have accrued some bindings that we'll turn into a let expression using `build_locals`.
 
-On our happy path, our for loop returns with a call to `build_locals`.
-If we exit our for loop, something has gone wrong.
-Either our expression has no children, or it only had let bindings and no body.
-We'll try to attach our error to the last node of expression, and fallback to the entire expression if it's empty.
+Our second case is our "happy path".
+If we see a non `Let` syntax, we assume it's an application, pass it to `desugar_app`, and return whatever comes back to `build_locals`.
+An application could be any of a parenthesized expresssion, function, integer, application, etc.
+We don't have to check for all of those here, if we happen to pass invalid syntax to `desugar_app` it'll give us back a hole.
+
+Finally, our third case exits the loop.
+This happens when we only have `Let` children, our expression has no body, or we have no children to begin with.
+Either way we handle it the same, by creating a hole:
+
+```rs
+let node = &expr.last_child().unwrap_or(expr);
+self.hole(node, DesugarError::ExprMissingBody)
+```
+
+Our loop relies on `children` only walking over syntax nodes.
+Let bindings have `Whitespace` tokens between them (although they don't have to!), and these would trigger our wildcard case ending our loop early.
+But `Whitespace` is a token, so `children` skips over it allowing us to assume we'll only see `Let` syntax until we reach our expression's final application.
 
 ## desugar_let
 
-`desugar_let`, much like `let_` from our parser, does not desugar a full let expression
-It only handles the binding portion: `let <var> = <expr>;`.
-Which becomes the relatively flat CST (omitting whitespace which may or may not be present):
+`desugar_let` does not desugar a full let expression
+This is because our CST only encodes let bindings: `let <var> = <expr>;`.
+Recall from parsing, a `Let` syntax node has the shape:
 
 * Let
   * LetKw
@@ -318,8 +315,9 @@ Which becomes the relatively flat CST (omitting whitespace which may or may not 
     * ...
   * Semicolon
 
-Because of that we don't produce an `Ast` out of `desugar_let`, we can't.
-Instead, we produce a pair consisting of our identifier, and it's definition, relying on `desugar_expr` to turn those into a full `Ast`.
+Because of that we don't produce an `Ast` out of `desugar_let`.
+We lack the syntax with which to do so.
+Instead, we produce a pair comprising an identifier and it's definition, relying on `desugar_expr` to turn those into a full `Ast`.
 We'll extract our pair from the children of our `Let` node:
 
 ```rs
@@ -329,18 +327,14 @@ fn desugar_let(
 ) -> Result<(String, Ast<String>), DesugarError> {
   let mut children = bind.children();
 
-  let Some(var) = children.next() else {
-    return Err(DesugarError::LetMissingBinding);
-  };
+  let binder = children
+    .next()
+    .filter(|var| var.kind() == Syntax::LetBinder)
+    .and_then(|var| var.first_child_or_token_by_kind(&|kind| kind == Syntax::Identifier))
+    .ok_or(DesugarError::LetMissingBinding)?;
 
-  let Some(binder) = (var.kind() == Syntax::LetBinder)
-    .then_some(())
-    .and_then(|_| var.first_child_or_token_by_kind(&|kind| kind == Syntax::Identifier))
-  else {
-    return Err(DesugarError::LetMissingBinding);
-  };
-
-  let ast = match children.next() {
+  let ast = match children.next()
+      .filter(|expr| expr.kind() == Syntax::Expr) {
     Some(expr) => self.desugar_expr(expr),
     None => self.hole(&bind, DesugarError::LetMissingExpr),
   };
@@ -349,30 +343,27 @@ fn desugar_let(
 }
 ```
 
-We assume our let binding only has two nodes (recall the distinction between nodes and tokens).
-The first is a `LetBinder`, which holds the variable our let binds.
-In parsing we parse an identifier and then wrap it up as a `LetBinder` making it easier to find now.
-We unwrap our `LetBinder` node to reveal it's underlying `Identifier` token and get its text.
-If our binding is missing, we error out
+We assume our let binding only has two nodes (and we don't have to care how many tokens it has).
+The first is a `LetBinder`, which holds our identifier.
+We unwrap our `LetBinder` to reveal it's underlying `Identifier` token and grab its text.
+If our binding is missing, we error immediately.
 
-We don't check our next child for a specific syntax kind.
-It's the definition of our let binding, which could be any expression.
+Next is the definition of our let binding, which should be an `Expr`.
 We pass it to `desugar_expr` and use whatever it gives us.
-Failing to find a next child at all, we produce a hole and let the user know they're missing an expression.
-
+Failing to find that, we produce a hole and let the user know they're missing an expression.
 Next we move onto desugaring appl- You know what actually...
 
 ## You get the gist
 
 We've got a taste for desugaring.
-I trust you can extrapolate from what we've seen so far.
+I trust you can extrapolate from here.
 For each piece of syntax we:
 
-1. Traverse to the interesting node in our CST
-2. Extract it's text
-3. Put it in our AST
+1. Traverse to the interesting nodes in our CST
+2. Extract their text
+3. Put them in our AST
 
-When we fail to do any of those steps, we replace the AST we're constructing with a `Hole`, attempting to replace the smallest AST we can with a hole.
+When we fail to do any of those steps, we replace the AST we're constructing with a `Hole`, attempting to replace the smallest AST we can.
 We'd rather replace the definition of a let with a hole than the entire let.
 Whenever we create an AST node, we give it a unique ID and a pat on the head, map it back to our CST and send it on its way.
 If you want to see it in glorious high resolution (depending on your monitor) detail, check out the [full code](TODO).
@@ -382,35 +373,34 @@ Instead of rehashing the same concepts we've covered above, let's move on to the
 
 `build_locals` is, in a sense, where all the magic happens.
 Our other helpers turn one syntactic construct into one AST construct.
-Here, however, we turn our let expressions into multiple AST nodes.    
-With the loss of our 1:1 mapping, we have to answer the question: How do we map multiple AST nodes back onto one CST node.
-From this first quandary, more questions arise.
+Here, however, we turn our let expressions into multiple AST nodes.
+With the loss of our 1:1 mapping, we have to answer a question: How do we map multiple AST nodes back onto one CST node.
 
 A let expression turns into a function nested within an application.
-Whenever we write `let x = 1; incr x`, that's the same as writing `(|x| incr x) 1` and we'll represent let expressions as an `Ast::Fun` and `Ast::App`.
+Whenever we write `let x = 1; incr x`, we could write `(|x| incr x) 1`.
+We'll represent let expressions as an `Ast::Fun` and `Ast::App`.
+
 But, what's the span of our `Ast::Fun`?
 Our tree transformation is destructive.
 We've lost some information.
 
 There isn't a contiguous span in our source that represents our function.
 If we encompass all the elements of our function, as in `let ∣x = 1; incr x∣`, we also include parts of our application.
-Our application faces a similar conundrum, but it's easier for us to handwave it away by saying our application span is our full let expression's span.
+Our application faces a similar conundrum, but it's easier for us to handwave it away by saying it spans our full let expression.
 
 In lieu of picking the perfect span for our function, let's take a step back and consider why we need a span for our function.
 Foremost, our span serves as a location for diagnostics.
-After that, our span also serves to identify our AST node for any user interactions.
-For example, if we want to get the type of our function parameter, we'll use the span to figure out which function to get the type of.
+After that, our span serves to identify our AST node for any user interactions.
+For example, if we want to get the type of our let variable, we'll use the span to figure out which function parameter to get the type of in the AST.
 
 Our function doesn't actually need a span for that many diagnostics in practice.
-If an error occurs in our function body, our function body is an expression that maps to its own span independent of our function.
-A similar deal for any interactions occurring in the function body.
-We don't have to worry about it.
+If an error occurs in our function body, our function body is an expression that maps to its own independent span.
 
-In that case, we don't need a span for our _entire_ function.
+We don't need a span for our _entire_ function.
 If we can give a span to our function parameter, our function body will take care of itself.
 Our narrowed task is much simpler to satisfy: `let ∣x∣ = 1; incr x`.
 Just like that; We've assigned a span to our function parameter.
-If we look at the implementation, we'll see that's exactly what we do:
+And if we look at the implementation, we'll see that's exactly what we do:
 
 ```rs
 fn build_locals(
@@ -433,17 +423,12 @@ fn build_locals(
 
 We accomplish a secondary task whilst desugaring lets, nesting let bindings correctly.
 `body` is the body expression of our innermost let binding, which will be the last element of `binds`.
-We walk binds backwards starting with `body`, constructing new let expressions out of the previous until we reach our first bindings.
-The first binding is our outermost let expression and should include all our other bindings within its body.
-
-Once we have our nesting in under, the work of producing `Ast` nodes is straight forward.
-Given a let expression `let <var> = <arg>; <body>` we turn it into a function immediately applied to an argument `Ast::app(.., Ast::fun(..., var, body), arg)`.
-This transformation works because the identifier bound by our let is only in scope for the body of the expression.
-The same way function parameters are only in scope for their function bodies.
+We walk binds backwards, constructing new let expressions out of the previous until we reach our first bindings.
+The first binding is our outermost let expression, including all our other bindings within its body.
 
 ## Let's see let in action
 
-Let's get a feel for our desugaring by working through an example.
+*Let's* get a feel for desugaring by working through an example.
 We'll start with the syntax:
 
 ```rs
@@ -455,7 +440,7 @@ add one one
 All my [church](https://en.wikipedia.org/wiki/Church_encoding#Church_numerals) heads sound off in chat.
 This is a perfectly good way to do addition, if you ask me.
 I don't even know why we're planning to add more features.
-That syntax gets parsed into a CST, that we'll only show the highlights of:
+That syntax gets parsed into a CST, that we'll only summarize:
 
 * Program
   * Expr
@@ -471,7 +456,7 @@ That syntax gets parsed into a CST, that we'll only show the highlights of:
         * Var "one"
       * Var "one"
 
-From that CST, we're going to desugar into the `Ast`.
+From that CST, we desugar our `Ast`.
 We'll omit the body of our let definitions for brevity.
 We just want to get a sense for how our let expressions transform:
 
@@ -528,4 +513,4 @@ We don't have any special treatment of let expressions, so we can desugar them.
 
 One thing is still bugging me about the desugar example.
 Our desugared `Ast` uses `String` for variables, but during type inference we use `Var`.
-We're going to need one more pass before we complete the arch and pass our `Ast` to type inference: name resolution.
+We're going to need one more pass before we pass our `Ast` to type inference: name resolution.
