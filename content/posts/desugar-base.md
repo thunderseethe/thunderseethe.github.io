@@ -1,10 +1,10 @@
 +++
 title = "Desugarging the Relationship Between Concrete and Abstract Syntax"
-date = "2025-11-12T00:00:00Z"
+date = "2025-12-02T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Desugar"]
 series = ["Making a Language"]
-keywords = ["Programming Languages", "Compiler", "Parsing", "Recursive Descent", "LL(1)", "Lexing", "Concrete Syntax Tree", "Error Recovery"]
+keywords = ["Programming Languages", "Compiler", "Abstract Syntax Tree", "Syntax Sugar", "Desugaring", "Concrete Syntax Tree", "Error Recovery"]
 description = "Converting our CST into our AST and desugarging let expressions"
 +++
 
@@ -300,7 +300,7 @@ Our loop relies on `children` only walking over syntax nodes.
 Let bindings have `Whitespace` tokens between them (although they don't have to!), and these would trigger our wildcard case ending our loop early.
 But `Whitespace` is a token, so `children` skips over it allowing us to assume we'll only see `Let` syntax until we reach our expression's final application.
 
-## desugar_let
+## Desugaring Let Bindings
 
 `desugar_let` does not desugar a full let expression
 This is because our CST only encodes let bindings: `let <var> = <expr>;`.
@@ -366,10 +366,10 @@ For each piece of syntax we:
 When we fail to do any of those steps, we replace the AST we're constructing with a `Hole`, attempting to replace the smallest AST we can.
 We'd rather replace the definition of a let with a hole than the entire let.
 Whenever we create an AST node, we give it a unique ID and a pat on the head, map it back to our CST and send it on its way.
-If you want to see it in glorious high resolution (depending on your monitor) detail, check out the [full code](TODO).
+If you want to see it in glorious high resolution (depending on your monitor) detail, check out the [full code](https://github.com/thunderseethe/making-a-language/tree/main/desugar/base).
 Instead of rehashing the same concepts we've covered above, let's move on to the next interesting bit: desugaring let expressions.
 
-## build_locals
+## Removing our Syntax Sugar
 
 `build_locals` is, in a sense, where all the magic happens.
 Our other helpers turn one syntactic construct into one AST construct.
