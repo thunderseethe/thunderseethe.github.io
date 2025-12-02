@@ -1,5 +1,5 @@
 +++
-title = "Desugarging the Relationship Between Concrete and Abstract Syntax"
+title = "Desugaring the Relationship Between Concrete and Abstract Syntax"
 date = "2025-12-02T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Desugar"]
