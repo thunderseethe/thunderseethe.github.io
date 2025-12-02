@@ -481,7 +481,8 @@ App(
           Var(NodeId(21), "one")
         )
       ),
-      Fun(NodeId(17), "m", Fun(NodeId(16), "n", Fun(NodeId(15), "s", Fun(NodeId(14), "z", ...))))
+      Fun(NodeId(17), "m", Fun(NodeId(16), "n", 
+        Fun(NodeId(15), "s", Fun(NodeId(14), "z", ...))))
     )
   ),
   Fun(NodeId(4), "s",
@@ -511,6 +512,7 @@ We don't have any special treatment of let expressions, so we can desugar them.
 
 {{< /notice >}}
 
+As always, you can find the full code for our desugar pass in the [making a language repo](https://github.com/thunderseethe/making-a-language/tree/main/desugar/base).
 One thing is still bugging me about the desugar example.
 Our desugared `Ast` uses `String` for variables, but during type inference we use `Var`.
 We're going to need one more pass before we pass our `Ast` to type inference: name resolution.
