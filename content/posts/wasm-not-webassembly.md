@@ -1,5 +1,5 @@
 +++
-title = "Wasm Does Not Stand for WebAssembly"
+title = "Wasm Does not Stand for WebAssembly"
 date = "2025-07-15T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Wasm"]

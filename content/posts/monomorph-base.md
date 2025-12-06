@@ -1,5 +1,5 @@
 +++
-title = "Casting Out Polymorphism with Monomorphization"
+title = "Casting out Polymorphism with Monomorphization"
 date = "2025-05-11T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Monomorph"]

@@ -1,5 +1,5 @@
 +++
-title = "Closure Conversion Takes The Function Out Of Functional Programming"
+title = "Closure Conversion Takes the Function out of Functional Programming"
 date = "2025-05-14T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "ClosureConvert"]
