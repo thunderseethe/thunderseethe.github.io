@@ -1,5 +1,5 @@
 +++
-title = "Back to basics by simplifying our IR"
+title = "Back to Basics by Simplifying our IR"
 date = "2025-04-30T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Simplify"]
