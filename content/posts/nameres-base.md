@@ -29,8 +29,7 @@ Rather than repeat `1 + 2` every time we need it, we can name it `three` and ref
 
 Naming helps make our program more legible to our fellow programmers.
 Names bundle up complexity and offload it, allowing us to comprehend bigger and better programs.
-A second service resides alongside name's identification duties.
-They also serve as a means of sharing.
+They also provide a means of sharing.
 
 When we name a value, in most languages, we give it a place in memory.
 `three` doesn't just let us skip saying `1 + 2` every time, it also let's the computer skip recomputing `1 + 2` every time.
@@ -43,7 +42,7 @@ The computer is solely interested in knowing where a value lives in memory, and 
 Human readable names aren't necessarily great for this purpose, especially in our language.
 This is because of two features in our language: scopes and shadowing.
 
-A scope is a map from names to their values at a particular point in a program.
+A scope is a map from names to their values at a particular point in our program.
 If we write the program:
 
 ```rs
@@ -52,9 +51,10 @@ let two = 2;
 let three = add one two;
 add three two
 ```
+Then our scope at `let two = 2;` would contain `one`.
+But our scope at `add three two` would contain: `one`, `two`, and `three`.
 
-Then our scope at `add three two` would contain: `one`, `two`, `three`.
-Scopes can be stacked atop each other.
+Scopes can be stacked on top of each other.
 If we introduce a function, its body is in a new scope:
 
 ```rs
@@ -71,7 +71,7 @@ If we can't find a name within a scope, we go up the stack and see if we can fin
 This behavior gives rise to our second feature: shadowing.
 
 Introducing a new scope lets us redefine a previously defined name.
-If we reimagine our code example as:
+Imagine our previous code example was:
 
 ```rs
 let y = 2;
@@ -95,8 +95,8 @@ let x = add x x;
 x
 ```
 
-It's nice to not have to make up names like `x'` or `x0` or what have you for values that are immediately thrown away.
-As a reader it can also be helpful to see that `x = 1` gets shadowed.
+It's nice to not have to make up names like `x'` or `x0` for values that are immediately consumed.
+As a reader, it's helpful to see that `x = 1` gets shadowed.
 I know for the remainder of that expression `x = 1` won't be referenced again and I can put it out of mind.
 
 Shadowing is also controversial.
@@ -105,17 +105,17 @@ Plenty of production languages eschew shadowing and are fine.
 But that's a design discussion for a different day.
 Our language will have shadowing, and I like it that way.
 
-## Resolving the names
+## Resolving the Names
 
 Back to names.
 Scoping complicates determining what a name references.
 When we see a name, we have to walk our stack of scopes searching for where it's defined.
 Making this trek every time we see a name does not sound very efficient.
 
-Name resolution is here to save the day.
-Name resolution does the work of figuring out what each name references and then saves it in a form that is more amenable to the computer's needs.
+Name resolution resolves our woes.
+It does the work of figuring out what each name references and then saves it in a form that is more amenable to the computer's needs.
 Because we've already written type inference, we actually know what this form is.
-Each name will be replaced by a unique variable that is essentially just an integer counter.
+Each name will be replaced by a unique variable that is essentially just an integer counter:
 
 ```rs
 struct Var(usize);
@@ -130,9 +130,10 @@ let v2 = add v1 v1;
 v2
 ```
 
-We assign each name a unique variable and those variables unique represent locations in memory, unlike `x`.
-I don't love reading this code, but it's much easier for the computer to work with and I don't have to read it.
-Our compiler will produce this for us and we can stick to the named code.
+We assign each name a unique variable and those variables represent unique locations in memory, unlike `x`.
+We no longer have to worry about stacks of scopes.
+We can shove every name in our program in a big `HashMap<Var, T>` without worry that shadowing will cause two names to overlap.
+And in fact, we'll do just that in name resolution.
 
 There's one more task we accomplish during name resolution, ensuring all our names are defined.
 It's perfectly legal to write:
@@ -142,13 +143,13 @@ let f = |y| add x y;
 g 1
 ```
 
-But it's utterly nonsensical.
+But it's utterly nonsensical to the compiler.
 `g` has no definition and may not even be a function.
-`x` is referenced but hasn't a let binding in sight.
-As we resolve our names, such errors will make themselves abudantly clear and we'll keep track of them.
-They won't stop our progress, we're resilient, but we will replace undefined names with a `Hole` the same way we did in desugaring.
+`x` is referenced with nary a let binding in sight.
+As we resolve our names, such errors will make themselves abundantly clear and we'll keep track of them.
+They won't stop our progress, we're resilient, but we will replace undefined names with a `Hole`.
 
-## TODO: Transition to code
+## Setup our Pass
 
 Let's see some code.
 We start the same place we do for almost every pass: a shared struct.
@@ -196,7 +197,7 @@ When we encounter an undefined variable, we'll emit this error.
 We can do this at most one time per AST node, so we keep them all in a map.
 Although between you and me, I think this will only happen for `Ast::Var` nodes.
 
-## TODO: Meat of our implementation
+## Resolve Method
 
 `NameResolution` has one method `resolve` that does all our resolving.
 
@@ -217,10 +218,10 @@ impl NameResolution {
 `resolve` takes an `env` that maps our names to their unique `Var`s.
 `env` tracks our scopes.
 Because it's a persistent map, we don't need a stack of scopes.
-Adding a new value to our map produces a new map, leaving the old map intact.
+Adding a value to our map produces a new map, leaving the old map intact.
 When we recursively call `resolve`, we pass it our updated map, reusing the call stack as our stack of scopes.
 
-From there `resolve` mathces on our `ast`.
+From there `resolve` matches on our `ast`.
 We'll handle it case by case, starting with functions:
 
 ```rs
@@ -232,12 +233,12 @@ Ast::Fun(id, name, body) => {
 }
 ```
 
-After desugaring, this is our only case that can introduce names.
+Because we desugar let expressions into applied functions, this is our only case that can introduce names.
 We create a `Var` for our function parameter and map it back to its name.
 Upon updating `env` to map our name to our `Var`, we resolve our names within `body`.
 We then reconstruct our name-resolved function.
 
-We use the `Var`s introduced by `Fun` in our `Var` case:
+Our `Var` case immediately uses the vars introduced by `Fun`:
 
 ```rs
 Ast::Var(id, name) => match env.get(&name).copied() {
@@ -268,7 +269,7 @@ Ast::Hole(id, name) => {
 ```
 If we start with a hole, we have a name, so we map that back to the `Var` we assign our hole.
 This doesn't matter for our program execution.
-We'll never compile a hole to machine code, but it's helpful for error reporting and diagnostics.
+We'll never compile a hole to executable code, but it's helpful for error reporting and diagnostics.
 
 `App` doesn't have any names, but we have to resolve any names in its children:
 
@@ -292,9 +293,9 @@ You are my rock.
 `resolve` is our main and only method on `NameResolution`.
 We're done.
 Why did we setup a whole struct to share our state between one method?
-I didn't want to write `resolve(supply, names, errors, ast, env)` at every call site.
-But also consistency is key.
-We've established the pattern and I think it's helpful to employ it, even for one method.
+I didn't want to write `resolve(supply, names, errors, ast, env)` at every call site, sue me.
+Also, consistency is key.
+We've established the pattern and it's helpful to employ it, even for one method.
 
 Everything gets put together in our top level `name_resolution` method:
 
@@ -312,9 +313,12 @@ fn name_resolution(
 }
 ```
 
+Recall `names` tracks our mapping from `Var` back to the human names.
+We'll need that in our overarching compiler, so we include it in the output for our pass.
+
 ## Example
 
-Let's see it in action.
+Let's see name resolution in action.
 We'll start with a program that reuses a lot of names:
 
 ```rs
@@ -324,9 +328,10 @@ let x = 3;
 y x
 ```
 
-That's enough x's and y's to send me hurtling back to algebra class.
-Despite our only two names being `x` and `y`, scoping and shadowing means those names reference disparate values throughout our expression.
-Our first binding `let x = |x| x;` already exemplifies both scoping and shadowing.
+That's enough X's and Y's to send me hurtling back to algebra class.
+Despite our only two names being `x` and `y`, scoping and shadowing mean those names reference disparate values throughout our expression.
+
+Our first binding `let x = |x| x;` already exemplifies both features.
 `let x` introduces a new scope where `x` is defined as `|x| x`.
 Functions introduce their own scope, however, so our `let x` is immediately shadowed by our function parameter `x`.
 The body of our function the returns our function parameter, not our let binding.
@@ -355,5 +360,6 @@ v2 v4
 Name resolution was our final keystone.
 We've completed the arch!
 It's been quite the journey but we now have every pass of our compiler.
+As always, you can find the [full code in the repo](https://github.com/thunderseethe/making-a-language/tree/main/name_resolution/base).
 We can feed the `Ast<Var>` produced by name resolution into type inference and create a complete pipeline.
 In fact, that's precisely what we'll do next.
