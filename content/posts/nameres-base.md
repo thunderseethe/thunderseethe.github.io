@@ -25,7 +25,7 @@ One look at his sedimentary exterior was all it took to christen him.
 Names help us identify with things.
 This is just as true in computers as it is in rock companions.
 In programming languages, names help us identify and share values.
-Rather than repeat `1 + 2` every time we need it, we can name it `three` and reference it by name whenever we need it.
+Rather than repeat `1 + 2` every time we need it, we can name it `three` and reference it by name.
 
 Naming helps make our program more legible to our fellow programmers.
 Names bundle up complexity and offload it, allowing us to comprehend bigger and better programs.
@@ -39,8 +39,9 @@ It turns out it's less handy to the computer.
 ## Computer Friendly Names
 
 The computer is solely interested in knowing where a value lives in memory, and by extension when two values are actually the same because they live in the same place.
-Human readable names aren't necessarily great for this purpose, especially in our language.
-This is because of two features in our language: scopes and shadowing.
+Human readable names aren't great for this purpose.
+Our language includes scoping and shadowing.
+Two features that help humans manage names but hinder the computer.
 
 A scope is a map from names to their values at a particular point in our program.
 If we write the program:
