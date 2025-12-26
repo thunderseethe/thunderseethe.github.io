@@ -232,6 +232,24 @@
         </div>
       </div>
     </div>
+    <div class="mal-pass">
+      <div class="mal-header">
+        <h2>Desugaring</h2>
+      </div>
+      <div class="mal-content">
+        <p>
+        Desugaring transforms our Concrete Syntax Tree into our Abstract Syntax tree.
+        </p>
+        <div>
+          <h3>Base</h3>
+          <div style="display: flex; flex-direction: column">
+            {{ with (.GetPage "/posts/desugar-base") }}
+              {{ partial "card.html" . }}
+            {{ end }}
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 </section>
 {{ end }}
