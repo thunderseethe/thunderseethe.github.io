@@ -5,7 +5,7 @@ author = "thunderseethe"
 tags = ["Programming Languages", "Name Resolution"]
 series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Name Resolution", "Scope", "Variable Shadowing", "Lexical Scoping", "Abstract Syntax Tree", "Error Recovery"]
-description = "Resolving scoping and shadowing to produce unique names for our variables"
+description = "Resolving scoping and shadowing to produce unique variables for our names"
 +++
 
 {{< accessory title="Making a Language" >}}
