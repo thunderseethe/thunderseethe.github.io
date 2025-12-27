@@ -63,6 +63,3 @@ series = "series"
 
 [outputs]
   home = ["HTML", "RSS"]
-
-[languages.en.params]
-  reading_speed = 238
