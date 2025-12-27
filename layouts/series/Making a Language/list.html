@@ -250,6 +250,24 @@
         </div>
       </div>
     </div>
+    <div class="mal-pass">
+      <div class="mal-header">
+        <h2>Name Resolution</h2>
+      </div>
+      <div class="mal-content">
+        <p>
+        Name resolution assigns a unique variable to each name in our program.
+        </p>
+        <div>
+          <h3>Base</h3>
+          <div style="display: flex; flex-direction: column">
+            {{ with (.GetPage "/posts/nameres-base") }}
+              {{ partial "card.html" . }}
+            {{ end }}
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 </section>
 {{ end }}
