@@ -1083,4 +1083,4 @@ We always return both a tree and any errors as part of being resilient.
 Upon a successful parse, our errors will be empty and that's fine.
 We did it!
 We're parsing, and we didn't even get that suck in the tarpit.
-Next up we'll handle our syntax sugar by desugaring.
+Next up we'll handle our syntax sugar by [desugaring](/posts/desugar-base).
