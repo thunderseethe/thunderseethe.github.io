@@ -1,5 +1,5 @@
 <footer class="footer">
-  <section class="container" style="display: flex; justify-content: center; gap: 1.5rem">
+  <section class="container" style="display: flex; justify-content: center; gap: 1.5rem; flex-flow: row wrap;">
     {{ with .OutputFormats.Get "rss" -}}
     {{ printf `<a rel=%q type=%q href=%q title=%q><i class="fa fa-rss"></i> Subscribe</a>` .Rel .MediaType.Type .Permalink site.Title | safeHTML }}
     {{ end }}
