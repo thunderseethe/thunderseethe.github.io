@@ -1,15 +1,38 @@
 +++
-title = "Write You an LSP: WIP"
+title = "Making an LSP for great good"
 date = "2025-12-29T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "LSP"]
 series = ["Making a Language"]
 keywords = ["Programming Languages", "Compiler", "Language Server Protocol", "Query Based", "Incremental Computation"]
-description = "Assembling an LSP from our query-based compiler building blocks"
+description = "Implementing an LSP from our query-based compiler passes"
 +++
 
 * Intro
   * Summit of compilation
+  * We're going to make an LSP (and more importantly a query based compiler).
+  * Clarify we'll use LSP as shorthand for a server that implements the protocol.
+  * The LSP is a vehicle for motivating our choice of compiler architecture (query-based).
+    * There are other good reasons to be query based, but an LSP really highlights the benefits
+
+* Compilation.
+  * Batch compilation example.
+  * Queries invert the traditional model.
+  * Rather than Lex->Parse->Desugar we ask "What would the desugaring of this file look like and behind the scenes that query depends on parsing (which depends on lexing)."
+  * To understand why, let's talk about what LSP is.
+
+* What is an LSP
+  * We're going to need at least a rudimentary understanding of LSP.
+  * Solves an M:N problem for editors and language
+    * Without a protocol each of M editors needs an IDE implementation for N languages
+    * The protocol allows for each language to implement their share of the protocol and it will work with any editor that implements their share of the protocol.
+  * Response/Request format (contrast with batch model)
+    * The difference really comes alive here.
+    * Unlike the unswerving batch compiler, our query compiler must be quick on its feet.
+    * Responding to whatever the request asks of us and only what it asks of us.
+    * We might even receive a requst in the midst of responding to a request.
+  * Give some example queries?
+  * Link to a more in depth explanation?
 
 * Expectations
   * Implement LSP
@@ -21,6 +44,7 @@ description = "Assembling an LSP from our query-based compiler building blocks"
     * Won't be explaining it explicitly, but feel free to peruse it and the playground code itself.
   * Won't cover all of LSP.
     * LSP has a ton of surface area.
+    * Link to the specification.
     * Implement a subset of requests that give a sense of how it's done.
       * Cover querying
       * Cover editing
@@ -28,6 +52,8 @@ description = "Assembling an LSP from our query-based compiler building blocks"
   * Our end result will be an LSP, but that's mostly just a vehicle for talking about query-based incremental compilation.
     * All the techniques we discuss today apply outside of LSP.
     * They're simply well exemplified by LSP due to its interactive nature.
+
+* TODO: Transition from expectations to starting with the query engine.
 
 * Query Based Engine
   * Query
@@ -42,15 +68,12 @@ description = "Assembling an LSP from our query-based compiler building blocks"
   * Caveats on our implementation.
     * No consideration for persistence.
     * No cycle detection (infite loops are a problem).
+      * In theory our queries should form a DAG.
+      * In practice, they don't.o
+      * Cycle detection helps us debug such bugs without waiting forever.
     * Boilerplate.
       * Use salsa in practice or macro magic.
     * TODO: Where to put this.
-
-  * Compilation.
-    * TODO: Move this up, probably before talking about query engine at all.
-    * Batch compilation example.
-    * Queries invert the traditional model.
-    * Rather than Lex->Parse->Desugar we ask "What would the desugaring of this file look like and behind the scenes that query depends on parsing (which depends on lexing)."
 
   * Before we can write our compiler queries, we need a query engine to run them.
 
@@ -59,7 +82,11 @@ description = "Assembling an LSP from our query-based compiler building blocks"
     * Store query results
     * Track query dependencies
 
-  * Uses red-green algorithm to track when a query's cached value can be reused and when we need to re-run the query.
+  * By virtue of running our queries, our query engine decides when to run queries and much more importantly when not to run a query.
+  * The efficacy of the query engine lies in its deftness at determining a query does not need to be run, saving us time and effort.
+  * We'll need an algorithm to determine when a query must be re-run.
+  * Rustc has just such an algorithm: the red-green algorithm.
+
   * Red-green algorithm. (TODO: https://rustc-dev-guide.rust-lang.org/queries/incremental-compilation.html)
     * Every query has a color, either red or green, associated with it.
       * Red - stale
@@ -81,6 +108,11 @@ description = "Assembling an LSP from our query-based compiler building blocks"
       * Used for tracking query dependencies.
       * Talk about tradeoffs
         * Fingerprinting is important for persistence.
+
+    * As key might imply, we'll use this as the key of lots of hashmaps
+      * Our color map uses this key to track the color of keys.
+      * We key our cached query results by `QueryKey`.
+      * Dependencies are tracked by `QueryKey`.
 
   * `QueryContext` runs our queries
     * All of our queries are methods on `QueryContext`
@@ -112,12 +144,11 @@ description = "Assembling an LSP from our query-based compiler building blocks"
       * Include anecdote about trying this and it failing.
     * When a query calls another query we write it down in our graph.
     * TODO: Code snippet
-    * 
 
   * `query` is our central pillar.
-    * Ties together `Database` and `ColorMap`.
+    * Ties together `Database` and `DepGraph`.
     * Runs query, tracks dependencies, updates results.
-    * Implements red-green algorithm.
+    * Implements red-green algorithm (unless I've botched it of course).
 
   * `query` walkthrough
     * `update_value`
@@ -167,6 +198,7 @@ description = "Assembling an LSP from our query-based compiler building blocks"
     * NOTE: We map our specific `ParseError` into the more generic `PellucidError`
 
   * TODO: Consider using `types_of` to show how error accumulation behavior works.
+    * TODO: Consider updating how error behavior works.
   * Let's take a look at another query `simple_ir_of` to cement our understanding.
   * We'll be faster this time since we get the gist.
   * `simple_ir_of` returns the optimized Intermediate Representation (IR) from our simplification pass.
@@ -285,6 +317,7 @@ description = "Assembling an LSP from our query-based compiler building blocks"
 * TODO: Figure out the order of remaining queries
 
 * goto_definition
+  * Explain what it does
   * Calls `definition_of` query.
   * `definition_of`:
     * Uses 1-2 combo `syntax_node_starting_at` into `ast_node_of` to get the ast node under our cursor.
@@ -295,23 +328,50 @@ description = "Assembling an LSP from our query-based compiler building blocks"
     * NOTE: The pattern Span -> CST -> AST -> Do the work -> AST -> CST -> Span. We're going to see this pattern a lot.
 
 * references
-  * 
+  * Explain what it does
+  * Calls `reference_at` query.
+  * `reference_at`:
+    * Same combo to get the ast node 
+    * `var_refernce`
+      * Helper that walks our ast grabbing every instance of our var
+    * Walk AST vars
+      * Convert them back to a syntax node
+      * Special case for functions, we select the funbinder rather than the whole function
+        * We don't have to do this for lets because desugaring mapped those nodes to the letbinder directly.
+      * Get the range of our syntax node
+    * Return list of references
 
-  * references
-    * reference_at
-      * syntax_node_starting_at
-  * rename
-    * reference_at
-      * syntax_node_starting_at
+* rename
+  * Explain what it does
+  * Reuses `reference_at` query
+  * Instead of returning the list of locs, we first turn it into a list of edits
+  * Client is responsible for applying the edits
+    * This will in turn trigger a did_change, publish_diagnostics, etc.
 
-  * hover
-    * syntax_node_starting_at
-    * hover_of
-      * ast_node_of
+* hover
+  * Explain what it does
+  * `hover_of` query
+  * `syntax_node_starting_at` but not yet `ast_node_of`
+  * We first check our node is a valid hover target
+    * If it's a funbinder, we want to use the syntax node for the function itself
+  * Get our AST node so we can get its type
+  * We also get a range from our CST
+  * We pretty print the type and return it along our range as our hover
+    * NOTE: Should we talk about the other possible hover options here?
 
-  * completion
-    * scope_at
+* completion
+  * Explain what it does
+    * Not just scope of our program, but scope at a cursor
+    * Example of where this matters.
+  * `scope_at` query
+    * `zip_ast` combines our AST to produce a `AST<(String, TypedVar)>`
+      * Talk about how `Hole` is handled?
+  * Walk parents of our AST node
+    * In reverse, so that the nearest enclosing binding is last and shadows any others
+    * Collect bindings from `Fun` and grab their name and pretty printed type
+  * Return our collection
 
+* playground specific stuff
   * execute_command
     * used by playground
     * worth noting?
