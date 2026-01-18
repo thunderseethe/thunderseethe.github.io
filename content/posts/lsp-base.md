@@ -45,7 +45,8 @@ I'm trying to make a point here.
 {{</ notice >}}
 
 But our aim is much loftier than that.
-We're going to implement a language server for the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) (LSP).
+We're going to build a [query-based compiler](https://ollef.github.io/blog/posts/query-based-compilers.html).
+Atop that, we'll implement a language server for the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) (LSP).
 You can actually see it right now in the interactive [playground](TODO) showing off its features.
 
 For the uninitiated, LSP was invented to solve an [M:N problem](https://matklad.github.io/2022/04/25/why-lsp.html) in the IDE space.
