@@ -11,9 +11,7 @@ description = "Implementing an LSP from our query-based compiler passes"
 We've talked a big game about resilience this and interactive that.
 With [name resolution](/posts/nameres-base) done, it's finally time to put our money where our mouth is.
 All our compiler passes are assembled.
-It's time to tie them together into a compiler.
-
-Not just any compiler.
+It's time to tie them together into a compiler, but not just any compiler.
 Sure, we _could_ string together a batch compiler if we really had to:
 
 ```rs
@@ -46,14 +44,14 @@ Please do not ask me about error reporting.
 I'm trying to make a point here.
 {{</ notice >}}
 
-But our aims are much loftier than that.
-We're going to implement a languager server for the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) (LSP).
-You can actually see it right now in the interactive [playground](TODO) showing off it's features.
+But our aim is much loftier than that.
+We're going to implement a language server for the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) (LSP).
+You can actually see it right now in the interactive [playground](TODO) showing off its features.
 
-For the uninitiated, LSP was invented to solve an M:N problem in the IDE space.
+For the uninitiated, LSP was invented to solve an [M:N problem](https://matklad.github.io/2022/04/25/why-lsp.html) in the IDE space.
 There are multiple editors (Vim, VSCode, Helix, etc.) and there are multiple languages (in fact we're adding to that problem right now).
 We want great IDE features in each of our editors, but implementing them per language per editor is a combinatorial explosion of work.
-LSP saves us by introducing a unifying middle man.
+LSP saves us by introducing a unifying middleman.
 Each language implements a server that speaks the protocol, and each editor implements a client that speaks the protocol.
 Now any language with a server works with any editor with a client.
 
@@ -62,8 +60,9 @@ Technically what we're implementing is a language server for LSP, but we'll refe
 But we're not making a protocol.
 {{</ notice >}}
 
-Our server will provide classic IDE features like semantic information on hover, autocomplete, goto defintions, the works.
-Clients will connect to our server and send us requests, by answering them we will achieve semantic analysis.
+Our server will provide classic IDE features like semantic information on hover, autocomplete, goto definitions, the works.
+Clients will connect to our server and send us requests.
+Our server performs just enough semantic analysis to answer the request.
 
 While our end result will be an LSP, that is only a means to an end.
 Our actual goal is to create an incremental query-based compiler.
@@ -73,7 +72,7 @@ Plus it's really cool to be able to see the compiler chug as we interact with th
 A query based compiler is almost the exact inverse of our example batch compiler above.
 Rather than one big pipeline shuffling data along, compilation is structured as a series of questions (queries if you will) that get answered.
 Queries can depend on each other.
-We'll have our final query "what does the webassembly for this source code look like?".
+We'll have our final query "what does the WebAssembly for this source code look like?".
 En route to answering that query, our compiler will ask a bunch of subqueries:
 
   * What does the IR for this source look like?
@@ -87,21 +86,21 @@ Even better, when we change our source code we only have to recompute queries th
 If a query depends on an unchanged part of the code, we can just keep using the cached value.
 
 This is especially pertinent for an LSP.
-Requests need to be answered as fast as possible, computing our answers incrementally let's us do the least amount of work and responsd quickly.
+Requests need to be answered as fast as possible, computing our answers incrementally lets us do the least amount of work and respond quickly.
 Or we might receive any number of requests without the source code changing.
-Imagine a user using goto definition multiple times to jump around the codebase.
+Imagine a user jumping around their codebase by hitting the goto definition key multiple times.
 We can reuse our cached query results across those jumps and only recompute things when our source code actually changes.
 
-We understand what we're going to do now, implement a query-base compiler and a language server.
+We understand what we're going to do now, implement a query-based compiler and a language server.
 Let's talk about what we're not going to do.
-Our focus will be on the compiler and how it fufills requests for our LSP.
-But building a server still involves a lot of server-y stuff: http headers, json marshaling, IO, etc.
+Our focus will be on the compiler and how it fulfills requests for our LSP.
+But building a server still involves a lot of server-y stuff: HTTP headers, JSON marshaling, IO, etc.
 We won't be touching on any of that at all.
 We use the [`tower-lsp`](https://crates.io/crates/tower-lsp) crate, and it handles all that for us.
 
-We won't even cover all of the protocol part of LSP.
+We won't even cover all the protocol part of LSP.
 LSP is a gigantic [spec](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/).
-I'm not confident any server implementas every request it specifies.
+I'm not confident any server implements every request it specifies.
 We will implement a meaningful but small subset of it, giving us a taste for how to implement IDE features.
 
 ## Queries
@@ -113,12 +112,12 @@ Before we can write some compiler queries, we need something that executes queri
 Before we can execute queries, we need to know what a query is.
 
 A query takes in some inputs, runs some code, and produces an output, which sounds indistinguishable from functions.
-What sets apart a query is its results are cached, and only updated when one of it's inputs change (and sometimes not even then).
-As a side effect of this caching, our queries must be side effect free (i.e. pure functions).
+What sets a query apart is caching its results, and only updating that cache when one of it's inputs change (and sometimes not even then).
+As a side effect of this caching, our queries must be side-effect free (i.e. pure functions).
 We only want to run a query when we're confident it will produce a different value from the previous run.
-In an ideal world, most of our queries are cahced most of the time.
+In an ideal world, most of our queries are cached most of the time.
 
-Queries depend on each and form a graph, much like a call graph for normal functions.
+Queries depend on each other and form a graph, much like a call graph for normal functions.
 But this graph must be a Directed Acyclic Graph (DAG).
 It can't contain cycles.
 If a query could end up as it's own input, we'd suddenly have a very hard time telling when it's input hadn't changed.
@@ -155,12 +154,12 @@ Once we've executed the query to produce a result, our engine keeps that around 
 On the happy path, our engine determines our query don't need to execute and returns the cached value immediately.
 
 Our query engine does a lot for us, but there's still more we might want from a query engine we won't be handling.
-Any production query engine wants to persist query caches to disk, so they can be re-used between runs of our program.
+Any production query engine wants to persist query caches to disk, so they can be reused between runs of our program.
 A whole realm of complexity resides behind that feature that we won't touch on at all.
 Look to the [rustc docs](https://rustc-dev-guide.rust-lang.org/queries/incremental-compilation-in-detail.html#the-real-world-how-persistence-makes-everything-complicated) for some insight into what that entails.
 
 Our engine won't handle garbage collection.
-Often a cached query result becomes unecessary. 
+Often a cached query result becomes unnecessary. 
 It was cached for input that no longer exists or otherwise has been supplanted by future query runs.
 Evicting these entries is important for a long lived process like an LSP, but it adds quite a bit of complexity to the engine and I don't know how to do it.
 We're making do without today.
@@ -168,7 +167,7 @@ If you know more than I, please let me know.
 
 Our engine won't handle detecting cycles between queries.
 In theory, our queries form a DAG, lacking cycles.
-In pratice, they don't.
+In practice, they don't.
 Cycle detection helps debug accidental cycles in a finite amount of time, but we'll press on without.
 
 Finally, our engine will have quite a bit of boilerplate.
@@ -178,36 +177,38 @@ Heck, if your heart isn't set on building a query engine from scratch, consider 
 
 ## Red-Green Algorithm
 
-The efficacy of our query engine lies in its deftness at determining a query does not need to be run.
+The efficacy of our query engine lies in its deftness at determining when a query does not need to be run.
 We'll need an algorithm to determine when a query must be run.
 We borrow a tried and true algorithm from Rust: the [red-green algorithm](https://salsa-rs.github.io/salsa/reference/algorithm.html).
 
-At a high level, the red-green algorithm associates each query with a color, red or green.
-When a query is green we're safe to reuse it's cached value, when a query is red we need to re-execute it and update it's cache.
+At a high level, the red-green algorithm associates each query with a color, red, or green.
+When a query is green we're safe to reuse it's cached value.
+When a query is red, we need to reexecute it and update it's cache.
 
 {{< notice note >}}
 We say query here, but we really mean a query with a particular set of arguments.
 We'll have a query `cst_of(Uri)` that takes in a file URI and outputs a parse tree.
-That query's cache will havea an entry per file URI we parse, and each entry can be red or green
+That query's cache will have an entry per file URI we parse, and each entry can be red or green
 {{</ notice >}}
 
 All our queries begin red.
 Upon executing them, we mark them green.
 When a query's input changes, we mark it red again.
-Before our engine exeuctes any query, it checks the colors of that query's dependencies.
-If all of them are green, we can eschew our run and use our querie's cached value.
+Before our engine executes any query, it checks the colors of that query's dependencies.
+If all of them are green, we can eschew our run and use our query's cached value.
 
 When any dependency is red, our engine executes our query.
-This does not necessairly force our query back to red, however.
+This does not necessarily mark our query red, however.
 We first compare our new value with the cached value.
 If our execution produced an equal value, we leave our query green.
 Only when they are different do we mark our query red.
 
 This is more important in practice than it might seem.
 Imagine a scenario where we make a trivial change in our source text, changing whitespace, adding a comment, etc.
-We have to re-run our parsing query, but upon desugaring we'd produce the same AST and mark our desugaring query green.
+We have to rerun our parsing query.
+Upon desugaring, however, we'd produce the same AST, marking our desugaring query green.
 Any query that depends on desugaring no longer needs to update.
-We've saved ourself from having to re-execute the remainder of our passes.
+We've saved ourself from executing the remainder of our passes.
 
 With our exposition out of the way, we can begin looking at some actual code.
 `QueryContext` represents our query engine and holds everything it needs:
@@ -236,7 +237,7 @@ enum QueryKey {
 ```
 
 Each variant represents a query and holds the arguments of that query.
-We can see `cotent_of`, `cst_of`, and `newlines_of` all take a single `Uri` argument.
+We can see `content_of`, `cst_of`, and `newlines_of` all take a single `Uri` argument.
 This is because they all work on one file represented by the path to that file as a `Uri`.
 Once we get to our LSP features, we'll see some more granular queries that take, for example, a specific location within a file.
 
@@ -244,7 +245,7 @@ Once we get to our LSP features, we'll see some more granular queries that take,
 Our enum is straightforward but has some downsides (mostly around boilerplate).
 It gets the job done and makes it easy to see what's going on.
 You can solve these issues by using a fancier solution, probably involving a trait.
-See Rustc's [`QueryConfig`](https://doc.rust-lang.org/stable/nightly-rustc/rustc_query_system/query/trait.QueryConfig.html) for an example.
+See rustc's [`QueryConfig`](https://doc.rust-lang.org/stable/nightly-rustc/rustc_query_system/query/trait.QueryConfig.html) for an example.
 {{</ notice >}}
 
 We'll see `QueryKey` all over as the key of hashmaps or the vertices of our dependency graph.
@@ -265,7 +266,13 @@ struct Database {
 }
 ```
 
-Alongside one cache field per query, we store two important pieces of information: our color map and revision.
+Each of our cache fields is a `DashMap` from the [`dashmap`](https://crates.io/crates/dashmap) crate.
+A dashmap is a concurrent hashmap.
+We need it because we're building a server, so we handle requests asynchronously.
+Dashmaps can be thought of as `RwLock<HashMap<K, V>>`.
+Their implementation differs for performance, but it's a helpful mental model.
+
+We store two important pieces of information: our color map and revision.
 The color map stores the color of each query, as seen on the red-green algorithm.
 The revision is a counter that gets updated whenever we receive new input.
 It forces us to check green queries that ran on a previous input and make sure they're still up to date.
@@ -280,7 +287,7 @@ struct DepGraph {
 }
 ```
 
-It offloads the bulk of storing logic to the [petgraph](https://docs.rs/petgraph/0.8.3/petgraph/) crate via `DiGraph` (a DAG).
+It offloads the bulk of storing logic to the [`petgraph`](https://docs.rs/petgraph/0.8.3/petgraph/) crate via `DiGraph` (a DAG).
 It's critical we have _a_ dependency graph for knowing what dependencies a query has.
 The particulars of _how_ that dependency graph knows dependencies are less critical to our goals today.
 Feel free to dig into [the code](TODO) and see how it's done.
@@ -301,16 +308,17 @@ impl DepGraph {
 }
 ```
 
-We can add a dependency between queries, and we can ask for all the depedencies of a query.
+We can add a dependency between queries, and we can ask for all the dependencies of a query.
 
 A single function employs all our query context: `query`.
 This function implements our red-green algorithm and handles all three of our query engine's responsibilities.
-It's a lot to take in, but once we understand `query` implementing our queries on top of it consists of writing normal functions (with a little bit of boilerplate).
+It's a lot to take in, but once we understand `query`, implementing our queries on top of it consists of writing normal functions (with a little bit of boilerplate).
 We'll start slow with the signature:
 
 ```rs
 impl QueryContext {
   fn query<V: PartialEq + Clone>(
+    &self,
     key: QueryKey,
     cache: &DashMap<QueryKey, V>,
     producer: impl FnOnce(&Self, &QueryKey) -> V,
@@ -334,7 +342,7 @@ It's what we'll run if we can't reuse our cached value and need to produce a new
 We pass it our `QueryContext`, so that it itself can call queries.
 We pass it `QueryKey`, so that it has access to our query arguments.
 
-From there, `query`'s implementation begins with with defining a helper `update_value`:
+From there, `query`'s implementation begins with defining a helper `update_value`:
 
 ```rs
 let revision = self.db.revision.load(Ordering::SeqCst);
@@ -343,10 +351,10 @@ let update_value = |key: QueryKey| {
 };
 ```
 
-At multiple points throughtout `query` we might determine we need to update our queries value.
+At multiple points throughout `query` we might determine we need to update our queries value.
 `update_value` shares that logic in one place:
 Updating a query value comprises three tasks.
-First, we add an edge to our depedency graph:
+First, we add an edge to our dependency graph:
 
 ```rs
 if let Some(parent) = &self.parent {
@@ -371,7 +379,7 @@ let value = producer(
 
 The most critical bit here is that we update the parent of `QueryContext` when we run `producer`.
 Any children queries executed will see `key` (our current query) as their parent and record that in our dependency graph.
-Third, we check that our new value is differnt from our cached value:
+Third, we check that our new value is different from our cached value:
 
 ```rs
 let old = cache.insert(key.clone(), value.clone());
@@ -467,10 +475,10 @@ if self.try_mark_green(dep.clone()) != Color::Green {
 }
 ```
 
-Upon suceeding, we're done our dependency is green.
+Upon succeeding, we're done our dependency is green.
 Failing that, we still try to mark our query green by just running it and seeing what happens.
 Running the query handles the case where we need to produce a new value, but that value is equal to our cached value.
-`run_query` is a helper that matches on `QueryKey` and dispatches the appropiate function call for our query, throwing away the result.
+`run_query` is a helper that matches on `QueryKey` and dispatches the appropriate function call for our query, throwing away the result.
 
 That's everything `query` does.
 Our query engine may be rudimentary but it is complete.
@@ -512,7 +520,7 @@ struct Database {
 }
 ```
 
-It stores our two query outputs: the cst and any errors.
+It stores our two query outputs: the CST and any errors.
 `PellucidError` is a big enum that holds a variant for each pass that might produce an error.
 Named such because our language is named Pellucid (I probably should have mentioned that by now.).
 With those two changes, we're ready to implement our query `cst_of`:
@@ -554,7 +562,7 @@ We unpack our query key to get our arguments back.
 This can't fail.
 We saw three lines prior that we always pass `QueryKey::CstOf`.
 More boilerplate due to our enum.
-A more sophisicated solution would prevent this, but we'll manage, _somehow_.
+A more sophisticated solution would prevent this, but we'll manage, _somehow_.
 
 The remainder of our logic is pure.
 We ask for the content of the file we want to parse with `content_of`.
@@ -567,7 +575,7 @@ The specific function may change but the formula persists.
 Create a query key, add a database field, and wrap our function in a `query` call.
 
 Let's look at one more, but faster, to make sure we get the gist.
-We'll jump deeper into the compiler and look at `simple_ir_of`, which optimizes the Intermediate Representaiton (IR) produced by lowering.
+We'll jump deeper into the compiler and look at `simple_ir_of`, which optimizes the Intermediate Representation (IR) produced by lowering.
 We create variant `QueryKey::SimpleIrOf(Uri)` and add field `simple_ir_query: DashMap<QueryKey, Option<lowering_base::IR>>` to our database.
 `simple_ir_of` is then a quick call to `query`:
 
@@ -602,14 +610,14 @@ Any error we encounter is an internal compiler error.
 Hard crashing, however, does a great server experience make.
 We'd like our queries to be callable on invalid input, even if the underlying passes are not.
 We bridge that gap by wrapping the results of our query in `Option`.
-If we have errors in the frontend of the compiler, we simply don't call the underlying passes after type infernece (our last resilient pass).
+If we have errors in the frontend of the compiler, we simply don't call the underlying passes after type inference (our last resilient pass).
 
 The queries for our other compiler passes can be found in the [full source code](TODO).
 `wasm_of` breaks the mold a bit to work around our lack of top level items, but otherwise they all follow this pattern.
 
 ## Our Sole Input Query
 
-Except `content_of`, our sole input query.
+With one exception, our sole input query, `content_of`.
 As seen in `cst_of`, it provides the source text for a file URI.
 By virtue of being an input query, it gets a `set_content` method:
 
@@ -653,9 +661,9 @@ fn content_of(
 ```
 
 `content_of` does not call out to `query`.
-It doesn't have dependencies and will never need to update it's cache.
+It doesn't have dependencies and will never need to update its cache.
 We still want to track dependencies for any parent query, if applicable.
-But we always mark our content query green and get it's value directly from cache.
+But we always mark our content query green and get its value directly from cache.
 
 ## Blossoming LSP Implementation
 
@@ -694,7 +702,7 @@ fn diagnostics_of(&self, uri: Uri) -> Vec<Diagnostic> {
 }
 ```
 
-It's common we'll want to get all our errors, so we have a helper for it `errors`:
+It is common we'll want to get all our errors, so we have a helper for it `errors`:
 
 ```rs
 fn errors(
@@ -718,7 +726,7 @@ fn errors(
 }
 ```
 
-We map over all our errors, and convert them into diagnostics.
+We map overall our errors, and convert them into diagnostics.
 This is done as a gigantic match expression, where each case turns produces a human readable string and a span from our error.
 We won't cover every case.
 They get rote very fast.
@@ -770,7 +778,7 @@ match types.mark {
 ```
 
 We provide a human readable message for our `AppExpectedFun` and pretty print our types.
-Pretty printing handles adding parenthesis, replacing numeric IDs with fancy greek letters, etc.
+Pretty printing handles adding parenthesis, replacing numeric IDs with fancy Greek letters, etc.
 
 {{< notice note >}}
 For informational purposes, we tag our diagnostic "types:".
@@ -875,7 +883,7 @@ This informs our client it doesn't need to do anything.
 
 With that, our client can requests diagnostics at their leisure.
 But that's actually not an ideal workflow.
-I mean we're the compiler here, or atleast the server wrapping the compiler.
+I mean we're the compiler here, or at least the server wrapping the compiler.
 Why must the client ask us when something is wrong.
 **We** know when something is wrong!
 
@@ -904,7 +912,7 @@ async fn did_open(&self, params: DidOpenTextDocumentParams) {
 ```
 
 We can see in that last line that we take this opportunity to sneak in a "response" through `Client`.
-`publish_diagnostics` let's us push diagnostics to the client, rather than waiting for them to request them.
+`publish_diagnostics` lets us push diagnostics to the client, rather than waiting for them to request them.
 We use it when a file is opened and when a file is changed:
 
 ```rs
@@ -950,7 +958,7 @@ We're going to implement five critically acclaimed LSP features:
   * Autocomplete
 
 All of these functions rely on two core queries: `syntax_node_starting_at` and `ast_node_of`.
-Together these two queries form the [the Heart of a Language Server](https://rust-analyzer.github.io//blog/2023/12/26/the-heart-of-a-language-server.html).
+Together these two queries form [the Heart of a Language Server](https://rust-analyzer.github.io//blog/2023/12/26/the-heart-of-a-language-server.html).
 As we can see from how many queries they subsist.
 
 `syntax_node_starting_at` handles turning a line/column range into a CST node, and `ast_node_of` turns a CST node into an AST node. 
@@ -1018,8 +1026,8 @@ We use `byte` to lookup a token in our `cst`:
 let token = cst.token_at_offset(TextSize::from(byte));
 ```
 
-This innocuous line is doing quite a bit of work under the hood, traversing our tree with rutheless efficiency to grasp the token at our offest.
-Fortunately, we put `rowan = 0.16` in our toml file, so we're moving along.
+This innocuous line is doing quite a bit of work under the hood, traversing our tree with ruthless efficiency to grasp the token at our offset.
+Fortunately, we put `rowan = 0.16` in our TOML file, so we're moving along.
 We're not immediately done with our token.
 Our offset might have landed us perfectly between two tokens (you never know what these users will think up next).
 In such a case, we do our best to pick a meaningful token:
@@ -1041,7 +1049,7 @@ let token = match token {
 };
 ```
 
-Given the choice of two tokens, we favor identifieres and disfavor whitespace.
+Given the choice of two tokens, we favor identifiers and disfavor whitespace.
 Whitespace is unlikely to be what our user wanted to interact with, so we can save ourselves some trouble by filtering it here.
 Conversely, identifiers are exactly the type of token are users are looking for.
 A quick run through of our operations convinces us why this might be:
@@ -1050,7 +1058,7 @@ A quick run through of our operations convinces us why this might be:
   * References only work on identifiers
   * Goto definition only works on identifiers
   * Rename only works on identifiers
-  * Completion only works on identifiers (Left as a exercise for the reader to autocomplete numbers)
+  * Completion only works on identifiers (Left as an exercise for the reader to autocomplete numbers)
 
 Really makes you wonder why we've got the other tokens at all.
 All the semantic payoff rests in identifiers.
@@ -1069,10 +1077,10 @@ Our node is turned into a handle that serves as our result.
 
 {{< notice note >}}
 Recall from desugaring, `rowan` uses pointers under the hood for fast traversal, which are not safe to store long term.
-Instead, we store the root node of our cst and an index into that tree, confusingly named `SyntaxNodePtr`.
+Instead, we store the root node of our CST and an index into that tree, confusingly named `SyntaxNodePtr`.
 {{</ notice >}}
 
-## Turning Synatx Nodes into Ast Nodes
+## Turning Syntax Nodes into AST Nodes
 
 `ast_node_of` takes a handle and a file URI, as we can see from its query key:
 
@@ -1082,7 +1090,7 @@ enum QueryKey {
 }
 ```
 
-It uses them to find the corresponding Ast node in our typed Ast: 
+It uses them to find the corresponding AST node in our typed AST: 
 
 ```rs
 fn ast_node_of(
@@ -1099,7 +1107,7 @@ fn ast_node_of(
 }
 ```
 
-Nothing suprising here.
+Nothing surprising here.
 Our return type is `Ast<TypedVar>`.
 Technically, we could return any `Ast` from desugar, nameres, or types.
 We select types because it has the most information, containing both resolved names **and** types.
@@ -1198,7 +1206,7 @@ let Ast::Var(node_id, var) = ast_node else {
 };
 ```
 
-If our cursor isn't on a variable, there's no defintion to go to and we're done.
+If our cursor isn't on a variable, there's no definition to go to and we're done.
 From our variable, we want to find the nearest AST node that defines it.
 Sounds like a job for name resolution:
 
@@ -1215,9 +1223,9 @@ let binder_id = ast
 ```
 
 We walk the parents of our AST node, looking for a function that defines it.
-We're walking the name resolved AST, so we can be confidant our variable is defined uniquely somewhere.
-If we don't find one, technically an imposssible case, we bail.
-We need to turn our defining AST node bakc into a CST node:
+We're walking the name resolved AST, so we can be confident our variable is defined uniquely somewhere.
+If we don't find one, technically an impossible case, we bail.
+We need to turn our defining AST node back into a CST node:
 
 ```rs
 let ast_to_cst = this.desugar_of(uri.clone()).ast_to_cst;
@@ -1233,9 +1241,11 @@ if binder.kind() == Syntax::Fun {
 We use our trusty `ast_to_cst` map for this.
 In the case that our parent is a `Fun` node, we walk to the binder.
 This provides a nicer experience by jumping us to the identifier rather than the `|` of the function.
+
 {{<notice note >}}
 We don't need to do this for let bindings because their function nodes already point at their `LetBinder` in `ast_to_cst`.
 {{</ notice >}}
+
 Our last step is to turn our CST node into an LSP range:
 
 ```rs
@@ -1405,7 +1415,7 @@ let references = vars
 Some(references)
 ```
 
-We've seen this logic before in `hover`, look up the CST node, get it's span, turn it into line and column, but we're doing it once per variable here.
+We've seen this logic before in `hover`, look up the CST node, get its span, turn it into line and column, but we're doing it once per variable here.
 Honestly, we probably could've made it a query.
 Whoops.
 Either way, Our job is done.
@@ -1458,13 +1468,13 @@ You love to see a good abstraction come together.
 ## Autocomplete
 
 Last, but certainly not least is autocomplete.
-This is, in my humble opinion. the most prominent feature of the IDE experience.
+This is, in my humble opinion, the most prominent feature of the IDE experience.
 As a user types, we plumb the codebase for anything they could possibly mean to type and present it to them as an option for avoiding further keystrokes.
-What an ellating experience to have the compiler understand what I need and hand it to me on a silver platter.
+What an elating experience to have the compiler understand what I need and hand it to me on a silver platter.
 
 Autocompletion can get extremely fancy.
 You can figure out the type that should slot into the current cursor and only present options of that type.
-You can track the type of object our user is currently accessing and only present methods avaible on that object.
+You can track the type of object our user is currently accessing and only present methods available on that object.
 The more type information you can procure, the better you can tailor your recommendations.
 We will save that for another tutorial.
 
@@ -1472,7 +1482,7 @@ Our autocomplete won't be that fancy, but still will be plenty useful.
 Given a partially completed identifier, we figure out all the variables defined in scope at that location and offer them as completions. 
 We don't even have to filter them down to identifiers prefixed by our partial input.
 That's handled by the client.
-Like our other requests, we call our query and return it's results as our response:
+Like our other requests, we call our query and return its results as our response:
 
 ```rs
 async fn completion(
@@ -1501,7 +1511,7 @@ let scope = this
   .collect::<Vec<_>>();
 ```
 
-The subtley of completions is that we only want to recommend identifiers that are in scope at the cursor.
+The subtlety of completions is that we only want to recommend identifiers that are in scope at the cursor.
 We can't simply build the scope for our entire program and offer it up.
 We'd end up recommending variables that aren't defined where the user is typing.
 `scope_at` solves this for us by building our scope as seen at a specific position in the program:
@@ -1585,7 +1595,7 @@ Some(CompletionResponse::Array(
 
 Our completions are done. We've implemented an LSP!
 
-## A little white lie
+## A Little White Lie
 
 Implemented an LSP...mostly.
 If you look at the source code for our LSP, you'll find quite a bit of code that isn't covered here. 
@@ -1593,7 +1603,7 @@ That's not because our tutorial is hiding LSP implementation from you.
 I needed quite a bit of code to hook up the LSP to the [playground](TODO) and didn't have an easy way to separate it out from the LSP.
 Feel free to peruse it and see how it exploits the LSP protocol to make the playground work, but we won't be covering it here.
 
-## A moment for reflection
+## A Moment for Reflection
 
 I can't overstate how happy I am to hit this milestone.
 Our language is modest, but we've implemented an LSP that works and you can interact with end to end.
@@ -1608,5 +1618,5 @@ There is still plenty more to be done.
 Our language lacks top level functions, data types, modules, on and on.
 But before setting off after those features I will probably take a pause to do some writing about other things.
 If you look at my post history this year, it's almost exclusively making a language posts.
-I'd like to frollick for a bit before undertaking writing every pass for another feature (I'm looking at your rows or items).
+I'd like to frolic for a bit before undertaking writing every pass for another feature (I'm looking at your rows or items).
 Eventually, I'd like to return to making a language and cover how we can build on this base to start doing some really fancy stuff with more complicated features.
