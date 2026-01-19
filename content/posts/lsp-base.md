@@ -61,8 +61,8 @@ There are many editors (Vim, VSCode, Helix, etc.) and there are many languages (
 We want great IDE features in each of our editors, but implementing them once per language per editor is a combinatorial explosion of work.
 
 LSP saves us by introducing a unifying middleman.
-Each language implements an LSP server, once.
-Each editor implements an LSP client, once.
+Each language implements an LSP server once.
+Each editor implements an LSP client once.
 Now any language with a server works with any editor with a client.
 
 {{< notice note >}}
@@ -91,11 +91,11 @@ En route to answering that query, our compiler will ask a bunch of subqueries:
   * What does the CST for this source look like?
 
 And so much more!
-The advantage of this model, over the traditional pipeline, is its ability to provide granular queries incrementally.
+The advantage of this model, over the traditional pipeline, is its ability to answer queries incrementally.
 We can ask "what's the type of this variable" and our compiler has to do the work to determine the type of that variable, but only that work.
 And queries are super cacheable.
 
-Once we answer the query "What does the CST for this source look like?" we can save that result and reuse it to answer anybody else who asks.
+Once we answer the query, "What does the CST for this source look like?" we can save that result and reuse it to answer anybody else who asks.
 Even better, when we change our source code we only have to recompute queries that depend on that change.
 If a query depends on an unchanged part of the code, we can just keep using the cached value.
 
@@ -105,7 +105,8 @@ We might receive any number of requests without any source code changes.
 Imagine a user jumping around their codebase by hitting the goto definition key multiple times.
 We reuse our cached query results across those jumps and only recompute things once our source code changes.
 
-We understand our path forward, implement a query-based compiler and a language server.
+Our path forward is clear;
+Implement a query-based compiler and a language server.
 Let's talk about what we're not going to do.
 Our focus will be on the compiler and how it fulfills requests for our LSP.
 But building a server still involves a lot of server-y stuff: HTTP headers, JSON marshaling, IO, etc.
@@ -168,27 +169,17 @@ Once our query produces a result, our engine handles caching it.
 On the happy path, our engine determines our query don't need to execute at all and returns the cached value.
 
 Our query engine does a lot for us, but the realm of query engines runs deep.
-For simplicity, we won't be covering everything a production query engine might do.
-Production query engines persist query caches to disk, so they can be reused between runs of our program.
-A whole world of complexity resides behind that feature that we won't touch on at all.
-Look to the [rustc docs](https://rustc-dev-guide.rust-lang.org/queries/incremental-compilation-in-detail.html#the-real-world-how-persistence-makes-everything-complicated) for some insight into what that entails.
+For simplicity, we won't be covering everything a production query engine would want:
 
-Our engine won't handle garbage collection.
-Often a cached query result becomes unnecessary. 
-It was cached for input that no longer exists or otherwise has been supplanted by future query runs.
-Evicting these entries is important for a long lived process like an LSP, but it adds quite a bit of complexity to the engine and I don't know how to do it.
-We're making do without today.
-If you know more than I, please let me know.
+* Persisting caches to disk (check out [rustc docs](https://rustc-dev-guide.rust-lang.org/queries/incremental-compilation-in-detail.html#the-real-world-how-persistence-makes-everything-complicated) for details)
+* Garbage collection (i.e. Cache Eviction)
+* Cycle Detection
 
-Our engine won't handle detecting cycles between queries.
-In theory, our queries form a DAG.
-In practice, they don't.
-Cycle detection helps debug accidental cycles in a finite amount of time, but we'll press on without.
-
-Finally, our engine has quite a bit of boilerplate.
+Are all getting left on the cutting room floor.
+Our engine also has quite a bit of boilerplate.
 If we're doing it right, this makes it easy to understand how the query engine operates.
 In a real implementation, a lot of what we do can be wrapped up with macro magic to save everyone a lot of time.
-Heck, if your heart isn't set on building a query engine from scratch, consider an off the shelf solution such as [salsa](https://crates.io/crates/salsa).
+Heck, once you know how a query engine works, consider an off the shelf solution like [salsa](https://crates.io/crates/salsa).
 
 ## Red-Green Algorithm
 
@@ -1587,9 +1578,9 @@ Some(CompletionResponse::Array(
 ))
 ```
 
-Our completions are complete. And with them we've implemented an LSP!
+Our completions are complete and with them we've implemented an LSP!
 
-## A little White Lie
+## A Little White Lie and Moment for Reflection
 
 Implemented an LSP...mostly.
 If you look at the source code for our LSP, you'll find quite a bit of code that isn't covered here. 
@@ -1601,8 +1592,6 @@ You should check it out!
 Not only does it show off all our LSP features, but it also shows the trees at each stage of our compiler.
 It even shows the output of running our code (that's right code can be run; not just compiled) and the log of requests our LSP sends.
 All for the low, low price of your adoration.
-
-## A Moment for Reflection
 
 I can't overstate how happy I am to hit this milestone.
 Our language is modest, but we've implemented a full compiler for it end to end with an LSP to boot.
