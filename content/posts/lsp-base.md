@@ -96,7 +96,7 @@ We can ask "what's the type of this variable" and our compiler has to do the wor
 And queries are super cacheable.
 
 Once we answer the query, "What does the CST for this source look like?" we can save that result and reuse it to answer anybody else who asks.
-Even better, when we change our source code we only have to recompute queries that depend on that change.
+Even better, when we change our source code, we only have to recompute queries that depend on that change.
 If a query depends on an unchanged part of the code, we can just keep using the cached value.
 
 This is especially pertinent for an LSP.
