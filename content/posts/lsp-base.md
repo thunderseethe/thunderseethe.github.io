@@ -306,7 +306,7 @@ struct DepGraph {
 It offloads storing the graph to `DiGraph` type (which is a DAG) from the [`petgraph`](https://docs.rs/petgraph/0.8.3/petgraph/) crate.
 It's critical we have _a_ dependency graph.
 But _how_ that dependency graph is less critical for our goals today.
-Feel free to dig into [the code](TODO) and see how it's done.
+Feel free to dig into [the code](https://github.com/thunderseethe/making-a-language/tree/main/lsp/base) and see how it's done.
 We'll suffice knowing our graph provides two operations:
 
 ```rs
@@ -473,7 +473,7 @@ fn try_mark_green(&self, key: QueryKey) -> Color {
 }
 ```
 
-Looping over the dependencies recorded in our graph, we return early with red if any of our dependncies are red.
+Looping over the dependencies recorded in our graph, we return early with red if any of our dependencies are red.
 There's a case, noted by our `todo!`, where our dependency query is absent from our color map, or has a stale revision.
 In that case, we recursively try to mark that dependency green:
 
@@ -492,7 +492,7 @@ if self.try_mark_green(dep.clone()) != Color::Green {
 Upon succeeding, we're done our dependency is green.
 Failing that, we still try to mark our query green by just running it and seeing what happens.
 Running the query handles the case where our produced value is equal to our cached value.
-`run_query` is a helper that dispatches a call to the appropiate query based on `QueryKey`, throwing away the result.
+`run_query` is a helper that dispatches a call to the appropriate query based on `QueryKey`, throwing away the result.
 
 That's everything `query` does.
 Our query engine may be rudimentary but it is complete.
@@ -506,7 +506,7 @@ I loved learning about queries, but it didn't actually have a lot to do with com
 Our queries could compute anything: UI, Game State, an ETL pipeline.
 All my [general-purpose incremental computation](https://en.wikipedia.org/wiki/Incremental_computing) heads sound off in the comments.
 And I love that for them, but we're here to build a bloody compiler.
-It's time to talk about the queries needed to compile code.
+It's time to talk about the queries that compile code.
 
 At minimum, we'll need a query for each pass of our compiler (i.e. parsing, type inference, closure conversion, etc.).
 Each pass query takes a similar shape.
@@ -628,7 +628,7 @@ We'd like our queries to be callable on invalid input, even if the underlying pa
 We bridge that gap by wrapping the results of our query in `Option`.
 If we have errors in the frontend of the compiler, we simply don't call the underlying passes after type inference.
 
-The queries for our other compiler passes can be found in the [full source code](TODO).
+The queries for our other compiler passes can be found in the [full source code](https://github.com/thunderseethe/making-a-language/tree/main/lsp/base).
 `wasm_of` breaks the mold a bit to work around our lack of top level items, but otherwise they all follow this pattern.
 
 ## Our Sole Input Query
@@ -741,7 +741,7 @@ fn errors(
 }
 ```
 
-We map over all of our errors, and convert them into diagnostics.
+We map over each error, and convert it into a diagnostic.
 Conversion is done by a gigantic match expression, with each case producing a human readable string and a span from our error.
 We won't cover every case.
 They get rote very fast.
@@ -845,7 +845,7 @@ Our server responds in kind, providing what capabilities, character encodings, e
 `initialize` acts like a handshake, getting the client and server to agree to the common subset of the LSP they support.
 `shutdown` acts more like a callback, allowing us to do any cleanup we need to do before our server exits.
 
-You can find their implementation in the [repo](TODO).
+You can find their implementation in the [repo](https://github.com/thunderseethe/making-a-language/tree/main/lsp/base).
 That's all we need before we implement our first LSP request: diagnostics.
 Clients send a diagnostics request when they want the diagnostics for a file.
 Let's see the code:
@@ -1150,7 +1150,7 @@ We iterate over `ast_to_cst`, looking for `sync_node`'s entry and return the cor
 We use `id` to find our `Ast` node in our typed tree.
 `find` does a depth-first traversal of our tree, returning the matching node, if found.
 That completes our two queries.
-Onwwards to building our LSP features.
+Onwards to building our LSP features.
 
 ## Goto Definition
 
@@ -1466,7 +1466,7 @@ async fn rename(
 ```
 
 Score! We don't need a new query for `rename`.
-`references_of` gives us every occurence of a variable already.
+`references_of` gives us every occurrence of a variable already.
 But, rather than a list of locations, we return a `WorkspaceEdit`.
 As a server, we don't modify files directly.
 We can't risk modifying a file while the user's trying to interact with it.
@@ -1589,18 +1589,18 @@ Some(CompletionResponse::Array(
 
 Our completions are complete. And with them we've implemented an LSP!
 
-## A Little White Lie
+## A little White Lie
 
 Implemented an LSP...mostly.
 If you look at the source code for our LSP, you'll find quite a bit of code that isn't covered here. 
 That's not because our tutorial is hiding LSP implementation from you.
-I needed quite a bit of code to hook up the LSP to the [playground](TODO) and didn't have an easy way to separate it out from the LSP.
+I needed quite a bit of code to hook up the LSP to the playground and didn't have an easy way to separate it out from the LSP.
 
-But the playground is worth it.
+But it's worth it for the [playground](/making-a-language).
 You should check it out!
 Not only does it show off all our LSP features, but it also shows the trees at each stage of our compiler.
 It even shows the output of running our code (that's right code can be run; not just compiled) and the log of requests our LSP sends.
-All for the low low price of your adoration.
+All for the low, low price of your adoration.
 
 ## A Moment for Reflection
 
