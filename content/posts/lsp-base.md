@@ -53,7 +53,7 @@ I'm trying to make a point here.
 
 But our aim is much loftier than that.
 We're building a [query-based compiler](https://ollef.github.io/blog/posts/query-based-compilers.html).
-Atop that, we implement a language server for the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) (LSP).
+Atop that, we'll implement a language server for the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) (LSP).
 You can see it all come together in the interactive [playground](/making-a-language).
 
 For the uninitiated, LSP was invented to solve an [M:N problem](https://matklad.github.io/2022/04/25/why-lsp.html) between editors and languages.
@@ -67,7 +67,7 @@ Now any language with a server works with any editor with a client.
 
 {{< notice note >}}
 Technically what we're implementing is a language server for LSP, but we'll refer to it as an LSP throughout this article.
-We're not making a protocol.
+This is a common shorthand, but we're not making a protocol.
 That'd be crazy.
 {{</ notice >}}
 
@@ -115,7 +115,7 @@ We use the [`tower-lsp`](https://crates.io/crates/tower-lsp) crate, and it handl
 
 We won't even cover all the protocol part of LSP.
 LSP is a gigantic [spec](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/).
-I'm not confident any server implements every request LSP supports.
+I doubt any server implements every request LSP supports.
 We will implement a meaningful, but small, subset of LSP.
 
 ## Queries
@@ -127,7 +127,7 @@ Before we can write some compiler queries, we need something that executes queri
 Before something can execute queries, we need to know what a query is.
 
 A query takes in some inputs, runs some code, and produces an output, which sounds indistinguishable from functions.
-What sets a query apart is caching its results, and only updating that cache when one of it's inputs change (and sometimes not even then).
+What sets a query apart, however, is the result caching, and incremental updating.
 As a side effect of this caching, our queries must be pure (i.e. side-effect free).
 Caching is key.
 We only want to run a query when we know it will produce a fresh value.
@@ -175,7 +175,7 @@ For simplicity, we won't be covering everything a production query engine would 
 * Garbage collection (i.e. Cache Eviction)
 * Cycle Detection
 
-Are all getting left on the cutting room floor.
+All of the above are left on the cutting room floor.
 Our engine also has quite a bit of boilerplate.
 If we're doing it right, this makes it easy to understand how the query engine operates.
 In a real implementation, a lot of what we do can be wrapped up with macro magic to save everyone a lot of time.
@@ -296,8 +296,8 @@ struct DepGraph {
 
 It offloads storing the graph to `DiGraph` type (which is a DAG) from the [`petgraph`](https://docs.rs/petgraph/0.8.3/petgraph/) crate.
 It's critical we have _a_ dependency graph.
-But _how_ that dependency graph is less critical for our goals today.
-Feel free to dig into [the code](https://github.com/thunderseethe/making-a-language/tree/main/lsp/base) and see how it's done.
+It's not critical _how_ that dependency graph works.
+Feel free to dig into [the code](https://github.com/thunderseethe/making-a-language/tree/main/lsp/base), if you're interested.
 We'll suffice knowing our graph provides two operations:
 
 ```rs
