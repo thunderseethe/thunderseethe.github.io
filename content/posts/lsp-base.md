@@ -172,7 +172,7 @@ For simplicity, we won't be covering everything a production query engine would 
 * Garbage collection (i.e. Cache Eviction)
 * Cycle Detection
 
-All of the above are left on the cutting room floor.
+All the above are left on the cutting room floor.
 Our engine also has quite a bit of boilerplate.
 If we're doing it right, this makes it easy to understand how the query engine operates.
 In a real implementation, a lot of what we do can be wrapped up with macro magic to save everyone a lot of time.
