@@ -370,4 +370,4 @@ We've completed the arch!
 It's been quite the journey but we now have every pass of our compiler.
 As always, you can find the [full code in the repo](https://github.com/thunderseethe/making-a-language/tree/main/name_resolution/base).
 We can feed the `Ast<Var>` produced by name resolution into type inference and create a complete pipeline.
-In fact, that's precisely what we'll do next.
+In fact, that's precisely what we'll do [next](/posts/lsp-base).
