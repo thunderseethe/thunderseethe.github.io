@@ -153,10 +153,7 @@ Whenever an input is set to a new value, that notifies us we need to update any 
 ## Query Engine
 
 Something has got to be responsible for wrangling our query graph and its inputs.
-If queries could do it themselves, any function could be a query and we wouldn't need this tutorial.
-In a kinder world, perhaps.
-Here in our world, however, that role rests on the query engine.
-
+That role rests on the query engine.
 The query engine drives executing queries and stores all the state that requires.
 It has three responsibilities:
 
@@ -480,14 +477,14 @@ if self.try_mark_green(dep.clone()) != Color::Green {
 }
 ```
 
-Upon succeeding, we're done our dependency is green.
+Upon succeeding we're done, our dependency is green.
 Failing that, we still try to mark our query green by just running it and seeing what happens.
 Running the query handles the case where our produced value is equal to our cached value.
 `run_query` is a helper that dispatches a call to the appropriate query based on `QueryKey`, throwing away the result.
 
 That's everything `query` does.
 Our query engine may be rudimentary but it is complete.
-We under how a query engine works now.
+We understand how a query engine works now.
 Our engine will execute queries incrementally and, once we write some queries, even compile code!
 
  
@@ -1498,7 +1495,7 @@ async fn completion(
 }
 ```
 
-We built the whole query engine and dagnabit we're gonna use the whole query engine!
+We built the whole query engine and dagnabbit we're gonna use the whole query engine!
 `completion_of` immediately calls another query `scope_at`:
 
 ```rs
@@ -1610,6 +1607,6 @@ There is always plenty more to be done.
 Our language lacks top level functions, data types, modules, on and on.
 
 But before setting off after those features I will probably take a break to do some writing about other things.
-If you look at my post history this year, it's almost exclusively making a language posts.
+If you look at my post history over the last year, it's almost exclusively making a language posts.
 I'd like to frolic for a bit before undertaking writing every pass for another feature (I'm looking at you rows or items).
 Eventually, I'd like to continue making a language so we can build on top of base with the really fancy stuff.
