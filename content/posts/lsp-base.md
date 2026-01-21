@@ -1,6 +1,6 @@
 +++
 title = "Making an LSP for great good"
-date = "2025-12-29T00:00:00Z"
+date = "2026-01-20T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "LSP"]
 series = ["Making a Language"]
