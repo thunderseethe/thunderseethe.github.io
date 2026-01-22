@@ -1226,7 +1226,8 @@ let binder_id = ast
 
 We walk the parents of our variable, looking for a function that defines it.
 We're walking the name resolved AST, so we can be confident our variable is defined somewhere.
-If we don't find one, technically an impossible case, we bail.
+An undefined variable would have become a `Hole` and would fail the prior check for a `Var` AST node.
+If somehow we don't find one anways we bail.
 Once we have our defining AST node, we need to turn it back into a CST node:
 
 ```rs
