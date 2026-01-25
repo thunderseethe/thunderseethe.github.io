@@ -1,0 +1,42 @@
++++
+title = "How to Pick Between Hindley-Milner and Bidirectional Typing"
+date = "2026-01-24T00:00:00Z"
+author = "thunderseethe"
+tags = ["Programming Languages", "LSP"]
+series = []
+keywords = ["Programming Languages", "Compiler", "Type Inference", "Bidirectional Typing", "Hindley-Milner Typing"]
+description = "AKA how many annotations do you want to have to write"
++++
+
+* Bidirectional Typing.
+
+* Okay but let's talk about why.
+* Common Question.
+** "I'm building a programming language should it use Hindley-Milner (HM) type inference or Bidirectional (Bidir) Typing".
+* Portrayed as a binary choice.
+* This is a false dichotomy.
+
+* Hindley-Milner and Bidirectional typing aren't actually that different.
+* Hindley-Milner works bottom up, inferring types as it goes.
+* Bidirectional works bottom up, inferring types as it goes, _and_ passes types top down, checking that we match that type.
+* Under this framing, bidir is more of an embellishment of HM.
+* It adds the new direction but otherwise mirror the capabilities of HM.
+
+* So then why are they framed as opposites of each other?
+* The real question underlying the false dichotomy is "should I support unification or not?"
+* Both bidir and HM support unification great.
+* But bidir a new cool thing bidir can do is type check sophisticated programs without unification by relying on annotations.
+
+* HM without unification is like a car without fuel.
+* Technically still a car, but you're not getting very far, and it's definitely not its intended usage.
+* A lot of the learning material on bidir focuses on it's ability to eschew unification.
+* It's given folks the perception that bidir equates to no unification.
+
+* But the ability to avoid unification doesn't preclude it outright.
+* And in fact combining bidir with unification provides quite a nice type system.
+* Bidir without unification requires pretty heavy annotating to avoid unification (every lambda parameter requires an annotation for example).
+* You can alleviate these annotations with unification and achieve the best part of bidir and unification.
+
+* The next time you got to choose between HM and bidir the question you should actually be asking is do I want unification or not?
+* Either way you should consider bidir as a strict superset of the functionality of HM.
+

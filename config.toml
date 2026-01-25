@@ -63,3 +63,7 @@ series = "series"
 
 [outputs]
   home = ["HTML", "RSS"]
+
+[security]
+    [security.exec]
+    allow = ['^git$', '^go$', '^npx$', '^asciidoctor$']
