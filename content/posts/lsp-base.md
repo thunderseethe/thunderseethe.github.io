@@ -449,7 +449,7 @@ fn try_mark_green(&self, key: QueryKey) -> Color {
     return Color::Red;
   };
   for dep in deps {
-    match self.db.colors.get(&key) {
+    match self.db.colors.get(&dep) {
       Some((Color::Green, rev)) if revision == rev => continue,
       Some((Color::Red, _)) => return Color::Red,
       _ => todo!("a single case"),
@@ -467,9 +467,9 @@ In that case, we recursively try to mark that dependency green:
 
 ```rs
 if self.try_mark_green(dep.clone()) != Color::Green {
-  self.run_query(dep);
+  self.run_query(dep.clone());
   // Because we just ran the query we can be sure the revision is up to date.
-  match self.db.colors.get(&key) {
+  match self.db.colors.get(&dep) {
     Some((Color::Green, _)) => continue,
     Some((Color::Red, _)) => return Color::Red,
     None => unreachable!("we just ran the query"),
