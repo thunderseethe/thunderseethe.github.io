@@ -387,7 +387,7 @@ Third, we check that our new value is different from our cached value:
 
 ```rs
 let old = cache.insert(key.clone(), value.clone());
-if old.is_some_and(|old| old == value) {
+if old.is_none_or(|old| old == value) {
   self.db.colors.mark_green(key, revision);
 } else {
   self.db.colors.mark_red(key, revision);
