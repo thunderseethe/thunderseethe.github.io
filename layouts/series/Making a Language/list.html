@@ -12,40 +12,40 @@
   </header>
   <section>
     <p>
-    This is a series that teaches you how to make a programming language. 
+    This is a series that teaches you how to make a statically-typed functional programming language.
     It was motivated by a gap between compilers as taught and compilers as seen in production.
     Production compilers are deeply concerned with being interactive, accomodating IDE usage and incremental compilation.
     In trying to learn how these work, I encounterd a dearth of material.
-    The language we implement here will be modest, but it will focus on what's required for an interactive compiler ready to support an IDE.
+    We implement a query-based compiler and a language server atop that, which you can see in the 
+    <a href="https://thunderseethe.dev/making-a-language" target="_blank">
+      playground
+      <i class="fa-solid fa-arrow-up-right-from-square"></i>
+    </a>.
     </p>
 
     <p>
     Our language will have a healthy reverence for the theory, but won't be partaking.
     We're happy to rely on the results of theory, but we won't be picking apart how it achieves those results.
     This series focus will be on the practical side of things.
-    Runnable code can be found accompanying each section.
+    Runnable code can be found alongside each section in the 
+    <a href="https://github.com/thunderseethe/making-a-language" target="_blank">
+      repository
+      <i class="fa-solid fa-arrow-up-right-from-square"></i>
+    </a>.
     </p>
 
     <p>
-    Our language's implementation can be divided up into passes: Typechecking, Lowering, etc.
-    Each pass has a section below that is subdivided into features for the language.
+    Our implementation is divided up into passes: Typechecking, Lowering, etc.
+    Each pass has a section below that is subdivided into features of the language.
     We can see "Types" (our first pass about type inference) is subdivided into three features: Base, Rows, Items.
     </p>
 
     <p>
     Each feature layers new capabilities atop the previous feature.
-    Base is the initial feature, and Rows layers support for row types on top of the Base language (and Item layers on Rows etc).
+    Base is our startin point, and Rows layers support for row types on top of the Base language (and Item layers on Rows etc).
     Pass/feature combos connect together.
     Lowering/Base depends on Types/Base, and at the end we can combine all our passes' Base features to create a compiler for our Base language.
-    </p>
-
-    <p>
     You can read each feature set for a pass, or you can read each pass for a feature.
-    Implementation code is available in the 
-    <a href="https://github.com/thunderseethe/making-a-language" target="_blank">
-      accompanying repo
-      <i class="fa-solid fa-arrow-up-right-from-square"></i>
-    </a>
     </p>
   </section>
   <section style="display: flex; flex-direction: column">
