@@ -398,23 +398,7 @@ value
 If our value hasn't changed, we mark our query green, successfully saving work!
 `update_value` finishes by returning the new value.
 
-Back in `query`, we continue by trying whatever we can to not call `update_value`:
-
-```rs
-let update_value = |key: QueryKey| { /* ... */ };
-let Some((_, rev)) = self.db.colors.get(&key) else {
-  return update_value(key);
-};
-// Our query is outdated
-if rev < revision {
-  return update_value(key);
-}
-```
-
-First we check the revision of our query.
-If our color map lacks an entry for our query entirely, this is our first time seeing this query and we have to run it.
-If we have an entry, but it's revision is stale, we also have to run our query.
-After checking the revision, we move on to checking the color:
+Back in `query`, we continue by trying to not call `update_value`:
 
 ```rs
 let color = self.try_mark_green(key.clone());
@@ -439,7 +423,7 @@ Otherwise, we're forced to run our query.
 
 `try_mark_green` checks each of our queries dependencies.
 When all our dependencies are green, we mark our query green for free.
-If we encounter a red at any point, our query is red:
+If we encounter a red dependency at any point, our query is red:
 
 ```rs
 fn try_mark_green(&self, key: QueryKey) -> Color {
@@ -448,9 +432,13 @@ fn try_mark_green(&self, key: QueryKey) -> Color {
   let Some(deps) =  self.dep_graph.dependencies(&key) else {
     return Color::Red;
   };
+  let Some((_, parent_rev)) = self.db.colors.get(&key) else {
+    return Color::Red;
+  };
   for dep in deps {
     match self.db.colors.get(&dep) {
-      Some((Color::Green, rev)) if revision == rev => continue,
+      Some((Color::Green, rev)) if parent_rev >= rev => continue,
+      Some((Color::Green, rev)) if parent_rev < rev => return Color::Red,
       Some((Color::Red, _)) => return Color::Red,
       _ => todo!("a single case"),
     }
@@ -462,7 +450,10 @@ fn try_mark_green(&self, key: QueryKey) -> Color {
 ```
 
 Looping over the dependencies recorded in our graph, we return early with red if any of our dependencies are red.
-There's a case, noted by our `todo!`, where our dependency query is absent from our color map, or has a stale revision.
+We also return red if a dependency is green, but has a newer revision then our current query.
+Revisions are incremented when inputs change, so a dependency with a newer revision implies this query needs to run over new input.
+
+There's a case, noted by our `todo!`, where our dependency query is absent from our color map.
 In that case, we recursively try to mark that dependency green:
 
 ```rs
