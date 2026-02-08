@@ -1,42 +1,177 @@
 +++
-title = "How to Pick Between Hindley-Milner and Bidirectional Typing"
+title = "How to Choose Between Hindley-Milner and Bidirectional Typing"
 date = "2026-01-24T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "LSP"]
 series = []
 keywords = ["Programming Languages", "Compiler", "Type Inference", "Bidirectional Typing", "Hindley-Milner Typing"]
-description = "AKA how many annotations do you want to have to write"
+description = "AKA how many annotations do you want to write"
 +++
 
-* Bidirectional Typing.
+This question is common enough you've probably heard it posed countless times:
+"Should my new programming language use a Hindley-Milner (HM) type system or a Bidirectional one?"
+What's that?
+I need to understand friends don't just bring up type inference in casual conversation?
 
-* Okay but let's talk about why.
-* Common Question.
-** "I'm building a programming language should it use Hindley-Milner (HM) type inference or Bidirectional (Bidir) Typing".
-* Portrayed as a binary choice.
-* This is a false dichotomy.
+Ok, fair enough.
+But...whatever.
+This is my blog, so we're doing it anyway!
+I don't know what you expected when you clicked on a programming languages blog.
 
-* Hindley-Milner and Bidirectional typing aren't actually that different.
-* Hindley-Milner works bottom up, inferring types as it goes.
-* Bidirectional works bottom up, inferring types as it goes, _and_ passes types top down, checking that we match that type.
-* Under this framing, bidir is more of an embellishment of HM.
-* It adds the new direction but otherwise mirror the capabilities of HM.
+Would be language developers often encounter this issue along their language dev journey.
+Eyes full of aspirate as they ponder the many directions they could take their burgeoning language.
+Like the sun to icarus, I'm here to bring those eyes crashing down to earth.
+This is the wrong question to be asking.
 
-* So then why are they framed as opposites of each other?
-* The real question underlying the false dichotomy is "should I support unification or not?"
-* Both bidir and HM support unification great.
-* But bidir a new cool thing bidir can do is type check sophisticated programs without unification by relying on annotations.
+The question presumes that HM and Bidir are two ends of a spectrum.
+On one end you have HM with type variables and unification and all that jazz.
+On the other end you have bidirectional where annotations drive your typing and no inference is involved.
+This spectrum, however, is a false dichotomy.
 
-* HM without unification is like a car without fuel.
-* Technically still a car, but you're not getting very far, and it's definitely not its intended usage.
-* A lot of the learning material on bidir focuses on it's ability to eschew unification.
-* It's given folks the perception that bidir equates to no unification.
+What folks should actually be asking is "Do I support unification or not?".
+Unification sits center stage in hindley-milner (algorithm W or J).
+HM typing assigns a type variable to everything by default and uses unification to solve those type variables.
+If you remove unification, you're left with a limping inference algorithm that will hardly make it out the gate.
 
-* But the ability to avoid unification doesn't preclude it outright.
-* And in fact combining bidir with unification provides quite a nice type system.
-* Bidir without unification requires pretty heavy annotating to avoid unification (every lambda parameter requires an annotation for example).
-* You can alleviate these annotations with unification and achieve the best part of bidir and unification.
+Bidirectional typing, on the other hand, can do quite a lot without unification.
+By introducing annotations at key locations, you can type check complicated programs with no type variables.
+This is highlighted by a majority of material that teaches bidirectional typing.
+It focuses in on how much can be done without unification or type variables.
 
-* The next time you got to choose between HM and bidir the question you should actually be asking is do I want unification or not?
-* Either way you should consider bidir as a strict superset of the functionality of HM.
+This leads to the incorrect perception that bidir _can't_ or _shouldn't_ use unification.
+The opposite couldn't be more true.
+Bidirectional typing supports all the same features as HM typing, and more, forming more of a superset relationship.
+Unification slots into bidirectional typing like a vimmer slots into home row.
 
+This is because bidirectional typechecking is a super set of HM.
+Imagine we have some AST (in Rust):
+
+[source, rust]
+----
+enum Ast {
+  // some cases, probably
+}
+----
+
+and we have a Type we'd like to assign to our AST:
+
+[source, rust]
+----
+enum Type {
+  // some more cases, possibly
+}
+----
+
+With an HM system, we provide an `infer` function:
+
+[source, rust]
+----
+fn infer(env: Env, ast: Ast) -> Result<Type, TypeError> {
+  // ... not of particular import right now
+}
+----
+
+Wow, just like that we have a HM type system.
+Please ignore all the details we're brushing over.
+We can imagine we're doing all sorts of unification in `infer`.
+If we want to make that system bidirectional, it's just a matter of adding a `check` function:
+
+[source, rust]
+----
+fn check(env: Env, ast: Ast, ty: Type) -> Result<(), TypeError> {
+  // ... more important right now
+}
+----
+
+Technically, `check` doesn't even have to do anything.
+A perfectly valid implementation of check would be:
+
+[source, rust]
+----
+fn check(env: Env, ast: Ast, ty: Type) -> Result<(), TypeError> {
+  let infer_ty = infer(env, ast);
+  if infer_ty == ty {
+    Ok(())
+  } else {
+    Error(TypeError::TypesNotEqual)
+  }
+}
+----
+
+We infer a type for our AST and check that it's equal to the expected type.
+That's all it takes to be bidirectional.
+However, equality is pretty heavy handed here.
+What if our type contains some unsolved type variables?
+Our equality would immediatley fail.
+
+Unification steps in to solve our problems.
+Rather than requiring strict equality, we can loosen `check` to require that our types unify:
+
+[source, rust]
+----
+fn check(env: Env, ast: Ast, ty: Type) -> Result<(), TypeError> {
+  let infer_ty = infer(env, ast);
+  unify(infer_ty, ty)
+}
+----
+
+With that modest adjustment, we're bidirectional with unification now.
+Now, of course, once we've done that we're free to make better use of our `check` whenever we like.
+Let's say we happen to know our AST has functions:
+
+[source, rust]
+----
+enum Ast {
+  Fun(String, Box<Ast>),
+}
+----
+
+and we're good language developers, so of course that means Type gets a function case as well:
+
+[source, rust]
+----
+enum Type {
+  Fun(Box<Type>, Box<Type>),
+}
+----
+
+We return to our check case and notice that, rather than inferring functions, we can take a little shortcut:
+
+[source, rust]
+----
+fn check(env: Env, ast: Ast, ty: Type) -> Result<(), TypeError> {
+  match (ast, ty) {
+    (Ast::Fun(var, body), Type::Fun(arg, ret)) => {
+       check(env.insert(var, *arg), *body, *ret)
+    }
+    (ast, ty) => {
+      let infer_ty = infer(env, ast);
+      unify(infer_ty, ty)
+    }
+  }
+}
+----
+
+But the point is we don't have to.
+If you are going to choose a Hindley-Milner type system, you might as well add four lines of code and make it a bidirectional system.
+It's free real estate.
+
+Okay so you're sold on bidirectional typing.
+I can see it in your eyes.
+Let's return to our underying question "should I unify or not?".
+Unification is a daunting task.
+When does it make sense and when does it not?
+
+Unification is great when you don't want to have to spell out the type of every variable in your program.
+It's even wormed it's way into older language likes Java and C++ because it's so handy to not have to spell out types.
+I would recommend it for anyone that wants their language to be far more usable.
+But, that's not every language's goal.
+
+A lot of people embark on making a progamming language as a learning exercise.
+In those cases unification can present a bundle of extra complexity that doesn't really teach you anything about what you want to learn.
+If you're interested in learning about type systems, unification is a must.
+But if you just need some types so you can emit code later, that is a great time to look at bidirectional type systems that don't use unification and require type annotations.
+
+Regardless of where you land on unification, bidirectional typing will serve your needs.
+At worst, you're not adding that much more on top of what's required for hindley-milner.
+At best, bidirectional saves you having to do unficiation or allows for more efficient type inference by making use of more type info.

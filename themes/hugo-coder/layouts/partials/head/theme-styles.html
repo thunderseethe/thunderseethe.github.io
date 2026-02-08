@@ -22,6 +22,17 @@
   <style>{{ $styles.Content | safeCSS }}</style>
 {{ end }}
 
+{{ if hugo.IsProduction }}
+  {{ $cssOpts := (dict "targetPath" "css/highlight.css" ) }}
+  {{ $styles := resources.Get "scss/highlight.css" | resources.ExecuteAsTemplate "style.coder.css" . | toCSS $cssOpts | minify | fingerprint }}
+  <link rel="preload" href="{{ $styles.RelPermalink }}" integrity="{{ $styles.Data.Integrity }}" crossorigin="anonymous" media="screen" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="styles.css"></noscript>
+{{ else }}
+  {{ $cssOpts := (dict "targetPath" "css/highlight.css" "enableSourceMap" true ) }}
+  {{ $styles := resources.Get "scss/highlight.css" | resources.ExecuteAsTemplate "style.coder.css" . | toCSS $cssOpts }}
+  <link rel="stylesheet" href="{{ $styles.RelPermalink }}" media="screen">
+{{ end }}
+
 {{ if .Site.Params.rtl }}
   {{ if hugo.IsProduction }}
     {{ $cssOpts := (dict "targetPath" "css/coder-rtl.css" ) }}
