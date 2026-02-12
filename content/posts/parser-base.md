@@ -77,7 +77,7 @@ We won't need them, and we can save time by avoiding them off the bat.
 
 We have two more constraints informed by the goal of our language.
 In the modern era, languages (and their compilers) are expected to be more interactive than the bygone days of batch compilation.
-It's now table stakes for any new language on the block to support IDE like features, usually via the [Language Sever Protocol (LSP)](https://microsoft.github.io/language-server-protocol/).
+It's now table stakes for any new language on the block to support IDE like features, usually via the [Language Server Protocol (LSP)](https://microsoft.github.io/language-server-protocol/).
 As a modern language ourselves, we need to support these fancy features.
 
 For the parser that takes the shape of two requirements:
@@ -183,7 +183,7 @@ The CST will let us put anything in the tree, but that means it will let us put 
 Our CST allows us to represent invalid trees, which is critical to handling erroneous input gracefully, but it also represents any bugs we introduce the same way.
 There's a tradeoff here.
 Our CST could instead provide typed nodes.
-Swift takes this approach, but it requires [code generation](https://github.com/swiftlang/swift-syntax/tree/main/CodeGeneration) and [gargantuan nodes](https://swiftpackageindex.com/swiftlang/swift-syntax/601.0.1/documentation/swiftsyntax/functiondeclsyntax/init(leadingtrivia:_:attributes:_:modifiers:_:funckeyword:_:name:_:genericparameterclause:_:signature:_:genericwhereclause:_:body:_:trailingtrivia:)) to represent all the possible failures states.
+Swift takes this approach, but it requires [code generation](https://github.com/swiftlang/swift-syntax/tree/main/CodeGeneration) and [gargantuan nodes](https://swiftpackageindex.com/swiftlang/swift-syntax/601.0.1/documentation/swiftsyntax/functiondeclsyntax/init(leadingtrivia:_:attributes:_:modifiers:_:funckeyword:_:name:_:genericparameterclause:_:signature:_:genericwhereclause:_:body:_:trailingtrivia:)) to represent all the possible failure states.
 
 ## Guess we need some syntax
 
