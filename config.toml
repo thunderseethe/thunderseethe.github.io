@@ -12,6 +12,9 @@ style = "doom-one"
 [markup.tableOfContents]
 startLevel = 1
 
+[markup.asciidocExt.attributes]
+source-highlighter = "rouge"
+
 [params]
 author = "THUNDERSEETHE'S DEVLOG"
 colorScheme = "auto"
@@ -63,3 +66,7 @@ series = "series"
 
 [outputs]
   home = ["HTML", "RSS"]
+
+[security]
+    [security.exec]
+    allow = ['^git$', '^go$', '^npx$', '^asciidoctor$']
