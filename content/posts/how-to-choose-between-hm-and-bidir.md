@@ -1,6 +1,6 @@
 +++
 title = "How to Choose Between Hindley-Milner and Bidirectional Typing"
-date = "2026-01-24T00:00:00Z"
+date = "2026-02-15T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
 series = []
@@ -66,7 +66,7 @@ enum Ast {
 }
 ```
 
-and we have a Type we'd like to assign to our AST:
+And we have a Type we'd like to assign to our AST:
 
 ```rs
 enum Type {
@@ -136,7 +136,7 @@ enum Ast {
 }
 ```
 
-and we're good language developers, so of course that means Type gets a function case as well:
+And we're good language developers, so of course that means Type gets a function case as well:
 
 ```rs
 enum Type {
