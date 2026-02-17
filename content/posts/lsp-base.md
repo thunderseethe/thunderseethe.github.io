@@ -182,11 +182,12 @@ Heck, once you know how a query engine works, consider an off the shelf solution
 
 The efficacy of our query engine lies in its deftness at determining when a query does not need to be run.
 We'll need an algorithm to determine when we can skip query execution.
-We borrow a tried and true algorithm from rustc: the [red-green algorithm](https://salsa-rs.github.io/salsa/reference/algorithm.html).
+We borrow a tried and true algorithm from salsa: the [red-green algorithm](https://salsa-rs.github.io/salsa/reference/algorithm.html).
 
-The red-green algorithm associates each query with a color, red, or green.
+The red-green algorithm conceptually associates each query with a color: red or green.
 When a query is green we're safe to reuse it's cached value.
 When a query is red, we need to reexecute it and update it's cache.
+In practice, we represent color by tracking the revision of a query.
 
 {{< notice note >}}
 We say query here, but we really mean a query with a particular set of arguments.
@@ -194,24 +195,30 @@ We'll have a query `cst_of(Uri)` that takes in a file URI and outputs a parse tr
 That query's cache will have an entry per file URI we parse, and each entry can be red or green.
 {{</ notice >}}
 
-All queries start red.
-Upon execution, they're marked green.
-When a query's input changes, we mark it red again.
-Before our engine executes any query, it checks the colors of that query's dependencies.
-If all of them are green, we can eschew our run and use our query's cached value.
-We know it's safe to skip our run because our queries are pure, relying only on their inputs to determine their output.
+Our query engine maintains one global revision that is updated anytime an input changes.
+Each query then tracks two revisions for it's cached value: `changed_at` and `verified_at`.
+`changed_at` is updated to the current global revision whenever we execute a query and it's value changes.
+That means we run the function that produces its value and update our cache with a new value.
+If we produce a value that's the same as our current cached value, we don't update `changed_at`.
 
-When any dependency is red, our engine executes our query.
-Our engine doesn't mark our query red, yet.
-We first compare our new value with the cached value.
-If our execution produced an equal value, we leave our query green.
-We only mark our query red when the values are different.
+`verified_at` is updated to the revision we've verified our query value hasn't changed, meaning it's safe to continue using the last changed at value.
+Note that `verified_at`, unlike `changed_at`, isn't necessarily updated to the global current revision, just whatever revision we've checked.
+We update `verified_at` when we execute a query.
+But we'll also update it when we can determine that a query's value couldn't have changed in a revision.
+
+This can happen when we check each query dependency and see it's `changed_at` revision precedes our query's `verified_at` revision.
+Since our queries are pure, if none of our dependencies change, we know our query hasn't changed and we can reuse our cached value as is.
+
+When any dependency has changed, our engine executes our query.
+Our engine doesn't update our `changed_at` revision, yet.
+First, it compares our new value with the cached value.
+If our execution produced an equal value, we leave our query's `changed_at` revision the same.
 
 This is more important in practice than it might seem.
 Imagine a scenario where we make a trivial change in our source code, changing whitespace, adding a comment, etc.
 We have to rerun our parsing query.
-Upon desugaring, however, we produce the same AST, marking our desugaring query green.
-Any query that depends on desugaring no longer needs to run.
+Upon desugaring, however, we produce the same AST, leaving our query's `changed_at` revision alone.
+Any query that depends on desugaring sees that old `changed_at` revision and knows it can use it's cached value.
 We've saved ourself from executing the remainder of our passes.
 
 With exposition out of the way, we can begin looking at some actual code.
@@ -261,7 +268,7 @@ It contains a cache for each query:
 
 ```rs
 struct Database { 
-  colors: ColorMap,
+  revisions: DashMap<QueryKey, Revision>,
   revision: AtomicUsize,
   // Query caches 
   content_input: DashMap<QueryKey, String>,
@@ -276,10 +283,17 @@ We need it because we're building a server that handles requests asynchronously.
 Dashmaps can be thought of as `RwLock<HashMap<K, V>>`.
 Their implementation differs for performance, but it's a helpful mental model.
 
-Alongside the caches, our database stores two important pieces of information: our color map and revision.
-The color map stores the color of each query, as seen on the red-green algorithm.
+Alongside the caches, our database stores two important pieces of information: our revisions map and revision.
+The revisions map stores the `changed_at` and `verified_at` of each query, as seen on the red-green algorithm.
 The revision is a counter that gets updated whenever we set an input query.
-It forces us to check green queries that ran on a previous input and make sure they're still up to date.
+`Revision` is a simple struct to name the two revisions we store for each query:
+
+```rs
+struct Revision {
+  verified_at: usize,
+  changed_at: usize,
+}
+```
 
 Our final field `dep_graph` tracks query dependencies.
 Whenever one query executes another query, we write that down in our dependency graph:
@@ -295,7 +309,7 @@ It offloads storing the graph to `DiGraph` type (which is a DAG) from the [`petg
 It's critical we have _a_ dependency graph.
 It's not critical _how_ that dependency graph works.
 Feel free to dig into [the code](https://github.com/thunderseethe/making-a-language/tree/main/lsp/base), if you're interested.
-We'll suffice knowing our graph provides two operations:
+We'll suffice knowing our graph provides three operations:
 
 ```rs
 impl DepGraph {
@@ -309,10 +323,18 @@ impl DepGraph {
     &self,
     key: &QueryKey
   ) -> Option<Vec<QueryKey>>;
+
+  fn clear_dependencies(
+    &self,
+    key: &QueryKey
+  );
 }
 ```
 
-We can add a dependency between queries, and we can ask for all the dependencies of a query.
+We can add a dependency between queries.
+We can ask for all the dependencies of a query.
+We can clear out all the dependencies of a query.
+A fitting trifecta.
 
 A single function employs all our query context: `query`.
 This function implements our red-green algorithm and handles all three of our query engine's responsibilities.
@@ -346,28 +368,104 @@ We run `producer` when we can't use our cached value and need to _produce_ a new
 It takes a `QueryContext`, so that it can call its own queries.
 It takes `QueryKey`, so that it has access to our query arguments.
 
-From there, `query`'s implementation begins by defining a helper `update_value`:
+From there, `query`'s implementation begins by checking if we can use a cached value:
+
+//defining a helper `update_value`:
 
 ```rs
 let revision = self.db.revision.load(Ordering::SeqCst);
-let update_value = |key: QueryKey| {
-  todo!("we'll see what this in a sec")
-};
+// If we verify, we can return our cached value immediately
+let revs = self.db.revisions.get(&key).map(|revs| *revs);
+if revs.is_some_and(|revs| 
+  !self.maybe_changed_after(key.clone(), revs)) {
+  return cache
+    .get(&key)
+    .unwrap_or_else(|| {
+      panic!(
+        "Verified query {:?} missing value in cache\n{:?}",
+        key, self.db.revisions
+      )
+    })
+    .value()
+    .clone();
+}
 ```
 
-At multiple points throughout `query` we might determine we need to update our query's value.
-`update_value` shares that logic in one place.
-Updating a query value comprises three tasks.
-First, we add an edge to our dependency graph:
+To use a cached value, we need some revisions in our map.
+Otherwise, we've yet to execute our query.
+Once we have that, we check if our query might have changed after its own revisions.
+A confusing operation that will make some more sense once we investigate `maybe_changed_after`:
 
 ```rs
+fn maybe_changed_after(
+  &self, 
+  key: QueryKey, 
+  revisions: Revision
+) -> bool {
+  todo!("Implement me plox")
+}
+```
+
+`maybe_changed_after` is integral to our efficient reuse of cached values.
+It decides if a query might have changed after the given `revision`.
+If it hasn't, we know we're safe to use our cached value.
+If it has, we _might_ be safe, but we're not going to risk it.
+We'll have to execute our query in that case.
+
+`maybe_changed_after` begins by checking if our query is either an input query or already verified:
+
+```rs
+let current_revision = self.db.revision.load(Ordering::SeqCst);
+let Some(revs) = self.db.revisions.get(&key).map(|revs| *revs) else {
+    return true;
+};
+if key.is_input() || revs.verified_at == current_revision {
+  return revs.changed_at > revision;
+}
+```
+
+If our query has already been verified at this revision we know if it's changed or not based on `changed_at based on `changed_at`.
+If our query is an input the same logic applies, input queries have no dependencies that could have changed out from under them so we can immediately check when they changed.
+Failing that, we move on to checking if each of our dependencies has changed:
+
+```rs
+let Some(deps) = self.dep_graph.dependencies(&key) else {
+  return true;
+};
+for dep in deps {
+  if self.maybe_changed_after(dep.clone(), revision) {
+    return true;
+  }
+}
+```
+
+One dependency that might have changed is enough to stop us in our tracks.
+We immediately return true in such a case.
+If we make it through all our dependencies, we've successfully verified our query:
+
+```rs
+// Write out our updated verified_at.
+self.db.revisions.get_mut(&key)
+    .expect("We set this at the top of the function")
+    .verified_at = current_revision;
+return revs.changed_at > revision;
+```
+
+We write down the revision we've verified and return if we have changed or not.
+Back in `query` we pick up with updating our query when we fail to verify.
+Updating a query value comprises three tasks.
+First, we have to manage our dependencies:
+
+```rs
+self.dep_graph.clear_dependencies(&key);
 if let Some(parent) = &self.parent {
   self.dep_graph.add_dependency(parent.clone(), key.clone());
 }
 ```
 
 Whenever we execute a query, and only then, we record it in the dependency graph.
-We trust that if we're using a cached value the query dependencies have already been recorded and have not changed.
+At the same time we clean out any dependencies already recorded for this query.
+Executing the query will rewrite our dependencies and this cleansing ensures we don't accrue stale dependencies that our query doesn't actually use anymore.
 Second, we produce our new value:
 
 ```rs
@@ -387,91 +485,17 @@ Third, we check that our new value is different from our cached value:
 
 ```rs
 let old = cache.insert(key.clone(), value.clone());
-if old.is_none_or(|old| old == value) {
-  self.db.colors.mark_green(key, revision);
-} else {
-  self.db.colors.mark_red(key, revision);
+let mut query_revs = self.db.revisions.entry(key).or_default();
+query_revs.verified_at = revision;
+if old.is_none_or(|old| old != value) {
+  query_revs.changed_at = revision;
 }
 value
 ```
 
-If our value hasn't changed, we mark our query green, successfully saving work!
+We always update `verified_at` when we produce a new value.
+But if our value hasn't changed, we leave `changed_at` alone, successfully saving work!
 `update_value` finishes by returning the new value.
-
-Back in `query`, we continue by trying to not call `update_value`:
-
-```rs
-let color = self.try_mark_green(key.clone());
-match color {
-  Color::Green => cache
-    .get(&key)
-    .unwrap_or_else(|| {
-      panic!(
-        "Green query {:?} missing value in cache\n{:?}",
-        key, self.db.colors
-      )
-    })
-    .value()
-    .clone(),
-  Color::Red => update_value(key),
-}
-```
-
-We try to mark our query green.
-Upon succeeding, we get to use our cached value.
-Otherwise, we're forced to run our query.
-
-`try_mark_green` checks each of our queries dependencies.
-When all our dependencies are green, we mark our query green for free.
-If we encounter a red dependency at any point, our query is red:
-
-```rs
-fn try_mark_green(&self, key: QueryKey) -> Color {
-  let revision = self.db.revision.load(Ordering::SeqCst);
-  // If we have no dependencies in the graph, assume we need to run the query.
-  let Some(deps) =  self.dep_graph.dependencies(&key) else {
-    return Color::Red;
-  };
-  let Some((_, parent_rev)) = self.db.colors.get(&key) else {
-    return Color::Red;
-  };
-  for dep in deps {
-    match self.db.colors.get(&dep) {
-      Some((Color::Green, rev)) if parent_rev >= rev => continue,
-      Some((Color::Green, rev)) if parent_rev < rev => return Color::Red,
-      Some((Color::Red, _)) => return Color::Red,
-      _ => todo!("a single case"),
-    }
-  }
-  // If we marked all dependencies green, mark this node green.
-  self.db.colors.mark_green(key, revision);
-  Color::Green
-}
-```
-
-Looping over the dependencies recorded in our graph, we return early with red if any of our dependencies are red.
-We also return red if a dependency is green, but has a newer revision then our current query.
-Revisions are incremented when inputs change, so a dependency with a newer revision implies this query needs to run over new input.
-
-There's a case, noted by our `todo!`, where our dependency query is absent from our color map.
-In that case, we recursively try to mark that dependency green:
-
-```rs
-if self.try_mark_green(dep.clone()) != Color::Green {
-  self.run_query(dep.clone());
-  // Because we just ran the query we can be sure the revision is up to date.
-  match self.db.colors.get(&dep) {
-    Some((Color::Green, _)) => continue,
-    Some((Color::Red, _)) => return Color::Red,
-    None => unreachable!("we just ran the query"),
-  }
-}
-```
-
-Upon succeeding we're done, our dependency is green.
-Failing that, we still try to mark our query green by just running it and seeing what happens.
-Running the query handles the case where our produced value is equal to our cached value.
-`run_query` is a helper that dispatches a call to the appropriate query based on `QueryKey`, throwing away the result.
 
 That's everything `query` does.
 Our query engine may be rudimentary but it is complete.
