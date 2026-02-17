@@ -289,11 +289,16 @@ The revision is a counter that gets updated whenever we set an input query.
 `Revision` is a simple struct to name the two revisions we store for each query:
 
 ```rs
+#[derive(Default)]
 struct Revision {
   verified_at: usize,
   changed_at: usize,
 }
 ```
+
+Importantly, `revision` starts at 1, but the `Revision` struct of each query defaults their revisions to 0.
+This ensures that the first time we call a query it isn't considered verified yet and will be run.
+It's an easy thing to miss reading the code, so I wanted to call it out here.
 
 Our final field `dep_graph` tracks query dependencies.
 Whenever one query executes another query, we write that down in our dependency graph:
