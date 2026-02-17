@@ -185,8 +185,8 @@ We'll need an algorithm to determine when we can skip query execution.
 We borrow a tried and true algorithm from salsa: the [red-green algorithm](https://salsa-rs.github.io/salsa/reference/algorithm.html).
 
 The red-green algorithm conceptually associates each query with a color: red or green.
-When a query is green we're safe to reuse it's cached value.
-When a query is red, we need to reexecute it and update it's cache.
+When a query is green we're safe to reuse its cached value.
+When a query is red, we need to reexecute it and update its cache.
 In practice, we represent color by tracking the revision of a query.
 
 {{< notice note >}}
@@ -196,29 +196,34 @@ That query's cache will have an entry per file URI we parse, and each entry can 
 {{</ notice >}}
 
 Our query engine maintains one global revision that is updated anytime an input changes.
-Each query then tracks two revisions for it's cached value: `changed_at` and `verified_at`.
+Each query then tracks two revisions for its cached value: `changed_at` and `verified_at`.
 `changed_at` is updated to the current global revision whenever we execute a query and it's value changes.
 That means we run the function that produces its value and update our cache with a new value.
 If we produce a value that's the same as our current cached value, we don't update `changed_at`.
 
-`verified_at` is updated to the revision we've verified our query value hasn't changed, meaning it's safe to continue using the last changed at value.
-Note that `verified_at`, unlike `changed_at`, isn't necessarily updated to the global current revision, just whatever revision we've checked.
-We update `verified_at` when we execute a query.
-But we'll also update it when we can determine that a query's value couldn't have changed in a revision.
+Where `changed_at` tracks the revision when a query changed, `verified_at` almost does the opposite.
+It tracks the last revision we confirmed our query value has not changed.
+Our implementation guarentees that for the range of revisions `changed_at...verified_at` our query value has not changed.
+On it's face this might sound trivial.
 
-This can happen when we check each query dependency and see it's `changed_at` revision precedes our query's `verified_at` revision.
-Since our queries are pure, if none of our dependencies change, we know our query hasn't changed and we can reuse our cached value as is.
+Our query hasn't changed for any revision after `changed_at`...that's kind of the point of a `changed_at` revision.
+The value of `verified_at` comes from sharing work between queries.
+Let's say query A and B depend on a query C.
+Whenever we call A or B, we have to check if C is up to date.
+But for a given revision, we only need to do that once.
+If we call A first, it will update the `verified_at` of C, and then when we call B it sees C is verified and doesn't re-verify it.
 
-When any dependency has changed, our engine executes our query.
-Our engine doesn't update our `changed_at` revision, yet.
+This guarantees we only traverse the dependency subgraph of C once per revision.
+Another nice property of is it lets us mark when a query executed but its value didn't change.
+When our engine executes our query it doesn't update the `changed_at` revision immediately.
 First, it compares our new value with the cached value.
-If our execution produced an equal value, we leave our query's `changed_at` revision the same.
+If our execution produced an equal value, we leave our query's `changed_at` revision the same but update the `verified_at` revision.
 
 This is more important in practice than it might seem.
 Imagine a scenario where we make a trivial change in our source code, changing whitespace, adding a comment, etc.
 We have to rerun our parsing query.
 Upon desugaring, however, we produce the same AST, leaving our query's `changed_at` revision alone.
-Any query that depends on desugaring sees that old `changed_at` revision and knows it can use it's cached value.
+Any query that depends on desugaring sees that old `changed_at` revision and knows it can use its cached value.
 We've saved ourself from executing the remainder of our passes.
 
 With exposition out of the way, we can begin looking at some actual code.
@@ -373,16 +378,25 @@ We run `producer` when we can't use our cached value and need to _produce_ a new
 It takes a `QueryContext`, so that it can call its own queries.
 It takes `QueryKey`, so that it has access to our query arguments.
 
-From there, `query`'s implementation begins by checking if we can use a cached value:
+From there, `query` starts by tracking our dependency (if available):
 
-//defining a helper `update_value`:
+```rs
+if let Some(parent) = &self.parent {
+  self.dep_graph.add_dependency(parent.clone(), key.clone());
+}
+```
+
+We'll see how parent gets set in a moment, but when it is, we record an edge in our DAG.
+After that we try to use our cached value:
 
 ```rs
 let revision = self.db.revision.load(Ordering::SeqCst);
 // If we verify, we can return our cached value immediately
-let revs = self.db.revisions.get(&key).map(|revs| *revs);
-if revs.is_some_and(|revs| 
-  !self.maybe_changed_after(key.clone(), revs)) {
+let verified_at = self.db.revisions
+    .get(&key)
+    .map(|revs| revs.verified_at);
+if verified_at.is_some_and(|verified_at| 
+    !self.maybe_changed_after(key.clone(), verified_at)) {
   return cache
     .get(&key)
     .unwrap_or_else(|| {
@@ -405,7 +419,7 @@ A confusing operation that will make some more sense once we investigate `maybe_
 fn maybe_changed_after(
   &self, 
   key: QueryKey, 
-  revisions: Revision
+  revision: usize
 ) -> bool {
   todo!("Implement me plox")
 }
@@ -429,9 +443,11 @@ if key.is_input() || revs.verified_at == current_revision {
 }
 ```
 
-If our query has already been verified at this revision we know if it's changed or not based on `changed_at based on `changed_at`.
+If our query has already been verified at this revision, we know if it's changed or not by comparing `changed_at` to our passed in `revision`.
 If our query is an input the same logic applies, input queries have no dependencies that could have changed out from under them so we can immediately check when they changed.
-Failing that, we move on to checking if each of our dependencies has changed:
+Initially, this seems like fruitless work.
+We're comparing our queries `changed_at` revision to it's own `verified_at` revision.
+In our next portion, however, we call `maybe_changed_after` on each of our `dependencies`:
 
 ```rs
 let Some(deps) = self.dep_graph.dependencies(&key) else {
@@ -444,8 +460,9 @@ for dep in deps {
 }
 ```
 
-One dependency that might have changed is enough to stop us in our tracks.
-We immediately return true in such a case.
+We still thread `revision` through each of these calls, so now they are checking if `dep`'s `changed_at` revision is higher than our query's `verified_at`.
+One such dependency is enough to stop us in our tracks.
+We immediately return true.
 If we make it through all our dependencies, we've successfully verified our query:
 
 ```rs
@@ -463,13 +480,9 @@ First, we have to manage our dependencies:
 
 ```rs
 self.dep_graph.clear_dependencies(&key);
-if let Some(parent) = &self.parent {
-  self.dep_graph.add_dependency(parent.clone(), key.clone());
-}
 ```
 
-Whenever we execute a query, and only then, we record it in the dependency graph.
-At the same time we clean out any dependencies already recorded for this query.
+We clean out any dependencies already recorded for this query.
 Executing the query will rewrite our dependencies and this cleansing ensures we don't accrue stale dependencies that our query doesn't actually use anymore.
 Second, we produce our new value:
 
@@ -501,6 +514,61 @@ value
 We always update `verified_at` when we produce a new value.
 But if our value hasn't changed, we leave `changed_at` alone, successfully saving work!
 `update_value` finishes by returning the new value.
+
+{{< accessory title="Full query Code" >}}
+Putting it all together so you can see `query` all in one place:
+
+```rs
+fn query<V: PartialEq + Clone>(
+  &self,
+  key: QueryKey,
+  cache: &DashMap<QueryKey, V>,
+  producer: impl FnOnce(&Self, &QueryKey) -> V,
+) -> V {
+  if let Some(parent) = &self.parent {
+    self.dep_graph.add_dependency(parent.clone(), key.clone());
+  }
+  let revision = self.db.revision.load(Ordering::SeqCst);
+  // If we verify, we can return our cached value immediately
+  let verified_at = self.db.revisions
+    .get(&key)
+    .map(|revs| revs.verified_at);
+  if verified_at.is_some_and(|verified_at| 
+    !self.maybe_changed_after(key.clone(), verified_at)) {
+    return cache
+      .get(&key)
+      .unwrap_or_else(|| {
+        panic!(
+          "Verified query {:?} missing value in cache\n{:?}",
+          key, self.db.revisions
+        )
+      })
+      .value()
+      .clone();
+  }
+  // We've failed to use a cached value, we need to update our value.
+  self.dep_graph.clear_dependencies(&key);
+  let value = producer(
+    &QueryContext {
+      parent: Some(key.clone()),
+      db: self.db.clone(),
+      dep_graph: self.dep_graph.clone(),
+    },
+    &key,
+  );
+  let old = cache.insert(key.clone(), value.clone());
+  let mut query_revs = self.db.revisions
+    .entry(key)
+    .or_default();
+  query_revs.verified_at = revision;
+  if old.is_none_or(|old| old != value) {
+    query_revs.changed_at = revision;
+  }
+  value
+}
+```
+
+{{< /accessory >}}
 
 That's everything `query` does.
 Our query engine may be rudimentary but it is complete.
