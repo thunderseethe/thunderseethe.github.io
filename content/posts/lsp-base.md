@@ -184,10 +184,10 @@ The efficacy of our query engine lies in its deftness at determining when a quer
 We'll need an algorithm to determine when we can skip query execution.
 We borrow a tried and true algorithm from salsa: the [red-green algorithm](https://salsa-rs.github.io/salsa/reference/algorithm.html).
 
-The red-green algorithm conceptually associates each query with a color: red or green.
+The red-green algorithm, conceptually, associates each query with a color: red or green.
 When a query is green we're safe to reuse its cached value.
 When a query is red, we need to reexecute it and update its cache.
-In practice, we represent color by tracking the revision of a query.
+In practice, we represent color by tracking revisions of a query.
 
 {{< notice note >}}
 We say query here, but we really mean a query with a particular set of arguments.
@@ -203,18 +203,18 @@ If we produce a value that's the same as our current cached value, we don't upda
 
 Where `changed_at` tracks the revision when a query changed, `verified_at` almost does the opposite.
 It tracks the last revision we confirmed our query value has not changed.
-Our implementation guarentees that for the range of revisions `changed_at...verified_at` our query value has not changed.
-On it's face this might sound trivial.
+Our implementation guarantees that for the range of revisions `changed_at...verified_at` our query value has not changed.
+On its face this might sound trivial.
 
-Our query hasn't changed for any revision after `changed_at`...that's kind of the point of a `changed_at` revision.
+Of course our query hasn't changed for any revision after `changed_at`...that's kind of the point of a `changed_at` revision.
 The value of `verified_at` comes from sharing work between queries.
 Let's say query A and B depend on a query C.
 Whenever we call A or B, we have to check if C is up to date.
 But for a given revision, we only need to do that once.
 If we call A first, it will update the `verified_at` of C, and then when we call B it sees C is verified and doesn't re-verify it.
 
-This guarantees we only traverse the dependency subgraph of C once per revision.
-Another nice property of is it lets us mark when a query executed but its value didn't change.
+This guarantees we only traverse the dependency sub graph of C once per revision.
+Another nice property is it lets us mark when a query executed but its value didn't change.
 When our engine executes our query it doesn't update the `changed_at` revision immediately.
 First, it compares our new value with the cached value.
 If our execution produced an equal value, we leave our query's `changed_at` revision the same but update the `verified_at` revision.
