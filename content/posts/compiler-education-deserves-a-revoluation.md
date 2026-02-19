@@ -5,7 +5,6 @@ author = "thunderseethe"
 tags = ["Programming Languages"]
 keywords = ["Programming Languages", "Lazy", "Eager", "Call-by-value", "Call-by-name", "Call-by-need", "Call-by-push-value", "Evaluation Order", "Evaluation Strategy", "Type Inference", "Code Generation", "IR", "Functional"]
 description = "How we teach compilers and why it's gotta change"
-draft = true
 +++
 
 {{< notice note >}}
