@@ -1,6 +1,6 @@
 +++
 title = "Compiler Education Deserves a Revolution"
-date = "2026-01-09T00:00:00Z"
+date = "2026-02-19T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages"]
 keywords = ["Programming Languages", "Lazy", "Eager", "Call-by-value", "Call-by-name", "Call-by-need", "Call-by-push-value", "Evaluation Order", "Evaluation Strategy", "Type Inference", "Code Generation", "IR", "Functional"]
@@ -9,7 +9,9 @@ draft = true
 +++
 
 {{< notice note >}}
-I was invited to write an article for the [Paged Out](https://pagedout.institute/) magazine. If you would like to see this article in glorious HD color, with some fun diagrams, check out [issue 8](TODO).
+I was invited to write an article for the [Paged Out](https://pagedout.institute/) magazine.
+If you would like to see this article in glorious HD color, with some fun diagrams, check out [issue 8](https://pagedout.institute/webview.php?issue=8&page=1).
+I think it's pretty neat.
 {{</ notice >}}
 
 Crack open any compiler tome from the last century and you'll find some variant of the same architecture.
