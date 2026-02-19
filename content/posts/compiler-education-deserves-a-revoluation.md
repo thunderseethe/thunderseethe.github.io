@@ -49,3 +49,8 @@ Query based compilers are all the rage: Rust, Swift, Kotlin, Haskell, and Clang 
 If you want to learn how these new optimal incremental compilers work, however, you're hard pressed to find resources.
 Let this be your call to action: persuade your professors, pester your local PL passionates, phone your representatives.
 We need more educational material on query-based compilers.
+
+{{< notice tip >}}
+If you'd like to learn how to make a query based compiler, check out my [making a language series](/series/making-a-language).
+It culminates in constructing a query based compiler and using it to implement a [language server](https://thunderseethe.dev/making-a-language).
+{{< /notice >}}
