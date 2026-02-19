@@ -1,5 +1,5 @@
 +++
-title = "I'm betting on Call-by-Push-Value"
+title = "I'm Betting on Call-by-Push-Value"
 date = "2024-03-09T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages"]

@@ -1,5 +1,5 @@
 +++
-title = "Turning Our AST Into Type Constraints"
+title = "Turning our AST Into Type Constraints"
 date = "2023-06-24T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]

@@ -1,5 +1,5 @@
 +++
-title = "Typechecking a Language without a Parser"
+title = "Typechecking a Language Without a Parser"
 date = "2023-06-17T00:00:00Z"
 author = "thunderseethe"
 tags = ["Programming Languages", "Type Inference"]
