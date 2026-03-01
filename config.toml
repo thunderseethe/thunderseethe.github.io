@@ -17,6 +17,7 @@ source-highlighter = "rouge"
 
 [params]
 author = "THUNDERSEETHE'S DEVLOG"
+avatarURL = "img/avatar.png"
 colorScheme = "auto"
 hideColorSchemeToggle = false
 info = """
